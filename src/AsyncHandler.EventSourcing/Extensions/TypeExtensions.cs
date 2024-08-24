@@ -10,4 +10,15 @@ public static class TypeExtensions
         m.Attributes == MethodAttributes.Private &&
         m.GetParameters().First().ParameterType == e.GetType())
         ?? throw new Exception($"No handler defined for the {e.GetType()} event.");
+
+    
+    public static void InvokeApply(this Type type, SourceEvent e)
+    {
+        var apply = type.GetApply(e);
+        try
+        {
+            apply.Invoke(type, [e]);
+        }
+        catch(TargetInvocationException){ throw; }
+    }
 }
