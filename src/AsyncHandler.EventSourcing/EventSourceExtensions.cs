@@ -3,7 +3,7 @@ using AsyncHandler.EventSourcing.Projections;
 
 namespace AsyncHandler.EventSourcing;
 
-public static class EventSourcingExtensions
+public static class EventSourceExtensions
 {
     public static EventSourceConfiguration UseDocumentMode(
         this EventSourceConfiguration configuration,
