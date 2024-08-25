@@ -1,4 +1,5 @@
-﻿using Microsoft.Extensions.DependencyInjection;
+﻿using AsyncHandler.EventSourcing.Configuration;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace AsyncHandler.EventSourcing;
 
