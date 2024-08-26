@@ -1,23 +1,18 @@
-
-using System.Reflection;
 using AsyncHandler.EventSourcing.Events;
-using AsyncHandler.EventSourcing.Extensions;
 
-namespace AsyncHandler.EventSourcing.AggregateRoot;
+namespace AsyncHandler.EventSourcing;
 
 public abstract class AggregateRoot(string aggregateId)
 {
-    private readonly List<SourceEvent> _events = [];
     public string AggregateId => aggregateId;
     public int Version { get; private set; }
-    public IEnumerable<SourceEvent> Events => _events;
     public string? TenantId = string.Empty;
+    private readonly List<SourceEvent> _pendingEvents = [];
+    private readonly List<SourceEvent> _eventStream = [];
+    public IEnumerable<SourceEvent> EventStream => _eventStream;
+    public IEnumerable<SourceEvent> PendingEvents => _pendingEvents;
     protected virtual void Apply(SourceEvent e) => BumpVersion(events => events.Add(e));
-    private void BumpVersion(Action<List<SourceEvent>> add)
-    {
-        add(_events);
-        Version++;
-    }
+    private void BumpVersion(Action<List<SourceEvent>> append) { append(_pendingEvents); Version++; }
     protected virtual void RaiseEvent(SourceEvent e)
     {
         e = e with
@@ -30,5 +25,19 @@ public abstract class AggregateRoot(string aggregateId)
         };
         TenantId = e.TenantId;
         Apply(e);
+    }
+    public void RestoreAggregate(IEnumerable<SourceEvent> events)
+    {
+        foreach (var e in events)
+        {
+            Apply(e);
+        }
+    }
+    public IEnumerable<SourceEvent> CommitPendingEvents()
+    {
+        IEnumerable<SourceEvent> pending = _pendingEvents;
+        _eventStream.AddRange(pending);
+        _pendingEvents.Clear();
+        return pending;
     }
 }

@@ -1,5 +1,6 @@
 using System.Reflection;
 using AsyncHandler.EventSourcing.Events;
+using Microsoft.Data.SqlClient;
 
 namespace AsyncHandler.EventSourcing.Extensions;
 
@@ -20,5 +21,21 @@ public static class TypeExtensions
             apply.Invoke(type, [e]);
         }
         catch(TargetInvocationException){ throw; }
+    }
+    public static T CreateAggregate<T>(this Type type, string aggregateId)
+    {
+        var constructor = type.GetConstructor([typeof(AggregateRoot)]);
+        try
+        {
+            var aggregate = constructor?.Invoke(type, [aggregateId]) ??
+                throw new Exception($"Provided type {typeof(T)} is not an aggregate.");
+            return (T) aggregate;
+        }
+        catch(TargetInvocationException) { throw; }
+        catch(Exception) { throw; }
+    }
+    public static void CreateIfNotExists(this SqlConnection sqlConnection, string str)
+    {
+        
     }
 }
