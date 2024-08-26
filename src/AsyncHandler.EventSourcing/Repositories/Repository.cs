@@ -1,8 +1,10 @@
 using AsyncHandler.EventSourcing;
 using AsyncHandler.EventSourcing.Repositories.AzureSql;
 using AsyncHandler.EventSourcing.Schema;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 
-public abstract class Repository<T> : IRepository<T> where T : AggregateRoot
+public class Repository<T>(string connectionString, IServiceProvider sp) : IRepository<T> where T : AggregateRoot
 {
     public static string GetSourceCommand => @"SELECT * FROM [dbo].[EventSource] WHERE [AggregateId] = @AggregateId";
     public static string InsertSourceCommand => @"INSERT INTO [dbo].[EventSource] VALUES (@timeStamp, @sequenceNumber, @aggregateId, @aggregateType, @version, @eventType, @data, @correlationId, @tenantId)";
@@ -20,8 +22,10 @@ public abstract class Repository<T> : IRepository<T> where T : AggregateRoot
         $"[{EventSourceSchema.CorrelationId}] [nvarchar](255) NOT NULL,"+
         $"[{EventSourceSchema.TenantId}] [nvarchar](255) NOT NULL,"+
     ")";
-    public IAzureSqlClient<T>? AzureSqlClient { get; }
-    public IAzureSqlClient<T>? SqlServerClient{ get; }
-    public IAzureSqlClient<T>? PostgreSqlClient{ get; }
-    public abstract void InitSource(string connectionString);
+    private IAzureSqlClient<T>? _azureSqlClient;
+    private IAzureSqlClient<T>? _postgreSqlClient;
+    private IAzureSqlClient<T>? _sqlServerClient;
+    public IAzureSqlClient<T> AzureSqlClient => _azureSqlClient ??= new AzureSqlClient<T>(connectionString, sp);
+    public IAzureSqlClient<T> SqlServerClient => _postgreSqlClient ??= new AzureSqlClient<T>(connectionString, sp);
+    public IAzureSqlClient<T> PostgreSqlClient => _sqlServerClient ??= new AzureSqlClient<T>(connectionString, sp);
 }
