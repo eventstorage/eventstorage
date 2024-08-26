@@ -7,25 +7,33 @@ using AsyncHandler.EventSourcing.Schema;
 using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.Logging;
 
-namespace AsyncHandler.EventSourcing.SourceRepositories.AzureSql;
+namespace AsyncHandler.EventSourcing.Repositories.AzureSql;
 
-public class AzureSqlClient<T> : IAzureSqlClient<T> where T : AggregateRoot
+public class AzureSqlClient<T> : Repository<T>, IAzureSqlClient<T> where T : AggregateRoot
 {
-    private readonly SqlConnection _sqlConnection;
+    private readonly string _connectionString;
     private readonly ILogger<AzureSqlClient<T>> _logger;
-    private static readonly string getSourceCommand = @"SELECT * FROM [dbo].[EventSource] WHERE [AggregateId] = @AggregateId";
-    private static readonly string insertSourceEvent = @"INSERT INTO [dbo].[EventSource] VALUES (@timestamp, @sequencenumber, @aggregateid, @aggregatetype, @version, @eventtype, @data, @correlationid, @tenantid)";
     public AzureSqlClient(string connectionString, ILogger<AzureSqlClient<T>> logger)
     {
+        _connectionString = connectionString;
         _logger = logger;
-        _sqlConnection = new(connectionString);
-        _sqlConnection.InitConnection();
+        InitSource(connectionString);
+    }
+    public override void InitSource(string connectionString)
+    {
+        _logger.LogInformation($"Begin initializing {nameof(AzureSqlClient)}.");
+        using SqlConnection sqlConnection = new(connectionString);
+        using SqlCommand command = new(CreateIfNotExists, sqlConnection);
+        sqlConnection.Open();
+        command.ExecuteNonQuery();
     }
     public async Task<T> CreateOrRestore(string sourceId)
     {
         try
         {
-            using SqlCommand command = new(getSourceCommand, _sqlConnection);
+            using SqlConnection sqlConnection = new(_connectionString);
+            using SqlCommand command = new(GetSourceCommand, sqlConnection);
+            command.Parameters.AddWithValue("@aggregateId", sourceId);
             using SqlDataReader reader = await command.ExecuteReaderAsync(CommandBehavior.Default);
             
             _logger.LogInformation($"Restoring aggregate {typeof(T)} started.");
@@ -75,18 +83,19 @@ public class AzureSqlClient<T> : IAzureSqlClient<T> where T : AggregateRoot
         {
             List<Task> tasks = [];
             // this is turned into a batch later
+            using SqlConnection sqlConnection = new(_connectionString);
             foreach (var e in aggregate.PendingEvents)
             {
-                var command = new SqlCommand(insertSourceEvent, _sqlConnection);
-                command.Parameters.Add(DateTime.UtcNow);
-                command.Parameters.Add(0);
-                command.Parameters.Add(aggregate.AggregateId);
-                command.Parameters.Add(nameof(aggregate));
-                command.Parameters.Add(aggregate.Version);
-                command.Parameters.Add(nameof(e));
-                command.Parameters.Add(JsonSerializer.Serialize(e));
-                command.Parameters.Add(e.CorrelationId);
-                command.Parameters.Add(aggregate.TenantId);
+                var command = new SqlCommand(InsertSourceCommand, sqlConnection);
+                command.Parameters.AddWithValue("@timeStamp", DateTime.UtcNow);
+                command.Parameters.AddWithValue("@sequenceNumber", 0);
+                command.Parameters.AddWithValue("@aggregateId", aggregate.AggregateId);
+                command.Parameters.AddWithValue("@aggregateType", nameof(aggregate));
+                command.Parameters.AddWithValue("@version", aggregate.Version);
+                command.Parameters.AddWithValue("@eventType", nameof(e));
+                command.Parameters.AddWithValue("@data", JsonSerializer.Serialize(e));
+                command.Parameters.AddWithValue("@correlationId", e.CorrelationId);
+                command.Parameters.AddWithValue("@tenantId", aggregate.TenantId);
                 tasks.Add(command.ExecuteNonQueryAsync());
             }
             await Task.WhenAll(tasks).ConfigureAwait(false);
