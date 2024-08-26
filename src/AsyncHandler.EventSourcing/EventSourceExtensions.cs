@@ -1,26 +1,23 @@
 ﻿
+using AsyncHandler.EventSourcing.Configuration;
 using AsyncHandler.EventSourcing.Projections;
 
 namespace AsyncHandler.EventSourcing;
 
 public static class EventSourceExtensions
 {
-    public static EventSourceConfiguration UseDocumentMode(
+    public static EventSourceConfiguration SelectEventSource(
         this EventSourceConfiguration configuration,
+        EventSources source,
         string connectionString)
     {
-        return configuration;
-    }
-    public static EventSourceConfiguration UseRelationalMode(
-        this EventSourceConfiguration configuration,
-        string connectionString)
-    {
+        configuration.EventSource = source;
         return configuration;
     }
     public static void AddProjection<T>(
         this EventSourceConfiguration configuration,
         ProjectionMode projectionMode)
     {
-
+        
     }
 }
