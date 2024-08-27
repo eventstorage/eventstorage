@@ -1,9 +1,9 @@
-﻿using AsyncHandler.EventSourcing.Configuration;
+﻿using System.Reflection;
+using AsyncHandler.EventSourcing.Configuration;
+using AsyncHandler.EventSourcing.Extensions;
 using AsyncHandler.EventSourcing.Projections;
 using AsyncHandler.EventSourcing.Repositories;
-using AsyncHandler.EventSourcing.Repositories.AzureSql;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging;
 
 namespace AsyncHandler.EventSourcing;
 
@@ -14,21 +14,29 @@ public static class EventSourceExtensions
         EventSources source,
         string connectionString)
     {
-        configuration.ServiceCollection.AddTransient<IRepository<AggregateRoot>>(sp =>
+        Type aggregateType = typeof(AggregateRoot).GetClientAggregate(Assembly.GetCallingAssembly());
+        Type repositoryInterfaceType = typeof(IRepository<>).MakeGenericType(aggregateType);
+        Type repositoryType = typeof(Repository<>).MakeGenericType(aggregateType);
+
+        #pragma warning disable CS8603
+        configuration.ServiceCollection.AddTransient(repositoryInterfaceType, sp =>
         {
-            var repository = new Repository<AggregateRoot>(connectionString, sp);
-            Task.Run(() => source switch
-            {
-                EventSources.AzureSql => repository.AzureSqlClient.InitSource(),
-                EventSources.PostgresSql => repository.PostgreSqlClient.InitSource(),
-                EventSources.SQLServer => repository.SqlServerClient.InitSource(),
-                _ => Task.CompletedTask,
-            });
+            var repository = Activator.CreateInstance(repositoryType, connectionString, sp);
+            // configuration.ServiceCollection.AddSingleton<IHostedService>(sp => new InitSource(repository));
+            // Task.Run(() => source switch
+            // {
+            //     EventSources.AzureSql => repository.AzureSqlClient.InitSource(),
+            //     EventSources.PostgresSql => repository.PostgreSqlClient.InitSource(),
+            //     EventSources.SQLServer => repository.SqlServerClient.InitSource(),
+            //     _ => Task.CompletedTask,
+            // });
             return repository;
         });
-        configuration.ServiceCollection.AddTransient<IEventSource<AggregateRoot>>(sp =>
+        Type eventSourceInterfaceType = typeof(IEventSource<>).MakeGenericType(aggregateType);
+        Type eventSourceType = typeof(EventSource<>).MakeGenericType(aggregateType);
+        configuration.ServiceCollection.AddTransient(eventSourceInterfaceType, sp =>
         {
-            return new EventSource<AggregateRoot>(sp.GetRequiredService<IRepository<AggregateRoot>>(), source);
+            return Activator.CreateInstance(eventSourceType, sp.GetRequiredService<IRepository<AggregateRoot>>(), source);
         });
         return configuration;
     }

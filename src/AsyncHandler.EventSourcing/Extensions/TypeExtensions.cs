@@ -1,4 +1,5 @@
 using System.Reflection;
+using System.Security.Cryptography.X509Certificates;
 using AsyncHandler.EventSourcing.Events;
 using Microsoft.Data.SqlClient;
 
@@ -37,5 +38,20 @@ public static class TypeExtensions
     public static void CreateIfNotExists(this SqlConnection sqlConnection, string str)
     {
         
+    }
+    public static Type GetClientAggregate(this Type type, Assembly assembly)
+    {
+        var aggregate = assembly.GetTypes().FirstOrDefault(x => typeof(AggregateRoot).IsAssignableFrom(x));
+        if(aggregate != null)
+            return aggregate;
+
+        var referencedAssemblies = assembly.GetReferencedAssemblies()
+        .Where(x => x.Name != Assembly.GetAssembly(typeof(AggregateRoot))?.GetName()?.Name);
+        foreach (var assemblyName in referencedAssemblies)
+        {
+            aggregate = Assembly.Load(assemblyName)
+            .GetTypes().FirstOrDefault(t => typeof(AggregateRoot).IsAssignableFrom(t));
+        }
+        return aggregate ?? throw new Exception("No aggregate defined.");
     }
 }
