@@ -39,19 +39,23 @@ public static class TypeExtensions
     {
         
     }
-    public static Type GetClientAggregate(this Type type, Assembly assembly)
+    public static Type? GetClientAggregate(this Type type, Assembly callingAssembly)
     {
-        var aggregate = assembly.GetTypes().FirstOrDefault(x => typeof(AggregateRoot).IsAssignableFrom(x));
+        var aggregate = callingAssembly.GetTypes()
+        .FirstOrDefault(x => typeof(AggregateRoot).IsAssignableFrom(x));
         if(aggregate != null)
             return aggregate;
 
-        var referencedAssemblies = assembly.GetReferencedAssemblies()
+        var referencedAssemblies = callingAssembly.GetReferencedAssemblies()
         .Where(x => x.Name != Assembly.GetAssembly(typeof(AggregateRoot))?.GetName()?.Name);
+        // filtering referencedAssemblies, probably remove all except project references?
         foreach (var assemblyName in referencedAssemblies)
         {
-            aggregate = Assembly.Load(assemblyName)
-            .GetTypes().FirstOrDefault(t => typeof(AggregateRoot).IsAssignableFrom(t));
+            aggregate = Assembly.Load(assemblyName).GetTypes()
+            .FirstOrDefault(t => typeof(AggregateRoot).IsAssignableFrom(t));
+            if(aggregate != null)
+                return aggregate;
         }
-        return aggregate ?? throw new Exception("No aggregate defined.");
+        return aggregate;
     }
 }

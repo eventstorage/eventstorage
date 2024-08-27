@@ -14,10 +14,12 @@ public static class EventSourceExtensions
         EventSources source,
         string connectionString)
     {
-        Type aggregateType = typeof(AggregateRoot).GetClientAggregate(Assembly.GetCallingAssembly());
+        Type? aggregateType = typeof(AggregateRoot).GetClientAggregate(Assembly.GetCallingAssembly());
+        if (aggregateType == null)
+            return configuration;
+        
         Type repositoryInterfaceType = typeof(IRepository<>).MakeGenericType(aggregateType);
         Type repositoryType = typeof(Repository<>).MakeGenericType(aggregateType);
-
         #pragma warning disable CS8603
         configuration.ServiceCollection.AddTransient(repositoryInterfaceType, sp =>
         {
