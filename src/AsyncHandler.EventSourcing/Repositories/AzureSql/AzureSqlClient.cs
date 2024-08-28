@@ -11,28 +11,18 @@ using Microsoft.Extensions.Logging;
 namespace AsyncHandler.EventSourcing.Repositories.AzureSql;
 
 public class AzureSqlClient<T>(string connectionString, IServiceProvider sp)
-    : Repository<T>(connectionString, sp),
-    IAzureSqlClient<T> where T : AggregateRoot
+    : ClientBase where T : AggregateRoot
 {
     private readonly string _connectionString = connectionString;
     private readonly ILogger<AzureSqlClient<T>> _logger = sp.GetRequiredService<ILogger<AzureSqlClient<T>>>();
-    public async Task InitSource()
+    public async Task InitAzureSql()
     {
-        _logger.LogInformation($"Begin initializing {nameof(AzureSqlClient)}.");
-        try
-        {
-            using SqlConnection sqlConnection = new(_connectionString);
-            using SqlCommand command = new(CreateIfNotExists, sqlConnection);
-            sqlConnection.Open();
-            await command.ExecuteNonQueryAsync();
-            _logger.LogInformation($"Initializing {nameof(AzureSqlClient)} has completed.");
-        }
-        catch(SqlException e)
-        {
-            if(_logger.IsEnabled(LogLevel.Error))
-                _logger.LogError($"Initializing {typeof(T)} failed. {e.Message}");
-            throw;
-        }
+        _logger.LogInformation($"Begin initializing {nameof(AzureSqlClient<T>)}.");
+        using SqlConnection sqlConnection = new(_connectionString);
+        using SqlCommand command = new(CreateIfNotExists, sqlConnection);
+        sqlConnection.Open();
+        await command.ExecuteNonQueryAsync();
+        _logger.LogInformation($"Initializing {nameof(AzureSqlClient<T>)} has completed.");
     }
     public async Task<T> CreateOrRestore(string sourceId)
     {
