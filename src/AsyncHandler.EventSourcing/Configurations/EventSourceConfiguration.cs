@@ -4,5 +4,5 @@ namespace AsyncHandler.EventSourcing.Configuration;
 
 public class EventSourceConfiguration(IServiceCollection services) : AsyncHandlerConfiguration(services)
 {
-    public EventSources EventSource { get; set; }
+    // public EventSources EventSource { get; set; }
 }

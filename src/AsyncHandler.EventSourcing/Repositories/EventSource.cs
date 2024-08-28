@@ -2,28 +2,31 @@ using AsyncHandler.EventSourcing.Configuration;
 
 namespace AsyncHandler.EventSourcing.Repositories;
 
-internal class EventSource<T>(
-    IRepository<T> repository,
-    EventSources source) : IEventSource<T> where T : AggregateRoot
+internal class EventSource<T>(string connectionString, IServiceProvider sp, EventSources eventSource) 
+    : SourceBase<T>(connectionString, sp), IEventSource<T> where T : AggregateRoot
 {
-    public Task<T> CreateOrRestore(string sourceId)
+    public override EventSources Source  => eventSource;
+    public override Task InitSource() => Source switch
     {
-        return source switch
-        {
-            EventSources.AzureSql => repository.AzureSqlClient.CreateOrRestore(sourceId),
-            EventSources.PostgresSql => repository.PostgreSqlClient.CreateOrRestore(sourceId),
-            EventSources.SQLServer => repository.SqlServerClient.CreateOrRestore(sourceId),
-            _ => repository.AzureSqlClient.CreateOrRestore(sourceId),
-        };
-    }
-    public Task Commit(T t)
+        EventSources.AzureSql => AzureSqlClient.InitAzureSql(),
+        EventSources.PostgresSql => PostgreSqlClient.InitAzureSql(),
+        EventSources.SQLServer => SqlServerClient.InitAzureSql(),
+        _ => Task.CompletedTask,
+    };
+    public Task<T> CreateOrRestore(string sourceId) => Source switch
     {
-        return source switch
-        {
-            EventSources.AzureSql => repository.AzureSqlClient.Commit(t),
-            EventSources.PostgresSql => repository.PostgreSqlClient.Commit(t),
-            EventSources.SQLServer => repository.SqlServerClient.Commit(t),
-            _ => Task.CompletedTask,
-        };
-    }
+        EventSources.AzureSql => AzureSqlClient.CreateOrRestore(sourceId),
+        EventSources.PostgresSql => PostgreSqlClient.CreateOrRestore(sourceId),
+        EventSources.SQLServer => SqlServerClient.CreateOrRestore(sourceId),
+        _ => AzureSqlClient.CreateOrRestore(sourceId),
+    };
+    
+    public Task Commit(T t) => Source switch
+    {
+        EventSources.AzureSql => AzureSqlClient.Commit(t),
+        EventSources.PostgresSql => PostgreSqlClient.Commit(t),
+        EventSources.SQLServer => SqlServerClient.Commit(t),
+        _ => Task.CompletedTask,
+    };
+    
 }
