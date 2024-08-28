@@ -22,20 +22,14 @@ public static class EventSourceExtensions
         
         configuration.ServiceCollection.AddSingleton<IHostedService>((sp) =>
         {
-            return new SourceInitializer(new Repository<AggregateRoot>(connectionString, sp), source);
+            return new SourceInitializer(new EventSource<AggregateRoot>(connectionString, sp, source));
         });
         #pragma warning disable CS8603
-        Type repositoryInterfaceType = typeof(IRepository<>).MakeGenericType(aggregateType);
-        Type repositoryType = typeof(Repository<>).MakeGenericType(aggregateType);
+        Type repositoryInterfaceType = typeof(IEventSource<>).MakeGenericType(aggregateType);
+        Type repositoryType = typeof(EventSource<>).MakeGenericType(aggregateType);
         configuration.ServiceCollection.AddTransient(repositoryInterfaceType, sp =>
         {
-            return Activator.CreateInstance(repositoryType, connectionString, sp);
-        });
-        Type eventSourceInterfaceType = typeof(IEventSource<>).MakeGenericType(aggregateType);
-        Type eventSourceType = typeof(EventSource<>).MakeGenericType(aggregateType);
-        configuration.ServiceCollection.AddTransient(eventSourceInterfaceType, sp =>
-        {
-            return Activator.CreateInstance(eventSourceType, sp.GetRequiredService<IRepository<AggregateRoot>>(), source);
+            return Activator.CreateInstance(repositoryType, connectionString, sp, source);
         });
         return configuration;
     }
