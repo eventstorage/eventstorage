@@ -3,7 +3,9 @@ using AsyncHandler.EventSourcing.Configuration;
 using AsyncHandler.EventSourcing.Extensions;
 using AsyncHandler.EventSourcing.Projections;
 using AsyncHandler.EventSourcing.Repositories;
+using AsyncHandler.EventSourcing.Workers;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 
 namespace AsyncHandler.EventSourcing;
 
@@ -18,21 +20,16 @@ public static class EventSourceExtensions
         if (aggregateType == null)
             return configuration;
         
+        configuration.ServiceCollection.AddSingleton<IHostedService>((sp) =>
+        {
+            return new SourceInitializer(new Repository<AggregateRoot>(connectionString, sp), source);
+        });
+        #pragma warning disable CS8603
         Type repositoryInterfaceType = typeof(IRepository<>).MakeGenericType(aggregateType);
         Type repositoryType = typeof(Repository<>).MakeGenericType(aggregateType);
-        #pragma warning disable CS8603
         configuration.ServiceCollection.AddTransient(repositoryInterfaceType, sp =>
         {
-            var repository = Activator.CreateInstance(repositoryType, connectionString, sp);
-            // configuration.ServiceCollection.AddSingleton<IHostedService>(sp => new InitSource(repository));
-            // Task.Run(() => source switch
-            // {
-            //     EventSources.AzureSql => repository.AzureSqlClient.InitSource(),
-            //     EventSources.PostgresSql => repository.PostgreSqlClient.InitSource(),
-            //     EventSources.SQLServer => repository.SqlServerClient.InitSource(),
-            //     _ => Task.CompletedTask,
-            // });
-            return repository;
+            return Activator.CreateInstance(repositoryType, connectionString, sp);
         });
         Type eventSourceInterfaceType = typeof(IEventSource<>).MakeGenericType(aggregateType);
         Type eventSourceType = typeof(EventSource<>).MakeGenericType(aggregateType);
@@ -42,10 +39,10 @@ public static class EventSourceExtensions
         });
         return configuration;
     }
-    public static void AddProjection<T>(
+    public static EventSourceConfiguration AddProjection<T>(
         this EventSourceConfiguration configuration,
         ProjectionMode projectionMode)
     {
-        
+        return configuration;
     }
 }

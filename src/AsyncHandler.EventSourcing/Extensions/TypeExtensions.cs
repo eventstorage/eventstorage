@@ -1,4 +1,5 @@
 using System.Reflection;
+using System.Reflection.Metadata;
 using System.Security.Cryptography.X509Certificates;
 using AsyncHandler.EventSourcing.Events;
 using Microsoft.Data.SqlClient;
@@ -35,21 +36,20 @@ public static class TypeExtensions
         catch(TargetInvocationException) { throw; }
         catch(Exception) { throw; }
     }
-    public static void CreateIfNotExists(this SqlConnection sqlConnection, string str)
+    public static Type? GetClientAggregate(this Type type, Assembly caller)
     {
-        
-    }
-    public static Type? GetClientAggregate(this Type type, Assembly callingAssembly)
-    {
-        var aggregate = callingAssembly.GetTypes()
+        var aggregate = caller.GetTypes()
         .FirstOrDefault(x => typeof(AggregateRoot).IsAssignableFrom(x));
         if(aggregate != null)
             return aggregate;
 
-        var referencedAssemblies = callingAssembly.GetReferencedAssemblies()
-        .Where(x => x.Name != Assembly.GetAssembly(typeof(AggregateRoot))?.GetName()?.Name);
-        // filtering referencedAssemblies, probably remove all except project references?
-        foreach (var assemblyName in referencedAssemblies)
+        var mustReferenceAssembly = typeof(AggregateRoot).Assembly.GetName();
+
+        var ideals = caller.GetReferencedAssemblies().Where(x => 
+        Assembly.Load(x).GetReferencedAssemblies()
+        .Any(x => AssemblyName.ReferenceMatchesDefinition(x, mustReferenceAssembly)));
+
+        foreach (var assemblyName in ideals)
         {
             aggregate = Assembly.Load(assemblyName).GetTypes()
             .FirstOrDefault(t => typeof(AggregateRoot).IsAssignableFrom(t));

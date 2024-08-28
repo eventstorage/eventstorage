@@ -22,7 +22,9 @@ public static class AsyncHandlerExtensions
         return eventSourceConfiguration;
     }
     public static void EnableTransactionalOutbox(
-        this AsyncHandlerConfiguration configuration)
+        this AsyncHandlerConfiguration configuration,
+        MessageBus messageBus,
+        string busConnection)
     {
         var eventSourceConfiguration = new EventSourceConfiguration(configuration.ServiceCollection);
         // configure(eventSourceConfiguration);

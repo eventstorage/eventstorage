@@ -25,6 +25,7 @@ public class AzureSqlClient<T>(string connectionString, IServiceProvider sp)
             using SqlCommand command = new(CreateIfNotExists, sqlConnection);
             sqlConnection.Open();
             await command.ExecuteNonQueryAsync();
+            _logger.LogInformation($"Initializing {nameof(AzureSqlClient)} has completed.");
         }
         catch(SqlException e)
         {
