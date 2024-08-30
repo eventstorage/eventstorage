@@ -2,17 +2,18 @@ using AsyncHandler.EventSourcing.Events;
 
 namespace AsyncHandler.EventSourcing;
 
-public abstract class AggregateRoot(string aggregateId)
+public abstract class AggregateRoot(string sourceId)
 {
-    public string AggregateId => aggregateId;
+    public string SourceId => sourceId;
     public int Version { get; private set; }
-    public string? TenantId = string.Empty;
     private readonly List<SourceEvent> _pendingEvents = [];
     private readonly List<SourceEvent> _eventStream = [];
     public IEnumerable<SourceEvent> EventStream => _eventStream;
     public IEnumerable<SourceEvent> PendingEvents => _pendingEvents;
-    protected virtual void Apply(SourceEvent e) => BumpVersion(events => events.Add(e));
-    private void BumpVersion(Action<List<SourceEvent>> append) { append(_pendingEvents); Version++; }
+    public string TenantId = string.Empty;
+    public string CorrelationId = string.Empty;
+    protected virtual void Apply(SourceEvent e) => BumpVersion(events => { events.Add(e); Version++; });
+    private void BumpVersion(Action<List<SourceEvent>> append) => append(_pendingEvents);
     protected virtual void RaiseEvent(SourceEvent e)
     {
         e = e with
@@ -20,10 +21,11 @@ public abstract class AggregateRoot(string aggregateId)
             EventId = Guid.NewGuid().ToString(),
             Timestamp = DateTime.UtcNow,
             Version = Version + 1,
-            SourceId = aggregateId,
+            SourceId = sourceId,
             SourceType = e.GetType().Assembly.ToString(),
         };
-        TenantId = e.TenantId;
+        TenantId = e.TenantId ??"";
+        TenantId = e.CorrelationId ??"";
         Apply(e);
     }
     public void RestoreAggregate(IEnumerable<SourceEvent> events)
@@ -31,6 +33,8 @@ public abstract class AggregateRoot(string aggregateId)
         foreach (var e in events)
         {
             Apply(e);
+            TenantId = e.TenantId ??"";
+            CorrelationId = e.CorrelationId ??"";
         }
     }
     public IEnumerable<SourceEvent> CommitPendingEvents()
