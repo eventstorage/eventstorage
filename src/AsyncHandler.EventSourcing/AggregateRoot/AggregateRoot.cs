@@ -2,10 +2,10 @@ using AsyncHandler.EventSourcing.Events;
 
 namespace AsyncHandler.EventSourcing;
 
-public abstract class AggregateRoot(string sourceId)
+public abstract class AggregateRoot(long sourceId)
 {
-    public string SourceId => sourceId;
-    public int Version { get; private set; }
+    public long SourceId => sourceId;
+    public long Version { get; private set; }
     private readonly List<SourceEvent> _pendingEvents = [];
     private readonly List<SourceEvent> _eventStream = [];
     public IEnumerable<SourceEvent> EventStream => _eventStream;
@@ -24,8 +24,8 @@ public abstract class AggregateRoot(string sourceId)
             SourceId = sourceId,
             SourceType = e.GetType().Assembly.ToString(),
         };
-        TenantId = e.TenantId ??"";
-        TenantId = e.CorrelationId ??"";
+        TenantId = e.TenantId ?? TenantId;
+        CorrelationId = e.CorrelationId ?? CorrelationId;
         Apply(e);
     }
     public void RestoreAggregate(IEnumerable<SourceEvent> events)
@@ -33,8 +33,8 @@ public abstract class AggregateRoot(string sourceId)
         foreach (var e in events)
         {
             Apply(e);
-            TenantId = e.TenantId ??"";
-            CorrelationId = e.CorrelationId ??"";
+            TenantId = e.TenantId ?? TenantId;
+            CorrelationId = e.CorrelationId ?? CorrelationId;
         }
     }
     public IEnumerable<SourceEvent> CommitPendingEvents()
