@@ -36,7 +36,7 @@ public class AzureSqlClient<T>(string connectionString, IServiceProvider sp)
             command.Parameters.AddWithValue("@sourceId", sourceId);
             using SqlDataReader reader = await command.ExecuteReaderAsync(CommandBehavior.Default);
             
-            _logger.LogInformation($"Restoring aggregate {typeof(T)} started.");
+            _logger.LogInformation($"Restoring aggregate {typeof(T).Name} started.");
 
             var aggregate = typeof(T).CreateAggregate<T>((long) sourceId);
             // var aggregate = (AggregateRoot)Activator.CreateInstance(typeof(T), sourceId);
@@ -52,7 +52,7 @@ public class AzureSqlClient<T>(string connectionString, IServiceProvider sp)
                 sourceEvents.Add(sourceEvent);
             };
             aggregate.RestoreAggregate(sourceEvents);
-            _logger.LogInformation($"Finished restoring aggregate {typeof(T)}.");
+            _logger.LogInformation($"Finished restoring aggregate {typeof(T).Name}.");
 
             return aggregate;
         }
@@ -78,16 +78,16 @@ public class AzureSqlClient<T>(string connectionString, IServiceProvider sp)
     public async Task Commit(T aggregate)
     {
         var count = aggregate.PendingEvents.Count();
-        _logger.LogInformation($"Preparing to commit {count} pending event(s) for {aggregate.GetType()}");
+        _logger.LogInformation($"Preparing to commit {count} pending event(s) for {aggregate.GetType().Name}");
         try
         {
             List<Task> tasks = [];
             // this is turned into a batch later
-            SqlConnection sqlConnection = new(connectionString);
-            sqlConnection.Open();
             foreach (var e in aggregate.PendingEvents)
             {
-                SqlCommand command = new (InsertSourceCommand, sqlConnection);
+                using SqlConnection sqlConnection = new(connectionString);
+                sqlConnection.Open();
+                using SqlCommand command = new (InsertSourceCommand, sqlConnection);
                 command.Parameters.AddWithValue("@id", Guid.NewGuid());
                 command.Parameters.AddWithValue("@sourceId", aggregate.SourceId);
                 command.Parameters.AddWithValue("@version", aggregate.Version);
@@ -97,11 +97,11 @@ public class AzureSqlClient<T>(string connectionString, IServiceProvider sp)
                 command.Parameters.AddWithValue("@sourceName", typeof(T).Name);
                 command.Parameters.AddWithValue("@correlationId", aggregate.CorrelationId ?? "Default");
                 command.Parameters.AddWithValue("@tenantId", aggregate.TenantId ?? "Default");
-                tasks.Add(command.ExecuteNonQueryAsync());
+                await command.ExecuteNonQueryAsync();
             }
-            await Task.WhenAll(tasks).ConfigureAwait(false);
-            sqlConnection.Close();
-            _logger.LogInformation($"Committed {count} pending event(s) for {aggregate.GetType()}");
+            // await Task.WhenAll(tasks).ConfigureAwait(false);
+            aggregate.CommitPendingEvents();
+            _logger.LogInformation($"Committed {count} pending event(s) for {aggregate.GetType().Name}");
         }
         catch(SqlException e)
         {
