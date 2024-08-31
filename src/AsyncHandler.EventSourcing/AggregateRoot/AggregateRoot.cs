@@ -10,8 +10,8 @@ public abstract class AggregateRoot(long sourceId)
     private readonly List<SourceEvent> _eventStream = [];
     public IEnumerable<SourceEvent> EventStream => _eventStream;
     public IEnumerable<SourceEvent> PendingEvents => _pendingEvents;
-    public string TenantId = string.Empty;
-    public string CorrelationId = string.Empty;
+    public string? TenantId;
+    public string? CorrelationId;
     protected virtual void Apply(SourceEvent e) => BumpVersion(events => { events.Add(e); Version++; });
     private void BumpVersion(Action<List<SourceEvent>> append) => append(_pendingEvents);
     protected virtual void RaiseEvent(SourceEvent e)

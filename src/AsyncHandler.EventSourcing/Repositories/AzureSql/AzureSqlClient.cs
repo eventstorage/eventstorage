@@ -54,7 +54,7 @@ public class AzureSqlClient<T>(string connectionString, IServiceProvider sp)
             aggregate.RestoreAggregate(sourceEvents);
             _logger.LogInformation($"Finished restoring aggregate {typeof(T)}.");
 
-            return aggregate as T;
+            return aggregate;
         }
         catch(SqlException e)
         {
@@ -83,7 +83,7 @@ public class AzureSqlClient<T>(string connectionString, IServiceProvider sp)
         {
             List<Task> tasks = [];
             // this is turned into a batch later
-            using SqlConnection sqlConnection = new(connectionString);
+            SqlConnection sqlConnection = new(connectionString);
             sqlConnection.Open();
             foreach (var e in aggregate.PendingEvents)
             {
@@ -94,12 +94,13 @@ public class AzureSqlClient<T>(string connectionString, IServiceProvider sp)
                 command.Parameters.AddWithValue("@type", e.GetType().Name);
                 command.Parameters.AddWithValue("@data", JsonSerializer.Serialize(e));
                 command.Parameters.AddWithValue("@timestamp", DateTime.UtcNow);
-                command.Parameters.AddWithValue("@sourceName", nameof(T));
-                command.Parameters.AddWithValue("@correlationId", e.CorrelationId ??"");
-                command.Parameters.AddWithValue("@tenantId", aggregate.TenantId ??"");
+                command.Parameters.AddWithValue("@sourceName", typeof(T).Name);
+                command.Parameters.AddWithValue("@correlationId", aggregate.CorrelationId ?? "Default");
+                command.Parameters.AddWithValue("@tenantId", aggregate.TenantId ?? "Default");
                 tasks.Add(command.ExecuteNonQueryAsync());
             }
             await Task.WhenAll(tasks).ConfigureAwait(false);
+            sqlConnection.Close();
             _logger.LogInformation($"Committed {count} pending event(s) for {aggregate.GetType()}");
         }
         catch(SqlException e)
