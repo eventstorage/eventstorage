@@ -13,7 +13,7 @@ internal class EventSource<T>(string connectionString, IServiceProvider sp, Even
         EventSources.SQLServer => SqlServerClient.InitAzureSql(),
         _ => Task.CompletedTask,
     };
-    public Task<T> CreateOrRestore(string sourceId) => Source switch
+    public Task<T> CreateOrRestore(long? sourceId = null) => Source switch
     {
         EventSources.AzureSql => AzureSqlClient.CreateOrRestore(sourceId),
         EventSources.PostgresSql => PostgreSqlClient.CreateOrRestore(sourceId),
