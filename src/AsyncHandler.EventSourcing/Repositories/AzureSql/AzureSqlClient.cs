@@ -36,7 +36,7 @@ public class AzureSqlClient<T>(string connectionString, IServiceProvider sp)
             command.Parameters.AddWithValue("@sourceId", sourceId);
             using SqlDataReader reader = await command.ExecuteReaderAsync(CommandBehavior.Default);
             
-            _logger.LogInformation($"Restoring aggregate {typeof(T)} started.");
+            _logger.LogInformation($"Restoring aggregate {typeof(T).Name} started.");
 
             var aggregate = typeof(T).CreateAggregate<T>((long) sourceId);
             // var aggregate = (AggregateRoot)Activator.CreateInstance(typeof(T), sourceId);
@@ -52,9 +52,9 @@ public class AzureSqlClient<T>(string connectionString, IServiceProvider sp)
                 sourceEvents.Add(sourceEvent);
             };
             aggregate.RestoreAggregate(sourceEvents);
-            _logger.LogInformation($"Finished restoring aggregate {typeof(T)}.");
+            _logger.LogInformation($"Finished restoring aggregate {typeof(T).Name}.");
 
-            return aggregate as T;
+            return aggregate;
         }
         catch(SqlException e)
         {
@@ -78,29 +78,30 @@ public class AzureSqlClient<T>(string connectionString, IServiceProvider sp)
     public async Task Commit(T aggregate)
     {
         var count = aggregate.PendingEvents.Count();
-        _logger.LogInformation($"Preparing to commit {count} pending event(s) for {aggregate.GetType()}");
+        _logger.LogInformation($"Preparing to commit {count} pending event(s) for {aggregate.GetType().Name}");
         try
         {
             List<Task> tasks = [];
             // this is turned into a batch later
-            using SqlConnection sqlConnection = new(connectionString);
-            sqlConnection.Open();
             foreach (var e in aggregate.PendingEvents)
             {
-                SqlCommand command = new (InsertSourceCommand, sqlConnection);
+                using SqlConnection sqlConnection = new(connectionString);
+                sqlConnection.Open();
+                using SqlCommand command = new (InsertSourceCommand, sqlConnection);
                 command.Parameters.AddWithValue("@id", Guid.NewGuid());
                 command.Parameters.AddWithValue("@sourceId", aggregate.SourceId);
                 command.Parameters.AddWithValue("@version", aggregate.Version);
                 command.Parameters.AddWithValue("@type", e.GetType().Name);
                 command.Parameters.AddWithValue("@data", JsonSerializer.Serialize(e));
                 command.Parameters.AddWithValue("@timestamp", DateTime.UtcNow);
-                command.Parameters.AddWithValue("@sourceName", nameof(T));
-                command.Parameters.AddWithValue("@correlationId", e.CorrelationId ??"");
-                command.Parameters.AddWithValue("@tenantId", aggregate.TenantId ??"");
-                tasks.Add(command.ExecuteNonQueryAsync());
+                command.Parameters.AddWithValue("@sourceName", typeof(T).Name);
+                command.Parameters.AddWithValue("@correlationId", aggregate.CorrelationId ?? "Default");
+                command.Parameters.AddWithValue("@tenantId", aggregate.TenantId ?? "Default");
+                await command.ExecuteNonQueryAsync();
             }
-            await Task.WhenAll(tasks).ConfigureAwait(false);
-            _logger.LogInformation($"Committed {count} pending event(s) for {aggregate.GetType()}");
+            // await Task.WhenAll(tasks).ConfigureAwait(false);
+            aggregate.CommitPendingEvents();
+            _logger.LogInformation($"Committed {count} pending event(s) for {aggregate.GetType().Name}");
         }
         catch(SqlException e)
         {

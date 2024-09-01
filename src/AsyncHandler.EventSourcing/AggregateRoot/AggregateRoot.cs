@@ -10,10 +10,10 @@ public abstract class AggregateRoot(long sourceId)
     private readonly List<SourceEvent> _eventStream = [];
     public IEnumerable<SourceEvent> EventStream => _eventStream;
     public IEnumerable<SourceEvent> PendingEvents => _pendingEvents;
-    public string TenantId = string.Empty;
-    public string CorrelationId = string.Empty;
-    protected virtual void Apply(SourceEvent e) => BumpVersion(events => { events.Add(e); Version++; });
-    private void BumpVersion(Action<List<SourceEvent>> append) => append(_pendingEvents);
+    public string? TenantId;
+    public string? CorrelationId;
+    protected abstract void Apply(SourceEvent e);
+    private void BumpVersion(Action bump) => bump();
     protected virtual void RaiseEvent(SourceEvent e)
     {
         e = e with
@@ -22,26 +22,26 @@ public abstract class AggregateRoot(long sourceId)
             Timestamp = DateTime.UtcNow,
             Version = Version + 1,
             SourceId = sourceId,
-            SourceType = e.GetType().Assembly.ToString(),
+            SourceType = GetType().Name,
         };
         TenantId = e.TenantId ?? TenantId;
         CorrelationId = e.CorrelationId ?? CorrelationId;
         Apply(e);
+        BumpVersion(() => { _pendingEvents.Add(e); Version++; });
     }
     public void RestoreAggregate(IEnumerable<SourceEvent> events)
     {
         foreach (var e in events)
         {
             Apply(e);
+            BumpVersion(delegate { _eventStream.Add(e); Version++; });
             TenantId = e.TenantId ?? TenantId;
             CorrelationId = e.CorrelationId ?? CorrelationId;
         }
     }
-    public IEnumerable<SourceEvent> CommitPendingEvents()
+    public void CommitPendingEvents()
     {
-        IEnumerable<SourceEvent> pending = _pendingEvents;
-        _eventStream.AddRange(pending);
+        _eventStream.AddRange(_pendingEvents);
         _pendingEvents.Clear();
-        return pending;
     }
 }

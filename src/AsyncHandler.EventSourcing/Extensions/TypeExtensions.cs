@@ -8,24 +8,10 @@ namespace AsyncHandler.EventSourcing.Extensions;
 
 public static class TypeExtensions
 {
-    public static MethodInfo GetApply(this Type type, SourceEvent e)
-    {
-        var methods = type.GetMethods();
-        return methods.FirstOrDefault(m => m.Name.Equals("Apply") &&
+    public static MethodInfo GetApply(this Type type, SourceEvent e) =>
+        type.GetMethods().FirstOrDefault(m => m.Name.Equals("Apply") &&
         m.GetParameters().First().ParameterType.IsAssignableFrom(e.GetType()))
         ?? throw new Exception($"No handler defined for the {e.GetType()} event.");
-    }
-
-    
-    public static void InvokeApply(this AggregateRoot aggregate, AggregateRoot aggregate1,  SourceEvent e)
-    {
-        var apply = aggregate.GetType().GetApply(e);
-        try
-        {
-            apply.Invoke(aggregate, [e]);
-        }
-        catch(TargetInvocationException){ throw; }
-    }
     public static T CreateAggregate<T>(this Type type, long sourceId)
     {
         var constructor = type.GetConstructor([typeof(long)]);
