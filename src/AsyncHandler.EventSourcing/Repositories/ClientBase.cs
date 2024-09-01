@@ -6,10 +6,10 @@ namespace AsyncHandler.EventSourcing.Repositories;
 
 public abstract class ClientBase
 {
-    public static string GetSourceCommand => @"SELECT * FROM [dbo].[EventSource] WHERE [SourceId] = @sourceId";
-    public static string InsertSourceCommand => @"INSERT INTO [dbo].[EventSource] VALUES (@id, @sourceId, @version, @type, @data, @timestamp, @sourceName, @correlationId, @tenantId)";
-    public static string CreateIfNotExists => $"IF NOT EXISTS(SELECT * FROM sys.tables WHERE NAME = 'EventSource') "+
-    "CREATE TABLE [dbo].[EventSource]("+
+    protected static string GetSourceCommand => @"SELECT * FROM [dbo].[EventSources] WHERE [SourceId] = @sourceId";
+    protected string InsertSourceCommand = @"INSERT INTO [dbo].[EventSources] VALUES ";
+    protected static string CreateIfNotExists => $"IF NOT EXISTS(SELECT * FROM sys.tables WHERE NAME = 'EventSources') "+
+    "CREATE TABLE [dbo].[EventSources]("+
         $"[{EventSourceSchema.Sequence}] [bigint] IDENTITY(1,1) NOT NULL,"+
         $"[{EventSourceSchema.Id}] [uniqueidentifier] NOT NULL,"+
         $"[{EventSourceSchema.SourceId}] [bigint] NOT NULL,"+
@@ -25,7 +25,7 @@ public abstract class ClientBase
         $"CONSTRAINT [AK_SourceId_Version] UNIQUE ([SourceId], [Version]),"+
     ");";
     // $"CREEATE INDEX Idx_SourceId ON [dbo].[EventSource] ([SourceId]);";
-    public static string GetMaxSourceId => @"SELECT T.SourceId FROM (SELECT MAX([SourceId]) as SourceId FROM [dbo].[EventSource]) as T WHERE T.SourceId is not null;";
+    public static string GetMaxSourceId => @"SELECT T.SourceId FROM (SELECT MAX([SourceId]) as SourceId FROM [dbo].[EventSources]) as T WHERE T.SourceId is not null;";
     // these are loaded into a list later
     protected static Type ResolveEventType(string typeName)
     {

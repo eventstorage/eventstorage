@@ -23,7 +23,7 @@ public class AzureSqlClient<T>(string connectionString, IServiceProvider sp)
         using SqlCommand command = new(CreateIfNotExists, sqlConnection);
         sqlConnection.Open();
         await command.ExecuteNonQueryAsync();
-        _logger.LogInformation($"Initializing {nameof(AzureSqlClient<T>)} has completed.");
+        _logger.LogInformation($"Finished initializing {nameof(AzureSqlClient<T>)}.");
     }
     public async Task<T> CreateOrRestore(long? sourceId = null)
     {
@@ -77,31 +77,21 @@ public class AzureSqlClient<T>(string connectionString, IServiceProvider sp)
     }
     public async Task Commit(T aggregate)
     {
-        var count = aggregate.PendingEvents.Count();
-        _logger.LogInformation($"Preparing to commit {count} pending event(s) for {aggregate.GetType().Name}");
+        var events = aggregate.PendingEvents.Count();
+        _logger.LogInformation($"Preparing to commit {events} pending event(s) for {aggregate.GetType().Name}");
         try
         {
-            List<Task> tasks = [];
-            // this is turned into a batch later
-            foreach (var e in aggregate.PendingEvents)
+            if(aggregate.PendingEvents.Any())
             {
                 using SqlConnection sqlConnection = new(connectionString);
                 sqlConnection.Open();
-                using SqlCommand command = new (InsertSourceCommand, sqlConnection);
-                command.Parameters.AddWithValue("@id", Guid.NewGuid());
-                command.Parameters.AddWithValue("@sourceId", aggregate.SourceId);
-                command.Parameters.AddWithValue("@version", aggregate.Version);
-                command.Parameters.AddWithValue("@type", e.GetType().Name);
-                command.Parameters.AddWithValue("@data", JsonSerializer.Serialize(e));
-                command.Parameters.AddWithValue("@timestamp", DateTime.UtcNow);
-                command.Parameters.AddWithValue("@sourceName", typeof(T).Name);
-                command.Parameters.AddWithValue("@correlationId", aggregate.CorrelationId ?? "Default");
-                command.Parameters.AddWithValue("@tenantId", aggregate.TenantId ?? "Default");
+                using SqlCommand command = new ("", sqlConnection);
+                PrepareCommand(command, aggregate);
+                command.CommandText = InsertSourceCommand[0..^1];
                 await command.ExecuteNonQueryAsync();
             }
-            // await Task.WhenAll(tasks).ConfigureAwait(false);
             aggregate.CommitPendingEvents();
-            _logger.LogInformation($"Committed {count} pending event(s) for {aggregate.GetType().Name}");
+            _logger.LogInformation($"Committed {events} pending event(s) for {aggregate.GetType().Name}");
         }
         catch(SqlException e)
         {
@@ -122,6 +112,7 @@ public class AzureSqlClient<T>(string connectionString, IServiceProvider sp)
             throw;
         }
     }
+    // this needs optimistic locking
     private async Task<long> GetSourceId()
     {
         long sourceId = 0;
@@ -133,5 +124,25 @@ public class AzureSqlClient<T>(string connectionString, IServiceProvider sp)
         if(reader.HasRows)
             sourceId = (long) reader.GetValue(0);
         return sourceId + 1;
+    }
+    private void PrepareCommand(SqlCommand command, AggregateRoot aggregate)
+    {
+        int count = 0;
+        foreach (var e in aggregate.PendingEvents)
+        {
+            InsertSourceCommand +=
+            @$"(@id{count}, @sourceId{count}, @version{count}, @type{count}, @data{count},"+
+            @$"@timestamp{count}, @sourceName{count}, @correlationId{count}, @tenantId{count}),";
+            command.Parameters.AddWithValue($"@id{count}", Guid.NewGuid());
+            command.Parameters.AddWithValue($"@sourceId{count}", aggregate.SourceId);
+            command.Parameters.AddWithValue($"@version{count}", e.Version);
+            command.Parameters.AddWithValue($"@type{count}", e.GetType().Name);
+            command.Parameters.AddWithValue($"@data{count}", JsonSerializer.Serialize(e));
+            command.Parameters.AddWithValue($"@timestamp{count}", DateTime.UtcNow);
+            command.Parameters.AddWithValue($"@sourceName{count}", typeof(T).Name);
+            command.Parameters.AddWithValue($"@correlationId{count}", aggregate.CorrelationId ?? "Default");
+            command.Parameters.AddWithValue($"@tenantId{count}", aggregate.TenantId ?? "Default");
+            count++;
+        }
     }
 }
