@@ -16,6 +16,6 @@ internal class SourceInitializer(EventSource<AggregateRoot> eventSource) : IHost
 
     public Task StopAsync(CancellationToken cancellationToken)
     {
-        throw new NotImplementedException();
+        return Task.CompletedTask;
     }
 }

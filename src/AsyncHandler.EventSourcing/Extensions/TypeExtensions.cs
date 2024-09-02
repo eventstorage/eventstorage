@@ -11,7 +11,7 @@ public static class TypeExtensions
     public static MethodInfo GetApply(this Type type, SourceEvent e) =>
         type.GetMethods().FirstOrDefault(m => m.Name.Equals("Apply") &&
         m.GetParameters().First().ParameterType.IsAssignableFrom(e.GetType()))
-        ?? throw new Exception($"No handler defined for the {e.GetType()} event.");
+        ?? throw new Exception($"No handler defined for the {e.GetType().Name} event.");
     public static T CreateAggregate<T>(this Type type, long sourceId)
     {
         var constructor = type.GetConstructor([typeof(long)]);
