@@ -51,7 +51,7 @@ public class AzureSqlClient<T>(string connectionString, IServiceProvider sp)
                     throw new SerializationException($"Deserialize failure for event type {type}, sourceId {sourceId}.");
                 sourceEvents.Add(sourceEvent);
             };
-            aggregate.RestoreAggregate(sourceEvents);
+            aggregate.RestoreAggregate(Restoration.Stream, sourceEvents);
             _logger.LogInformation($"Finished restoring aggregate {typeof(T).Name}.");
 
             return aggregate;
@@ -131,17 +131,19 @@ public class AzureSqlClient<T>(string connectionString, IServiceProvider sp)
         foreach (var e in aggregate.PendingEvents)
         {
             InsertSourceCommand +=
-            @$"(@id{count}, @sourceId{count}, @version{count}, @type{count}, @data{count},"+
-            @$"@timestamp{count}, @sourceName{count}, @correlationId{count}, @tenantId{count}),";
-            command.Parameters.AddWithValue($"@id{count}", Guid.NewGuid());
+            @$"(@id{count}, @sourceId{count}, @version{count},"+
+            $"@type{count}, @data{count}, @timestamp{count}, @sourceType{count},"+
+            $"@tenantId{count}, @correlationId{count}, @causationId{count}),";
+            command.Parameters.AddWithValue($"@id{count}", e.Id);
             command.Parameters.AddWithValue($"@sourceId{count}", aggregate.SourceId);
             command.Parameters.AddWithValue($"@version{count}", e.Version);
             command.Parameters.AddWithValue($"@type{count}", e.GetType().Name);
             command.Parameters.AddWithValue($"@data{count}", JsonSerializer.Serialize(e));
             command.Parameters.AddWithValue($"@timestamp{count}", DateTime.UtcNow);
-            command.Parameters.AddWithValue($"@sourceName{count}", typeof(T).Name);
-            command.Parameters.AddWithValue($"@correlationId{count}", aggregate.CorrelationId ?? "Default");
-            command.Parameters.AddWithValue($"@tenantId{count}", aggregate.TenantId ?? "Default");
+            command.Parameters.AddWithValue($"@sourceType{count}", typeof(T).Name);
+            command.Parameters.AddWithValue($"@tenantId{count}", e.TenantId ?? "Default");
+            command.Parameters.AddWithValue($"@correlationId{count}", e.CorrelationId ?? "Default");
+            command.Parameters.AddWithValue($"@causationId{count}", e.CausationId ?? "Default");
             count++;
         }
     }

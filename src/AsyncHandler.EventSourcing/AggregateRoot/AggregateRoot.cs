@@ -10,33 +10,37 @@ public abstract class AggregateRoot(long sourceId)
     private readonly List<SourceEvent> _eventStream = [];
     public IEnumerable<SourceEvent> EventStream => _eventStream;
     public IEnumerable<SourceEvent> PendingEvents => _pendingEvents;
-    public string? TenantId;
-    public string? CorrelationId;
+    public string TenantId = string.Empty;
+    private string? _causationId;
     protected abstract void Apply(SourceEvent e);
     private void BumpVersion(Action bump) => bump();
     protected virtual void RaiseEvent(SourceEvent e)
     {
         e = e with
         {
-            EventId = Guid.NewGuid().ToString(),
-            Timestamp = DateTime.UtcNow,
+            Id = e.Id ?? Guid.NewGuid().ToString(),
             Version = Version + 1,
+            Type = e.GetType().Name,
             SourceId = sourceId,
             SourceType = GetType().Name,
+            Timestamp = DateTime.UtcNow,
+            CausationId = _causationId
         };
-        TenantId = e.TenantId ?? TenantId;
-        CorrelationId = e.CorrelationId ?? CorrelationId;
-        Apply(e);
-        BumpVersion(() => { _pendingEvents.Add(e); Version++; });
+        RestoreAggregate(Restoration.Pending, e);
     }
-    public void RestoreAggregate(IEnumerable<SourceEvent> events)
+    public void RestoreAggregate(Restoration type, params IEnumerable<SourceEvent> events)
     {
         foreach (var e in events)
         {
             Apply(e);
-            BumpVersion(delegate { _eventStream.Add(e); Version++; });
+            Action bump = type switch {
+                Restoration.Pending => delegate {_pendingEvents.Add(e); Version++; },
+                Restoration.Stream => delegate {_eventStream.Add(e); Version++; },
+                _ => () => {}
+            };
+            BumpVersion(bump);
             TenantId = e.TenantId ?? TenantId;
-            CorrelationId = e.CorrelationId ?? CorrelationId;
+            _causationId = e.Id;
         }
     }
     public void CommitPendingEvents()

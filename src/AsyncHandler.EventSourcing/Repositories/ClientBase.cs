@@ -18,9 +18,10 @@ public abstract class ClientBase
         // data type is changed to json for Azure later
         $"[{EventSourceSchema.Data}] [nvarchar](4000) NOT NULL,"+
         $"[{EventSourceSchema.Timestamp}] [datetime] NOT NULL,"+
-        $"[{EventSourceSchema.SourceName}] [nvarchar](255) NOT NULL,"+
+        $"[{EventSourceSchema.SourceType}] [nvarchar](255) NOT NULL,"+
         $"[{EventSourceSchema.CorrelationId}] [nvarchar](255) DEFAULT 'Default' NOT NULL,"+
         $"[{EventSourceSchema.TenantId}] [nvarchar](255) DEFAULT 'Default' NOT NULL,"+
+        $"[{EventSourceSchema.CausationId}] [nvarchar](255) DEFAULT 'Default' NOT NULL,"+
         $"CONSTRAINT [PK_Sequence] PRIMARY KEY ([Sequence]),"+
         $"CONSTRAINT [AK_SourceId_Version] UNIQUE ([SourceId], [Version]),"+
     ");";
