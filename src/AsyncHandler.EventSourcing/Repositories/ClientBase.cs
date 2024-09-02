@@ -1,4 +1,5 @@
 using System.Reflection;
+using System.Text.Json;
 using AsyncHandler.EventSourcing.Events;
 using AsyncHandler.EventSourcing.Schema;
 
@@ -15,7 +16,7 @@ public abstract class ClientBase
         $"[{EventSourceSchema.SourceId}] [bigint] NOT NULL,"+
         $"[{EventSourceSchema.Version}] [bigint] NOT NULL,"+
         $"[{EventSourceSchema.Type}] [nvarchar](255) NOT NULL,"+
-        // data type is changed to json for Azure later
+        // data type is changed to [json] for Azure later
         $"[{EventSourceSchema.Data}] [nvarchar](4000) NOT NULL,"+
         $"[{EventSourceSchema.Timestamp}] [datetime] NOT NULL,"+
         $"[{EventSourceSchema.SourceType}] [nvarchar](255) NOT NULL,"+
@@ -27,6 +28,7 @@ public abstract class ClientBase
     ");";
     // $"CREEATE INDEX Idx_SourceId ON [dbo].[EventSource] ([SourceId]);";
     public static string GetMaxSourceId => @"SELECT T.SourceId FROM (SELECT MAX([SourceId]) as SourceId FROM [dbo].[EventSources]) as T WHERE T.SourceId is not null;";
+    public static JsonSerializerOptions SerializerOptions => new() { IncludeFields = true };
     // these are loaded into a list later
     protected static Type ResolveEventType(string typeName)
     {

@@ -28,7 +28,7 @@ public abstract class AggregateRoot(long sourceId)
         };
         RestoreAggregate(Restoration.Pending, e);
     }
-    public void RestoreAggregate(Restoration type, params IEnumerable<SourceEvent> events)
+    public void RestoreAggregate(Restoration type, params SourceEvent[] events)
     {
         foreach (var e in events)
         {

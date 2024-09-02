@@ -1,11 +1,9 @@
 using System.Data;
-using System.Reflection;
 using System.Runtime.Serialization;
 using System.Text.Json;
 using AsyncHandler.EventSourcing.Events;
 using AsyncHandler.EventSourcing.Extensions;
 using AsyncHandler.EventSourcing.Schema;
-using Azure.Core.Pipeline;
 using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -34,7 +32,7 @@ public class AzureSqlClient<T>(string connectionString, IServiceProvider sp)
             sqlConnection.Open();
             using SqlCommand command = new(GetSourceCommand, sqlConnection);
             command.Parameters.AddWithValue("@sourceId", sourceId);
-            using SqlDataReader reader = await command.ExecuteReaderAsync(CommandBehavior.Default);
+            using SqlDataReader reader = await command.ExecuteReaderAsync();
             
             _logger.LogInformation($"Restoring aggregate {typeof(T).Name} started.");
 
@@ -51,7 +49,7 @@ public class AzureSqlClient<T>(string connectionString, IServiceProvider sp)
                     throw new SerializationException($"Deserialize failure for event type {type}, sourceId {sourceId}.");
                 sourceEvents.Add(sourceEvent);
             };
-            aggregate.RestoreAggregate(Restoration.Stream, sourceEvents);
+            aggregate.RestoreAggregate(Restoration.Stream, sourceEvents.ToArray());
             _logger.LogInformation($"Finished restoring aggregate {typeof(T).Name}.");
 
             return aggregate;
@@ -138,7 +136,8 @@ public class AzureSqlClient<T>(string connectionString, IServiceProvider sp)
             command.Parameters.AddWithValue($"@sourceId{count}", aggregate.SourceId);
             command.Parameters.AddWithValue($"@version{count}", e.Version);
             command.Parameters.AddWithValue($"@type{count}", e.GetType().Name);
-            command.Parameters.AddWithValue($"@data{count}", JsonSerializer.Serialize(e));
+            var json = JsonSerializer.Serialize(e, e.GetType(), SerializerOptions);
+            command.Parameters.AddWithValue($"@data{count}", json);
             command.Parameters.AddWithValue($"@timestamp{count}", DateTime.UtcNow);
             command.Parameters.AddWithValue($"@sourceType{count}", typeof(T).Name);
             command.Parameters.AddWithValue($"@tenantId{count}", e.TenantId ?? "Default");
