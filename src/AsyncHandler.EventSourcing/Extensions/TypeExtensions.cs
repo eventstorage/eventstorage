@@ -24,26 +24,19 @@ public static class TypeExtensions
         catch(TargetInvocationException) { throw; }
         catch(Exception) { throw; }
     }
-    public static Type? GetClientAggregate(this Type type, Assembly caller)
+    public static Type? GetAggregate(this Type type, Assembly caller)
     {
         var aggregate = caller.GetTypes()
         .FirstOrDefault(x => typeof(AggregateRoot).IsAssignableFrom(x));
         if(aggregate != null)
             return aggregate;
+        
+        var refs = caller.GetReferencedAssemblies()
+        .Where(r => !r.FullName.StartsWith("Microsoft") && !r.FullName.StartsWith("System"));
 
-        var mustReferenceAssembly = typeof(AggregateRoot).Assembly.GetName();
-
-        var ideals = caller.GetReferencedAssemblies().Where(x => 
-        Assembly.Load(x).GetReferencedAssemblies()
-        .Any(x => AssemblyName.ReferenceMatchesDefinition(x, mustReferenceAssembly)));
-
-        foreach (var assemblyName in ideals)
-        {
-            aggregate = Assembly.Load(assemblyName).GetTypes()
-            .FirstOrDefault(t => typeof(AggregateRoot).IsAssignableFrom(t));
-            if(aggregate != null)
-                return aggregate;
-        }
-        return aggregate;
+        return refs.Where(x => Assembly.Load(x).GetReferencedAssemblies()
+        .Any(r => AssemblyName.ReferenceMatchesDefinition(r, typeof(AggregateRoot).Assembly.GetName())))
+        .SelectMany(x => Assembly.Load(x).GetTypes())
+        .FirstOrDefault(t => typeof(AggregateRoot).IsAssignableFrom(t));
     }
 }

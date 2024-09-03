@@ -3,7 +3,7 @@ using Microsoft.Extensions.Hosting;
 
 namespace AsyncHandler.EventSourcing.Workers;
 
-internal class SourceInitializer(EventSource<AggregateRoot> eventSource) : IHostedService
+internal class SourceInitializer(IEventSource<AggregateRoot> eventSource) : IHostedService
 {
     public async Task StartAsync(CancellationToken cancellationToken)
     {
@@ -11,6 +11,8 @@ internal class SourceInitializer(EventSource<AggregateRoot> eventSource) : IHost
         // {
         //     eventSource.InitSource();
         // }, cancellationToken);
+        
+        // block thread on source initialization
         await eventSource.InitSource();
     }
 
