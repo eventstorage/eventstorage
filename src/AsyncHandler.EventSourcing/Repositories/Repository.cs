@@ -9,10 +9,10 @@ public class Repository<T>(string conn, IServiceProvider sp) : IRepository<T> wh
     private AzureSqlClient<T>? _azureSqlClient;
     private AzureSqlClient<T>? _postgreSqlClient;
     private AzureSqlClient<T>? _sqlServerClient;
-    public AzureSqlClient<T> AzureSqlClient => _azureSqlClient ??=
+    public IAzureSqlClient<T> AzureSqlClient => _azureSqlClient ??=
         new AzureSqlClient<T>(conn, sp.GetRequiredService<ILogger<AzureSqlClient<T>>>());
-    public AzureSqlClient<T> PostgreSqlClient => _postgreSqlClient ??=
+    public IAzureSqlClient<T> PostgreSqlClient => _postgreSqlClient ??=
         new AzureSqlClient<T>(conn, sp.GetRequiredService<ILogger<AzureSqlClient<T>>>());
-    public AzureSqlClient<T> SqlServerClient => _sqlServerClient ??=
+    public IAzureSqlClient<T> SqlServerClient => _sqlServerClient ??=
         new AzureSqlClient<T>(conn, sp.GetRequiredService<ILogger<AzureSqlClient<T>>>());
 }

@@ -10,7 +10,7 @@ using Microsoft.Extensions.Logging;
 namespace AsyncHandler.EventSourcing.Repositories.AzureSql;
 
 public class AzureSqlClient<T>(string conn, ILogger<AzureSqlClient<T>> logger) 
-    : ClientBase where T : AggregateRoot
+    : ClientBase, IAzureSqlClient<T> where T : AggregateRoot
 {
     public async Task Init()
     {

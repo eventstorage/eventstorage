@@ -4,7 +4,7 @@ namespace AsyncHandler.EventSourcing.Repositories;
 
 public interface IRepository<T> where T : AggregateRoot
 {
-    public AzureSqlClient<T> AzureSqlClient { get; }
-    public AzureSqlClient<T> PostgreSqlClient { get; }
-    public AzureSqlClient<T> SqlServerClient { get; }
+    public IAzureSqlClient<T> AzureSqlClient { get; }
+    public IAzureSqlClient<T> PostgreSqlClient { get; }
+    public IAzureSqlClient<T> SqlServerClient { get; }
 }
