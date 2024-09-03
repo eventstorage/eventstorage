@@ -16,20 +16,31 @@ public static class EventSourceExtensions
         EventSources source,
         string connectionString)
     {
-        Type? aggregateType = typeof(AggregateRoot).GetClientAggregate(Assembly.GetCallingAssembly());
+        Type? aggregateType = typeof(AggregateRoot).GetAggregate(Assembly.GetCallingAssembly());
         if (aggregateType == null)
             return configuration;
         
+        // initialize source when app spins up
         configuration.ServiceCollection.AddSingleton<IHostedService>((sp) =>
         {
-            return new SourceInitializer(new EventSource<AggregateRoot>(connectionString, sp, source));
+            var repository = new Repository<AggregateRoot>(connectionString, sp);
+            return new SourceInitializer(new EventSource<AggregateRoot>(repository, source));
         });
         #pragma warning disable CS8603
-        Type repositoryInterfaceType = typeof(IEventSource<>).MakeGenericType(aggregateType);
-        Type repositoryType = typeof(EventSource<>).MakeGenericType(aggregateType);
-        configuration.ServiceCollection.AddTransient(repositoryInterfaceType, sp =>
+        // register repository
+        var repositoryInterfaceType = typeof(IRepository<>).MakeGenericType(aggregateType);
+        var repositoryType = typeof(Repository<>).MakeGenericType(aggregateType);
+        configuration.ServiceCollection.AddScoped(repositoryInterfaceType, sp =>
         {
-            return Activator.CreateInstance(repositoryType, connectionString, sp, source);
+            return Activator.CreateInstance(repositoryType, connectionString, sp);
+        });
+        // register event source
+        Type eventSourceInterfaceType = typeof(IEventSource<>).MakeGenericType(aggregateType);
+        Type eventSourceType = typeof(EventSource<>).MakeGenericType(aggregateType);
+        configuration.ServiceCollection.AddScoped(eventSourceInterfaceType, sp =>
+        {
+            var repository = sp.GetService(repositoryInterfaceType);
+            return Activator.CreateInstance(eventSourceType, repository, source);
         });
         return configuration;
     }
