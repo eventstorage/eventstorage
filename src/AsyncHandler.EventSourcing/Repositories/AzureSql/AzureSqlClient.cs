@@ -82,8 +82,8 @@ public class AzureSqlClient<T>(string conn, ILogger<AzureSqlClient<T>> logger)
                 using SqlConnection sqlConnection = new(conn);
                 sqlConnection.Open();
                 using SqlCommand command = new ("", sqlConnection);
-                PrepareCommand(command, aggregate);
-                command.CommandText = InsertSourceCommand[0..^1];
+                var preparedCommand = PrepareCommand(command, aggregate);
+                command.CommandText = preparedCommand[0..^1];
                 await command.ExecuteNonQueryAsync();
             }
             aggregate.CommitPendingEvents();
@@ -121,12 +121,13 @@ public class AzureSqlClient<T>(string conn, ILogger<AzureSqlClient<T>> logger)
             sourceId = (long) reader.GetValue(0);
         return sourceId + 1;
     }
-    private void PrepareCommand(SqlCommand command, AggregateRoot aggregate)
+    private string PrepareCommand(SqlCommand command, AggregateRoot aggregate)
     {
         int count = 0;
+        var sqlCommand = InsertSourceCommand;
         foreach (var e in aggregate.PendingEvents)
         {
-            InsertSourceCommand +=
+            sqlCommand +=
             @$"(@id{count}, @sourceId{count}, @version{count},"+
             $"@type{count}, @data{count}, @timestamp{count}, @sourceType{count},"+
             $"@tenantId{count}, @correlationId{count}, @causationId{count}),";
@@ -143,5 +144,6 @@ public class AzureSqlClient<T>(string conn, ILogger<AzureSqlClient<T>> logger)
             command.Parameters.AddWithValue($"@causationId{count}", e.CausationId ?? "Default");
             count++;
         }
+        return sqlCommand;
     }
 }

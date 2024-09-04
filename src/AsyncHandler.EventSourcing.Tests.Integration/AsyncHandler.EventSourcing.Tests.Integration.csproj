@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <TargetFramework>net8.0</TargetFramework>
@@ -7,6 +7,7 @@
 
     <IsPackable>false</IsPackable>
     <IsTestProject>true</IsTestProject>
+    <UserSecretsId>17329092-6b82-4ee2-b62f-255939833356</UserSecretsId>
   </PropertyGroup>
 
   <ItemGroup>
@@ -20,6 +21,11 @@
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\AsyncHandler.EventSourcing\AsyncHandler.EventSourcing.csproj" />
+    <ProjectReference Include="..\AsyncHandler.EventSourcing.Tests.Unit\AsyncHandler.EventSourcing.Tests.Unit.csproj" />
   </ItemGroup>
 
 </Project>
