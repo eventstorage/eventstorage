@@ -1,8 +1,6 @@
 using System.Linq.Expressions;
 using AsyncHandler.EventSourcing.Configuration;
-using AsyncHandler.EventSourcing.Extensions;
 using AsyncHandler.EventSourcing.Repositories;
-using AsyncHandler.EventSourcing.Repositories.AzureSql;
 using FluentAssertions;
 using Moq;
 using Moq.Language.Flow;
@@ -27,7 +25,7 @@ public class EventSourceTests
     [Theory]
     [InlineData(EventSources.AzureSql)]
     [InlineData(EventSources.PostgresSql)]
-    [InlineData(EventSources.SQLServer)]
+    [InlineData(EventSources.SqlServer)]
     public async Task GivenSourceToCreate_ShouldInvokeResponsibleClient(EventSources source)
     {
         // given
@@ -44,7 +42,7 @@ public class EventSourceTests
         {
             EventSources.AzureSql => x => x.AzureSqlClient.CreateOrRestore(It.IsAny<long>()),
             EventSources.PostgresSql => x => x.PostgreSqlClient.CreateOrRestore(It.IsAny<long>()),
-            EventSources.SQLServer => x => x.SqlServerClient.CreateOrRestore(It.IsAny<long>()),
+            EventSources.SqlServer => x => x.SqlServerClient.CreateOrRestore(It.IsAny<long>()),
             _ => x => x.AzureSqlClient.CreateOrRestore(It.IsAny<long>()),
         };
         

@@ -1,6 +1,7 @@
 using AsyncHandler.EventSourcing.Configuration;
 using AsyncHandler.EventSourcing.Repositories;
 using AsyncHandler.EventSourcing.Repositories.AzureSql;
+using AsyncHandler.EventSourcing.SourceConfig;
 using AsyncHandler.EventSourcing.Tests.Unit;
 using Castle.Core.Logging;
 using Microsoft.Extensions.Configuration;
@@ -19,13 +20,18 @@ public abstract class TestBase
     public static ServiceProvider BuildContainer(EventSources source)
     {
         var services = new ServiceCollection();
+        Dictionary<EventSources,IClientConfig> configs = [];
+        configs.Add(EventSources.AzureSql, new AzureSqlConfig());
+        configs.Add(EventSources.PostgresSql, new PostgreSqlConfig());
+        configs.Add(EventSources.SqlServer, new SqlServerConfig());
+        services.AddKeyedSingleton("SourceConfig", configs);
         services.AddTransient<ILogger<AzureSqlClient<OrderAggregate>>>(sp =>
         {
             return new Logger<AzureSqlClient<OrderAggregate>>(new LoggerFactory());
         });
         services.AddSingleton<IRepository<OrderAggregate>>(sp =>
         {
-            return new Repository<OrderAggregate>(_connection, sp);
+            return new Repository<OrderAggregate>(_connection, sp, source);
         });
         services.AddSingleton<IEventSource<OrderAggregate>>(sp =>
         {

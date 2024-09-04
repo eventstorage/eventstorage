@@ -1,17 +1,20 @@
 using System.Data;
 using System.Runtime.Serialization;
 using System.Text.Json;
+using AsyncHandler.EventSourcing.Configuration;
 using AsyncHandler.EventSourcing.Events;
 using AsyncHandler.EventSourcing.Extensions;
 using AsyncHandler.EventSourcing.Schema;
 using Microsoft.Data.SqlClient;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
 namespace AsyncHandler.EventSourcing.Repositories.AzureSql;
 
-public class AzureSqlClient<T>(string conn, ILogger<AzureSqlClient<T>> logger) 
-    : ClientBase, IAzureSqlClient<T> where T : AggregateRoot
+public class AzureSqlClient<T>(string conn, IServiceProvider sp, EventSources source) 
+    : ClientBase(sp, source), IAzureSqlClient<T> where T : AggregateRoot
 {
+    private readonly ILogger<AzureSqlClient<T>> logger = sp.GetRequiredService<ILogger<AzureSqlClient<T>>>();
     public async Task Init()
     {
         logger.LogInformation($"Begin initializing {nameof(AzureSqlClient<T>)}.");
