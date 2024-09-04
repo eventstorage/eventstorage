@@ -6,6 +6,7 @@ namespace AsyncHandler.EventSourcing.Tests.Integration;
 
 public class EventSourceTests : TestBase
 {
+    // test event source against any client, simply change below Source property
     private static EventSources Source => EventSources.AzureSql;
     private readonly IEventSource<OrderAggregate> _eventSource = GetEventSource(Source);
     [Fact]
