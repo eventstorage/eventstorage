@@ -1,8 +1,11 @@
 ﻿using System.Reflection;
+using System.Runtime.Serialization;
 using AsyncHandler.EventSourcing.Configuration;
 using AsyncHandler.EventSourcing.Extensions;
 using AsyncHandler.EventSourcing.Projections;
 using AsyncHandler.EventSourcing.Repositories;
+using AsyncHandler.EventSourcing.Repositories.AzureSql;
+using AsyncHandler.EventSourcing.SourceConfig;
 using AsyncHandler.EventSourcing.Workers;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -19,11 +22,11 @@ public static class EventSourceExtensions
         Type? aggregateType = typeof(AggregateRoot).GetAggregate(Assembly.GetCallingAssembly());
         if (aggregateType == null)
             return configuration;
-        
+        configuration.ServiceCollection.AddClientConfiurations();
         // initialize source when app spins up
         configuration.ServiceCollection.AddSingleton<IHostedService>((sp) =>
         {
-            var repository = new Repository<AggregateRoot>(connectionString, sp);
+            var repository = new Repository<AggregateRoot>(connectionString, sp, source);
             return new SourceInitializer(new EventSource<AggregateRoot>(repository, source));
         });
         #pragma warning disable CS8603
@@ -32,7 +35,7 @@ public static class EventSourceExtensions
         var repositoryType = typeof(Repository<>).MakeGenericType(aggregateType);
         configuration.ServiceCollection.AddScoped(repositoryInterfaceType, sp =>
         {
-            return Activator.CreateInstance(repositoryType, connectionString, sp);
+            return Activator.CreateInstance(repositoryType, connectionString, sp, source);
         });
         // register event source
         Type eventSourceInterfaceType = typeof(IEventSource<>).MakeGenericType(aggregateType);
@@ -49,5 +52,14 @@ public static class EventSourceExtensions
         ProjectionMode projectionMode)
     {
         return configuration;
+    }
+    private static IServiceCollection AddClientConfiurations(this IServiceCollection services)
+    {
+        Dictionary<EventSources,IClientConfig> configs = [];
+        configs.Add(EventSources.AzureSql, new AzureSqlConfig());
+        configs.Add(EventSources.PostgresSql, new PostgreSqlConfig());
+        configs.Add(EventSources.SqlServer, new SqlServerConfig());
+        services.AddKeyedSingleton("SourceConfig", configs);
+        return services;
     }
 }

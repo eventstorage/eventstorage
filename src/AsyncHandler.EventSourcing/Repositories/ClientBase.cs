@@ -1,33 +1,19 @@
 using System.Reflection;
 using System.Text.Json;
+using AsyncHandler.EventSourcing.Configuration;
 using AsyncHandler.EventSourcing.Events;
-using AsyncHandler.EventSourcing.Schema;
+using AsyncHandler.EventSourcing.SourceConfig;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace AsyncHandler.EventSourcing.Repositories;
 
-public abstract class ClientBase
+public abstract class ClientBase(IServiceProvider sp, EventSources source)
 {
-    protected static string GetSourceCommand => @"SELECT * FROM [dbo].[EventSources] WHERE [SourceId] = @sourceId";
-    protected string InsertSourceCommand = @"INSERT INTO [dbo].[EventSources] VALUES ";
-    protected static string CreateIfNotExists => $"IF NOT EXISTS(SELECT * FROM sys.tables WHERE NAME = 'EventSources') "+
-    "CREATE TABLE [dbo].[EventSources]("+
-        $"[{EventSourceSchema.Sequence}] [bigint] IDENTITY(1,1) NOT NULL,"+
-        $"[{EventSourceSchema.Id}] [uniqueidentifier] NOT NULL,"+
-        $"[{EventSourceSchema.SourceId}] [bigint] NOT NULL,"+
-        $"[{EventSourceSchema.Version}] [bigint] NOT NULL,"+
-        $"[{EventSourceSchema.Type}] [nvarchar](255) NOT NULL,"+
-        // data type is changed to [json] for Azure later
-        $"[{EventSourceSchema.Data}] [nvarchar](4000) NOT NULL,"+
-        $"[{EventSourceSchema.Timestamp}] [datetime] NOT NULL,"+
-        $"[{EventSourceSchema.SourceType}] [nvarchar](255) NOT NULL,"+
-        $"[{EventSourceSchema.CorrelationId}] [nvarchar](255) DEFAULT 'Default' NOT NULL,"+
-        $"[{EventSourceSchema.TenantId}] [nvarchar](255) DEFAULT 'Default' NOT NULL,"+
-        $"[{EventSourceSchema.CausationId}] [nvarchar](255) DEFAULT 'Default' NOT NULL,"+
-        $"CONSTRAINT [PK_Sequence] PRIMARY KEY ([Sequence]),"+
-        $"CONSTRAINT [AK_SourceId_Version] UNIQUE ([SourceId], [Version]),"+
-    ");";
-    // $"CREEATE INDEX Idx_SourceId ON [dbo].[EventSource] ([SourceId]);";
-    public static string GetMaxSourceId => @"SELECT T.SourceId FROM (SELECT MAX([SourceId]) as SourceId FROM [dbo].[EventSources]) as T WHERE T.SourceId is not null;";
+    private readonly IClientConfig _config = GetClientConfig(sp, source);
+    protected string GetSourceCommand => _config.GetSourceCommand;
+    protected string InsertSourceCommand => _config.InsertSourceCommand;
+    protected string CreateIfNotExists => _config.CreateIfNotExists;
+    public string GetMaxSourceId => _config.GetMaxSourceId;
     public static JsonSerializerOptions SerializerOptions => new() { IncludeFields = true };
     // these are loaded into a list later
     protected static Type ResolveEventType(string typeName)
@@ -45,4 +31,7 @@ public abstract class ClientBase
         .FirstOrDefault(t => typeof(SourceEvent).IsAssignableFrom(t) && t.Name == typeName) ??
             throw new Exception($"Deserialize failure for event {typeName}, couldn't determine event type.");
     }
+    private static IClientConfig GetClientConfig(IServiceProvider sp, EventSources source) =>
+    sp.GetRequiredKeyedService<Dictionary<EventSources,IClientConfig>>("SourceConfig")
+    .FirstOrDefault(x => x.Key == source).Value;
 } 
