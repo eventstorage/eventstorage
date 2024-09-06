@@ -2,29 +2,31 @@
 
 ### A lightweight event sourcing framework designed for your event-store of choice.
 
-[![Github follow](https://img.shields.io/badge/give_us_a-*-red?logo=github)](https://github.com/asynchandler/AsyncHandler.EventSourcing)
 [![Github follow](https://img.shields.io/badge/follow-asynchandler-red?logo=github)](https://github.com/asynchandler)
 [![Github follow](https://img.shields.io/badge/follow-eventsourcer-red?logo=github)](https://github.com/eventsourcer)
 [![In follow](https://img.shields.io/badge/follow-LinkedIn-blue?logo=linkedin)](https://www.linkedin.com/in/sarwansurchi/)
 [![Nuget Package](https://badgen.net/nuget/v/asynchandler.eventsourcing)](https://www.nuget.org/packages/AsyncHandler.EventSourcing)
 [![Nuget](https://badgen.net/nuget/dt/asynchandler.eventsourcing)](https://www.nuget.org/packages/AsyncHandler.EventSourcing)
+[![Github follow](https://img.shields.io/badge/give_us_a-*-red?logo=github)](https://github.com/asynchandler/AsyncHandler.EventSourcing)
 
-<div align="center">
-    <img src="assets/github.png" alt="marten logo" width="80%" height=180>
+<div align="left">
+    <img src="assets/github.png" alt="marten logo" width="80" height="80" style="float:left;">
 </div>
 
 ### Overview
 
-asynchandler is a high-performance event sourcing framework built for .Net, aiming to simplify event sourcing for everyone. asynchandler combines consistency with schema flexibility, and integrates easily with event storage vendors. Currently supports Azure Sql database and Sql Server, with Postgres and ESDB in the upcoming releases.
+asynchandler is a high-performance event sourcing framework built for .Net, aiming to simplify event sourcing for everyone. asynchandler combines consistency with schema flexibility, and integrates easily with event storage vendors. Currently supports Azure Sql database and Sql Server, with Postgres in the upcoming releases.
 
 ### Setup environment
 
-#### .Net 8
+[![My Skills](https://skillicons.dev/icons?i=dotnet)](https://dotnet.microsoft.com/en-us/download/dotnet/8.0)
+
 asynchandler runs on the stable release of .Net 8 and requires the SDK installed:
 
     https://dotnet.microsoft.com/en-us/download/dotnet/8.0
 
-#### docker
+[![My Skills](https://skillicons.dev/icons?i=docker)](https://dotnet.microsoft.com/en-us/download/dotnet/8.0)
+
 Use docker to run sqlserver or postgres databases, execute `docker-compose` or `docker run`:
 
     docker compose --project-name some-name up -d
@@ -39,6 +41,7 @@ Use docker to run sqlserver or postgres databases, execute `docker-compose` or `
 
 ### Usage and code
 
+[![My Skills](https://skillicons.dev/icons?i=vscode)](https://dotnet.microsoft.com/en-us/download/dotnet/8.0)
 ##### Install the package
 
 Simply install `AsyncHandler.EventSourcing` package:
@@ -119,7 +122,7 @@ async(IEventSource<OrderBookingAggregate> eventSource, long orderId, ConfirmOrde
 Please notice, this is a prelease and doesn't yet offer full event sourcing functionality.
 
 ### Give us a star ⭐
-If you are an event sourcer and love OSS, give us a star. 
+If you are an event sourcer and love OSS, give [us](https://github.com/asynchandler/AsyncHandler.EventSourcing) a star. :purple_heart:
 
 ### License
 
