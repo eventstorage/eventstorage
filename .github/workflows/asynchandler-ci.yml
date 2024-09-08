@@ -60,6 +60,7 @@ jobs:
       run: dotnet restore
 
     - name: Test
+      working-directory: ./src
       run: dotnet test --no-restore --verbosity normal
 
     
