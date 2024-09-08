@@ -12,11 +12,7 @@ namespace AsyncHandler.EventSourcing.Tests.Integration;
 
 public abstract class TestBase
 {
-    private static readonly string _connection = Configuration["azuresqlenv"] ??"";
-    private static IConfiguration Configuration => new ConfigurationBuilder()
-        .AddEnvironmentVariables()
-        .AddUserSecrets<TestBase>()
-        .Build();
+    private static string GetConnection(EventSources source) => BuildConfiguration(source);
     public static IEventSource<OrderAggregate> GetEventSource(EventSources source) =>
         BuildContainer(source).GetRequiredService<IEventSource<OrderAggregate>>();
     public static ServiceProvider BuildContainer(EventSources source)
@@ -33,7 +29,7 @@ public abstract class TestBase
         });
         services.AddSingleton<IRepository<OrderAggregate>>(sp =>
         {
-            return new Repository<OrderAggregate>(_connection, sp, source);
+            return new Repository<OrderAggregate>(GetConnection(source), sp, source);
         });
         services.AddSingleton<IEventSource<OrderAggregate>>(sp =>
         {
@@ -41,5 +37,20 @@ public abstract class TestBase
             return new EventSource<OrderAggregate>(repository, source);
         });
         return services.BuildServiceProvider();
+    }
+    protected static string BuildConfiguration(EventSources source)
+    {
+        var builder = new ConfigurationBuilder()
+        .AddUserSecrets<TestBase>().AddEnvironmentVariables();
+        return source switch
+        {
+            EventSources.SqlServer => builder.Build().GetValue<string>("SqlServerDatabase") ??
+                throw new Exception("no connection string found"),
+            EventSources.AzureSql => builder.Build().GetValue<string>("AzureSqlDatabase") ??
+                throw new Exception("no connection string found"),
+            EventSources.PostgresSql => builder.Build().GetValue<string>("SqlServerDatabase") ??
+                throw new Exception("no connection string found"),
+            _ => string.Empty
+        };
     }
 }

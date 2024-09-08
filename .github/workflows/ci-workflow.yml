@@ -1,5 +1,5 @@
 
-name: asynchandler ci
+name: ci workflow
 
 on:
   push:
