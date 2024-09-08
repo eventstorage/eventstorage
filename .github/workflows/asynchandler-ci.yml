@@ -56,10 +56,10 @@ jobs:
       run: ./scripts.sh
 
     - name: Restore
+      working-directory: ./src
       run: dotnet restore
 
     - name: Test
-      working-directory: ./src
       run: dotnet test --no-restore --verbosity normal
 
     
