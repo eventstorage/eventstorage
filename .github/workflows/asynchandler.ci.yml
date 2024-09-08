@@ -17,9 +17,6 @@ jobs:
   prepare:
 
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: ./src
 
     services:
       mssql:
@@ -58,9 +55,6 @@ jobs:
 
   test:
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: ./src
 
     steps:
     - name: Test
