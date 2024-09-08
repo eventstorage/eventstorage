@@ -10,8 +10,7 @@
     <Company>asynchandler</Company>
     <PackageTags>EventSourcing;EventStore;Messaging;AzureSql;Postgres;Event-Driven</PackageTags>
     <Description>
-      A lightweight event sourcing framework designed for speed and simplicity, 
-      with your event storage of choice.
+      A lightweight event sourcing framework with event storage of choice.
     </Description>
     <PackageProjectUrl>https://github.com/asynchandler/AsyncHandler.EventSourcing</PackageProjectUrl>
     <PackageIcon>github.png</PackageIcon>
@@ -23,7 +22,7 @@
 
   <ItemGroup>
     <None Include="assets\github.png" Pack="true" PackagePath="\"/>
-    <None Include="README.md" Pack="true" PackagePath="\"/>
+    <None Include="src\AsyncHandler.EventSourcing\README.md" Pack="true" PackagePath="\"/>
     <None Include="LICENSE" Pack="true" PackagePath="\"/>
   </ItemGroup>
 

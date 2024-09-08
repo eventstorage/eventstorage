@@ -12,7 +12,7 @@ namespace AsyncHandler.EventSourcing.Tests.Integration;
 
 public abstract class TestBase
 {
-    private static readonly string _connection = Configuration["TestAzureSqlDatabase"] ??"";
+    private static readonly string _connection = Configuration["azuresqlenv"] ??"";
     private static IConfiguration Configuration =>
         new ConfigurationBuilder().AddUserSecrets<TestBase>().Build();
     public static IEventSource<OrderAggregate> GetEventSource(EventSources source) =>

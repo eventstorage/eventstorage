@@ -1,0 +1,58 @@
+
+name: asynchandler ci
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+env:
+  azuresqlenv: ${{ secrets.AZURESQLSECRET }}
+  mssqlenv: "Server=localhost,1433;Initial Catalog=asynchandler;Persist Security Info=False;User ID=sa;Password=sysadmin@2024;MultipleActiveResultSets=False;Encrypt=True;TrustServerCertificate=true;Connection Timeout=10;"
+  mssqldb: asynchandler
+  mssqlpassword: sysadmin@2024
+
+jobs:
+  prepare:
+
+    runs-on: ubuntu-latest
+
+    services:
+      mssql:
+        image: mcr.microsoft.com/mssql/server
+        ports:
+          - 1433:1433
+        env:
+          ACCEPT_EULA: true
+          MSSQL_SA_PASSWORD: ${{ env.mssqlpassword }}
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Install sdk
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: 8.0.x
+
+    - name: Run scripts
+      run: ./scripts.sh
+
+  build:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Restore
+      run: dotnet restore
+
+    - name: Build
+      run: dotnet build --no-restore
+
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Test
+      run: dotnet test --no-build --verbosity normal
