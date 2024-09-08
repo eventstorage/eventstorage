@@ -55,8 +55,11 @@ jobs:
     - name: Run scripts
       run: ./scripts.sh
 
+    - name: Restore
+      run: dotnet restore
+
     - name: Test
       working-directory: ./src
-      run: dotnet test --verbosity normal
+      run: dotnet test --no-restore --verbosity normal
 
     
