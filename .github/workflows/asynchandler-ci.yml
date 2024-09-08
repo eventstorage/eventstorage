@@ -8,7 +8,7 @@ on:
     branches: [ "main" ]
 
 env:
-  azuresqlenv: ${{ secrets.AZURESQLSECRET }}
+  azuresqlenv: ${{ secrets.AzureSqlSecret }}
   mssqlenv: "Server=localhost,1433;Initial Catalog=asynchandler;Persist Security Info=False;User ID=sa;Password=sysadmin@2024;MultipleActiveResultSets=False;Encrypt=True;TrustServerCertificate=true;Connection Timeout=20;"
   mssqldb: asynchandler
   mssqlpassword: sysadmin@2024
@@ -51,11 +51,6 @@ jobs:
 
     steps:
     - uses: actions/checkout@v4
-
-    - name: display secrets
-      run: |
-        echo "secrets: ${{ secrets }}"
-        echo "azure sql secret: ${{ secrets.AZURESQLSECRET }}"
 
     - name: Run scripts
       run: ./scripts.sh
