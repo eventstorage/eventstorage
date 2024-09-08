@@ -13,8 +13,10 @@ namespace AsyncHandler.EventSourcing.Tests.Integration;
 public abstract class TestBase
 {
     private static readonly string _connection = Configuration["azuresqlenv"] ??"";
-    private static IConfiguration Configuration =>
-        new ConfigurationBuilder().AddUserSecrets<TestBase>().Build();
+    private static IConfiguration Configuration => new ConfigurationBuilder()
+        .AddEnvironmentVariables()
+        .AddUserSecrets<TestBase>()
+        .Build();
     public static IEventSource<OrderAggregate> GetEventSource(EventSources source) =>
         BuildContainer(source).GetRequiredService<IEventSource<OrderAggregate>>();
     public static ServiceProvider BuildContainer(EventSources source)
