@@ -1,5 +1,5 @@
 
-name: asynchandler ci
+name: ci workflow
 
 on:
   push:
@@ -8,14 +8,36 @@ on:
     branches: [ "main" ]
 
 env:
-  azuresqlenv: ${{ secrets.AZURESQLSECRET }}
+  azuresqlenv: ${{ secrets.AzureSqlSecret }}
   mssqlenv: "Server=localhost,1433;Initial Catalog=asynchandler;Persist Security Info=False;User ID=sa;Password=sysadmin@2024;MultipleActiveResultSets=False;Encrypt=True;TrustServerCertificate=true;Connection Timeout=10;"
   mssqldb: asynchandler
   mssqlpassword: sysadmin@2024
 
 jobs:
-  prepare:
+  
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./src
 
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Install sdk
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: 8.0.x
+
+    - name: Restore
+      run: dotnet restore
+
+    - name: Build
+      run: dotnet build --no-restore
+
+  test:
+    if: ${{ success() }}
+    needs: build
     runs-on: ubuntu-latest
 
     services:
@@ -30,35 +52,11 @@ jobs:
     steps:
     - uses: actions/checkout@v4
 
-    - name: Install sdk
-      uses: actions/setup-dotnet@v4
-      with:
-        dotnet-version: 8.0.x
-
     - name: Run scripts
       run: ./scripts.sh
 
-  build:
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: ./src
-    
-    steps:
-    - uses: actions/checkout@v4
-
-    - name: Restore
-      run: dotnet restore
-
-    - name: Build
-      run: dotnet build --no-restore
-
-  test:
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: src
-
-    steps:
     - name: Test
-      run: dotnet test --no-build --verbosity normal
+      working-directory: ./src
+      run: dotnet test --verbosity normal
+
+    
