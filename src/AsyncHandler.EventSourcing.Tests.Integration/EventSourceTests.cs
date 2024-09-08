@@ -6,85 +6,102 @@ namespace AsyncHandler.EventSourcing.Tests.Integration;
 
 public class EventSourceTests : TestBase
 {
-    // test event source against any client, simply change below Source property
-    private static EventSources Source => EventSources.AzureSql;
-    private readonly IEventSource<OrderAggregate> _eventSource = GetEventSource(Source);
-    [Fact]
-    public async Task WhenCreateOrRestore_ShouldCreateAndRestoreAggregate()
+    [Theory]
+    [InlineData(EventSources.AzureSql)]
+    [InlineData(EventSources.SqlServer)]
+    [InlineData(EventSources.PostgresSql)]
+    public async Task WhenCreateOrRestore_ShouldCreateAndRestoreAggregate(EventSources source)
     {
         // Given
-        await _eventSource.InitSource();
+        var service = GetEventSource(source);
+        await service.InitSource();
     
         // When
-        var aggregate = await _eventSource.CreateOrRestore();
+        var aggregate = await service.CreateOrRestore();
     
         // Then
         Assert.NotNull(aggregate);
         aggregate.SourceId.Should().BeGreaterThan(0);
     }
-    [Fact]
-    public async Task GivenPlacedOrder_WhenCommitting_ShouldCommitAggregate()
+    [Theory]
+    [InlineData(EventSources.AzureSql)]
+    [InlineData(EventSources.SqlServer)]
+    [InlineData(EventSources.PostgresSql)]
+    public async Task GivenPlacedOrder_WhenCommitting_ShouldCommitAggregate(EventSources source)
     {
         // Given
-        await _eventSource.InitSource();
-        var aggregate = await _eventSource.CreateOrRestore();
+        var service = GetEventSource(source);
+        await service.InitSource();
+        var aggregate = await service.CreateOrRestore();
     
         // When
         aggregate.PlaceOrder();
-        await _eventSource.Commit(aggregate);
+        await service.Commit(aggregate);
     
         // Then
         aggregate.PendingEvents.Count().Should().Be(0);
         aggregate.EventStream.Count().Should().BeGreaterThan(0);
     }
-    [Fact]
-    public async Task GivenExistingSource_ShouldRestoreAggregate()
+    [Theory]
+    [InlineData(EventSources.AzureSql)]
+    [InlineData(EventSources.SqlServer)]
+    [InlineData(EventSources.PostgresSql)]
+    public async Task GivenExistingSource_ShouldRestoreAggregate(EventSources source)
     {
         // Given
-        await _eventSource.InitSource();
-        var expectedAggregate = await _eventSource.CreateOrRestore();
+        var service = GetEventSource(source);
+        await service.InitSource();
+        var expectedAggregate = await service.CreateOrRestore();
         expectedAggregate.PlaceOrder();
-        await _eventSource.Commit(expectedAggregate);
+        await service.Commit(expectedAggregate);
     
         // When
-        var aggregate = await _eventSource.CreateOrRestore(expectedAggregate.SourceId);
+        var aggregate = await service.CreateOrRestore(expectedAggregate.SourceId);
     
         // Then
         Assert.Equal(expectedAggregate.SourceId, aggregate.SourceId);
         aggregate.EventStream.Count().Should().BeGreaterThan(0);
     }
-    [Fact]
-    public async Task GivenExistingSource_WhenConfirming_ShouldAppendEvent()
+    [Theory]
+    [InlineData(EventSources.AzureSql)]
+    [InlineData(EventSources.SqlServer)]
+    [InlineData(EventSources.PostgresSql)]
+    public async Task GivenExistingSource_WhenConfirming_ShouldAppendEvent(EventSources source)
     {
         // Given
-        await _eventSource.InitSource();
-        var aggregate = await _eventSource.CreateOrRestore();
+        var service = GetEventSource(source);
+        await service.InitSource();
+        var aggregate = await service.CreateOrRestore();
         aggregate.PlaceOrder();
-        await _eventSource.Commit(aggregate);
+        await service.Commit(aggregate);
     
         // When
-        var source = await _eventSource.CreateOrRestore(aggregate.SourceId);
-        source.ConfirmOrder();
-        await _eventSource.Commit(source);
+        var result = await service.CreateOrRestore(aggregate.SourceId);
+        result.ConfirmOrder();
+        await service.Commit(result);
     
         // Then
-        source.EventStream.Count().Should().Be(2);
-        source.Version.Should().Be(2);
+        result.EventStream.Count().Should().Be(2);
+        result.Version.Should().Be(2);
     }
-    [Fact]
-    public async Task GivenSource_ConfirmingTwice_ShouldAvoidAppendingEvent()
+    [Theory]
+    [InlineData(EventSources.AzureSql)]
+    [InlineData(EventSources.SqlServer)]
+    [InlineData(EventSources.PostgresSql)]
+    public async Task GivenSource_ConfirmingTwice_ShouldAvoidAppendingEvent(EventSources source)
     {
         // Given
-        await _eventSource.InitSource();
-        var source = await _eventSource.CreateOrRestore();
+        var service = GetEventSource(source);
+        await service.InitSource();
+        var aggregate = await service.CreateOrRestore();
 
         // When
-        source.ConfirmOrder();
-        source.ConfirmOrder();
-        await _eventSource.Commit(source);
+        aggregate.ConfirmOrder();
+        aggregate.ConfirmOrder();
+        await service.Commit(aggregate);
     
         // Then
-        source.EventStream.Count().Should().Be(1);
-        source.Version.Should().Be(1);
+        aggregate.EventStream.Count().Should().Be(1);
+        aggregate.Version.Should().Be(1);
     }
 }

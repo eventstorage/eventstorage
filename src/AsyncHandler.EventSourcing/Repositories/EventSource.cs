@@ -2,18 +2,17 @@ using AsyncHandler.EventSourcing.Configuration;
 
 namespace AsyncHandler.EventSourcing.Repositories;
 
-public class EventSource<T>(IRepository<T> repository, EventSources eventSource) 
+public class EventSource<T>(IRepository<T> repository, EventSources source) 
     : IEventSource<T> where T : AggregateRoot
 {
-    public EventSources Source  => eventSource;
-    public Task InitSource() => Source switch
+    public Task InitSource() => source switch
     {
         EventSources.AzureSql => repository.AzureSqlClient.Init(),
         EventSources.PostgresSql => repository.PostgreSqlClient.Init(),
         EventSources.SqlServer => repository.SqlServerClient.Init(),
         _ => Task.CompletedTask,
     };
-    public Task<T> CreateOrRestore(long? sourceId = null) => Source switch
+    public Task<T> CreateOrRestore(long? sourceId = null) => source switch
     {
         EventSources.AzureSql => repository.AzureSqlClient.CreateOrRestore(sourceId),
         EventSources.PostgresSql => repository.PostgreSqlClient.CreateOrRestore(sourceId),
@@ -21,7 +20,7 @@ public class EventSource<T>(IRepository<T> repository, EventSources eventSource)
         _ => repository.AzureSqlClient.CreateOrRestore(sourceId),
     };
     
-    public Task Commit(T t) => Source switch
+    public Task Commit(T t) => source switch
     {
         EventSources.AzureSql => repository.AzureSqlClient.Commit(t),
         EventSources.PostgresSql => repository.PostgreSqlClient.Commit(t),
