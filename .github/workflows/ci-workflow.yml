@@ -22,7 +22,8 @@ jobs:
         working-directory: ./src
 
     steps:
-    - uses: actions/checkout@v4
+    - name: checkout repo
+      uses: actions/checkout@v4
     
     - name: Install sdk
       uses: actions/setup-dotnet@v4
