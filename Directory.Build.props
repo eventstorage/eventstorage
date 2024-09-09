@@ -5,7 +5,7 @@
     <!-- <LangVersion>13</LangVersion> -->
     <!-- <GeneratePackageOnBuild>true</GeneratePackageOnBuild> -->
     <!-- <PackageId>AsyncHandler.EventSourcing</PackageId> -->
-    <Version>1.0.0-alpha.0</Version>
+    <Version>1.0.0</Version>
     <Authors>asynchandler</Authors>
     <Company>asynchandler</Company>
     <PackageTags>EventSourcing;EventStore;Messaging;AzureSql;Postgres;Event-Driven</PackageTags>
@@ -21,9 +21,9 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <None Include="assets\github.png" Pack="true" PackagePath="\"/>
-    <None Include="src\AsyncHandler.EventSourcing\README.md" Pack="true" PackagePath="\"/>
-    <None Include="LICENSE" Pack="true" PackagePath="\"/>
+    <None Include="..\..\assets\github.png" Pack="true" PackagePath="\"/>
+    <None Include="README.md" Pack="true" PackagePath="\"/>
+    <None Include="..\..\LICENSE" Pack="true" PackagePath="\"/>
   </ItemGroup>
 
 </Project>
