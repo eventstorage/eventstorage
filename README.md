@@ -7,8 +7,8 @@
 [![In follow](https://img.shields.io/badge/follow-LinkedIn-blue?logo=linkedin)](https://www.linkedin.com/in/sarwansurchi/)
 [![Nuget Package](https://badgen.net/nuget/v/asynchandler.eventsourcing)](https://www.nuget.org/packages/AsyncHandler.EventSourcing)
 [![Nuget](https://badgen.net/nuget/dt/asynchandler.eventsourcing)](https://www.nuget.org/packages/AsyncHandler.EventSourcing)
-[![Github follow](https://img.shields.io/badge/give_us_a-*-red?logo=github)](https://github.com/asynchandler/AsyncHandler.EventSourcing)
-
+[![Github follow](https://img.shields.io/badge/give_us_a-⭐-red?logo=github)](https://github.com/asynchandler/AsyncHandler.EventSourcing)
+[![build status](https://dev.azure.com/asynchandler/AsyncHandler.EventSourcing/_apis/build/status/asynchandler.AsyncHandler.EventSourcing?branchName=main)](https://dev.azure.com/asynchandler/AsyncHandler.EventSourcing/_build/latest?definitionId=3)
 
 <div align="left">
     <img src="assets/github.png" alt="marten logo" width="80" height="80" style="float:left;">
