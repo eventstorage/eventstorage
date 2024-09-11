@@ -2,7 +2,7 @@
 trigger:
 - main
 
-pool: mypool
+pool: asynchandler
 
 variables:
   buildConfiguration: 'Release'
