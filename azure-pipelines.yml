@@ -1,17 +1,39 @@
-# ASP.NET Core
-# Build and test ASP.NET Core projects targeting .NET Core.
-# Add steps that run tests, create a NuGet package, deploy, and more:
-# https://docs.microsoft.com/azure/devops/pipelines/languages/dotnet-core
 
 trigger:
 - main
 
-pool:
-  vmImage: ubuntu-latest
+pool: mypool
 
 variables:
   buildConfiguration: 'Release'
 
-steps:
-- script: dotnet build --configuration $(buildConfiguration)
-  displayName: 'dotnet build $(buildConfiguration)'
+jobs:
+  - job: restore_and_build
+    displayName: 'restore and build'
+
+    steps:
+      - task: UseDotNet@2
+        displayName: install net8
+        inputs:
+          packageType: 'sdk'
+          version: '8.0.x'
+
+      - script: |
+          cd src
+          dotnet restore
+        displayName: 'restore'
+        
+      # - script: |
+      #     dotnet build --no-restore --configuration $(buildConfiguration)
+      #   displayName: 'restore'
+
+      - task: DotNetCoreCLI@2
+        displayName: 'build'
+        inputs:
+          command: 'build'
+          projects: '**/*.csproj'
+          arguments: '--no-restore'
+          
+          
+  
+
