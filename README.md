@@ -2,21 +2,21 @@
 
 ### A lightweight event sourcing framework designed for your event-store of choice.
 
-[![Github follow](https://img.shields.io/badge/follow-asynchandler-red?logo=github)](https://github.com/asynchandler)
-[![Github follow](https://img.shields.io/badge/follow-eventsourcer-red?logo=github)](https://github.com/eventsourcer)
+[![Github follow](https://img.shields.io/badge/follow-asynchandler-bf9136?logo=github)](https://github.com/asynchandler)
+[![Github follow](https://img.shields.io/badge/follow-eventsourcer-bf9136?logo=github)](https://github.com/eventsourcer)
 [![In follow](https://img.shields.io/badge/follow-LinkedIn-blue?logo=linkedin)](https://www.linkedin.com/in/sarwansurchi/)
 [![Nuget Package](https://badgen.net/nuget/v/asynchandler.eventsourcing)](https://www.nuget.org/packages/AsyncHandler.EventSourcing)
 [![Nuget](https://badgen.net/nuget/dt/asynchandler.eventsourcing)](https://www.nuget.org/packages/AsyncHandler.EventSourcing)
-[![Github follow](https://img.shields.io/badge/give_us_a-⭐-red?logo=github)](https://github.com/asynchandler/AsyncHandler.EventSourcing)
-[![build status](https://dev.azure.com/asynchandler/AsyncHandler.EventSourcing/_apis/build/status/asynchandler.AsyncHandler.EventSourcing?branchName=main)](https://dev.azure.com/asynchandler/AsyncHandler.EventSourcing/_build/latest?definitionId=3)
+[![Github follow](https://img.shields.io/badge/give_us_a-⭐-yellow?logo=github)](https://github.com/asynchandler/AsyncHandler.EventSourcing)
+[![build Status](https://dev.azure.com/asynchandler/AsyncHandler.EventSourcing/_apis/build/status%2Fasynchandler.AsyncHandler.EventSourcing?branchName=main&label=azure%20pipes)](https://dev.azure.com/asynchandler/AsyncHandler.EventSourcing/_build/latest?definitionId=11&branchName=main)
 
 <div align="left">
-    <img src="assets/github.png" alt="marten logo" width="80" height="80" style="float:left;">
+    <img src="assets/ah_radius.png" width="80" height="80" style="float:left;" alt="asynchandler">
 </div>
 
 ### Overview
 
-asynchandler is a high-performance event sourcing framework built for .Net that allows selecting event source of choice. Combining consistency with schema flexibility, asynchandler aims to simplify event sourcing for everyone. Currently supports Azure Sql database and Sql Server, with Postgres and others in the upcoming releases.
+asynchandler is a high-performance event sourcing framework built for .Net that allows selecting event storage of choice. Combining consistency with schema flexibility, asynchandler aims to simplify event sourcing for everyone. Currently supports Azure Sql database and Sql Server, with Postgres and others in the upcoming releases.
 
 ### Environment setup
 
@@ -40,14 +40,14 @@ Use docker to run sqlserver or postgres databases, execute `docker-compose` or `
 
     docker run --name some-mssql -p 1433:1433 -e "ACCEPT_EULA=Y" -e "MSSQL_SA_PASSWORD=password" -d mcr.microsoft.com/mssql/server:2019-latest
 
-### Usage and code
+### Getting started
 
 [![My Skills](https://skillicons.dev/icons?i=vscode)](https://dotnet.microsoft.com/en-us/download/dotnet/8.0)
 #### Install the package
 
 ###### Simply install `AsyncHandler.EventSourcing` package.
 
-    dotnet add package AsyncHandler.EventSourcing --prerelease
+    dotnet add package AsyncHandler.EventSourcing
 
 #### Configure your event source
 
@@ -117,10 +117,10 @@ async(IEventSource<OrderBookingAggregate> eventSource, long orderId, ConfirmOrde
 });
 ```
 
-Please notice, this is a prelease and doesn't yet offer full event sourcing functionality.
+Please notice, these are early moments of asynchandler and the framework doesn't yet offer full event sourcing functionality.
 
 ### Give us a ⭐
-If you are an event sourcer and love OSS, give [us](https://github.com/asynchandler/AsyncHandler.EventSourcing) a star. :purple_heart:
+If you are an event sourcer and love OSS, give [asynchandler](https://github.com/asynchandler/AsyncHandler.EventSourcing) a star. :purple_heart:
 
 ### License
 

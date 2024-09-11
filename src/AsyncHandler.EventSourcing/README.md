@@ -2,15 +2,17 @@
 
 ### A lightweight event sourcing framework with event-store of choice.
 
-[![Github follow](https://img.shields.io/badge/follow-asynchandler-red?logo=github)](https://github.com/asynchandler)
-[![Github follow](https://img.shields.io/badge/follow-eventsourcer-red?logo=github)](https://github.com/eventsourcer)
+[![Github follow](https://img.shields.io/badge/follow-asynchandler-bf9136?logo=github)](https://github.com/asynchandler)
+[![Github follow](https://img.shields.io/badge/follow-eventsourcer-bf9136?logo=github)](https://github.com/eventsourcer)
 [![In follow](https://img.shields.io/badge/follow-LinkedIn-blue?logo=linkedin)](https://www.linkedin.com/in/sarwansurchi/)
 [![Nuget Package](https://badgen.net/nuget/v/asynchandler.eventsourcing)](https://www.nuget.org/packages/AsyncHandler.EventSourcing)
 [![Nuget](https://badgen.net/nuget/dt/asynchandler.eventsourcing)](https://www.nuget.org/packages/AsyncHandler.EventSourcing)
-[![Github follow](https://img.shields.io/badge/give_us_a-*-red?logo=github)](https://github.com/asynchandler/AsyncHandler.EventSourcing)
+[![Github follow](https://img.shields.io/badge/give_us_a-⭐-yellow?logo=github)](https://github.com/asynchandler/AsyncHandler.EventSourcing)
+[![build Status](https://dev.azure.com/asynchandler/AsyncHandler.EventSourcing/_apis/build/status%2Fasynchandler.AsyncHandler.EventSourcing?branchName=main&label=azure%20pipes)](https://dev.azure.com/asynchandler/AsyncHandler.EventSourcing/_build/latest?definitionId=11&branchName=main)
+
 
 <div align="left">
-    <img src="assets/github.png" alt="marten logo" width="80" height="80" style="float:left;">
+    <img src="../../assets/ah_radius.png" width="80" height="80" style="float:left;" alt="asynchandler">
 </div>
 
 ### Overview
@@ -54,7 +56,7 @@ builder.Services.AddAsyncHandler(asynchandler =>
 
 Select your event source of choice from `SelectEventSource`, currently AzureSql and SqlServer are supported.
 
-Please notice, this is a prelease and doesn't yet offer full event sourcing functionality.
+To continue please visit our [GitHub](https://github.com/asynchandler/AsyncHandler.EventSourcing) space.
 
 ### Give us a star ⭐
 If you are an event sourcer and love OSS, give [us](https://github.com/asynchandler/AsyncHandler.EventSourcing) a star. :purple_heart:
