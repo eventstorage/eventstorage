@@ -44,11 +44,11 @@ public abstract class TestBase
         .AddUserSecrets<TestBase>().AddEnvironmentVariables();
         return source switch
         {
-            EventSources.SqlServer => builder.Build().GetValue<string>("mssqlenv") ??
+            EventSources.SqlServer => builder.Build().GetValue<string>("mssqlsecret") ??
                 throw new Exception("no connection string found"),
-            EventSources.AzureSql => builder.Build().GetValue<string>("azuresqlenv") ??
+            EventSources.AzureSql => builder.Build().GetValue<string>("azuresqlsecret") ??
                 throw new Exception("no connection string found"),
-            EventSources.PostgresSql => builder.Build().GetValue<string>("mssqlenv") ??
+            EventSources.PostgresSql => builder.Build().GetValue<string>("mssqlsecret") ??
                 throw new Exception("no connection string found"),
             _ => string.Empty
         };

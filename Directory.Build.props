@@ -5,7 +5,7 @@
     <!-- <LangVersion>13</LangVersion> -->
     <!-- <GeneratePackageOnBuild>true</GeneratePackageOnBuild> -->
     <!-- <PackageId>AsyncHandler.EventSourcing</PackageId> -->
-    <Version>1.0.0</Version>
+    <Version>1.0.2</Version>
     <Authors>asynchandler</Authors>
     <Company>asynchandler</Company>
     <PackageTags>EventSourcing;EventStore;Messaging;AzureSql;Postgres;Event-Driven</PackageTags>

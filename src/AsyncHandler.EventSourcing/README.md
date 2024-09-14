@@ -11,15 +11,15 @@
 [![build Status](https://dev.azure.com/asynchandler/AsyncHandler.EventSourcing/_apis/build/status%2Fasynchandler.AsyncHandler.EventSourcing?branchName=main&label=azure%20pipes)](https://dev.azure.com/asynchandler/AsyncHandler.EventSourcing/_build/latest?definitionId=11&branchName=main)
 
 
-<div align="left">
+<!-- <div align="left">
     <img src="../../assets/ah_radius.png" width="80" height="80" style="float:left;" alt="asynchandler">
-</div>
+</div> -->
 
 ### Overview
 
-asynchandler is a high-performance event sourcing framework built for .Net, aiming to simplify event sourcing for everyone. asynchandler combines consistency with schema flexibility, and integrates easily with event storage vendors. Currently supports Azure Sql database and Sql Server, with Postgres in the upcoming releases.
+asynchandler is a high-performance event sourcing framework. combining consistency with schema flexibility, asynchandler aims to simplify event sourcing for everyone. Currently supports Azure Sql database and Sql Server, with Postgres in the upcoming releases.
 
-### Setup environment
+### Prerequisites
 
 [![My Skills](https://skillicons.dev/icons?i=dotnet)](https://dotnet.microsoft.com/en-us/download/dotnet/8.0)
 
@@ -33,7 +33,7 @@ Use docker to run sqlserver or postgres databases, execute `docker-compose`.
 
     docker compose --project-name some-name up -d
 
-### Usage and code
+### Usage
 
 [![My Skills](https://skillicons.dev/icons?i=vscode)](https://dotnet.microsoft.com/en-us/download/dotnet/8.0)
 ##### Install the package
