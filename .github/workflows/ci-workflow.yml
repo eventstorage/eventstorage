@@ -11,7 +11,7 @@ env:
   azuresqlsecret: ${{ secrets.AzureSqlSecret }}
   mssqlpassword: sysadmin@1234
   mssqldb: asynchandler
-  mssqlsecret: "Server=localhost,1433;Initial Catalog=${{ env.mssqldb }};Persist Security Info=False;User ID=sa;Password=${{ env.mssqlpassword }};MultipleActiveResultSets=False;Encrypt=True;TrustServerCertificate=true;Connection Timeout=20;"
+  mssqlsecret: "Server=localhost,1433;Initial Catalog=asynchandler;Persist Security Info=False;User ID=sa;Password=sysadmin@1234;MultipleActiveResultSets=False;Encrypt=True;TrustServerCertificate=true;Connection Timeout=20;"
 
 jobs:
   
