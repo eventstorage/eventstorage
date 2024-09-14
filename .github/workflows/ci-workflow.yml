@@ -8,10 +8,10 @@ on:
     branches: [ "main" ]
 
 env:
-  azuresqlenv: ${{ secrets.AzureSqlSecret }}
-  mssqlenv: "Server=localhost,1433;Initial Catalog=asynchandler;Persist Security Info=False;User ID=sa;Password=sysadmin@2024;MultipleActiveResultSets=False;Encrypt=True;TrustServerCertificate=true;Connection Timeout=20;"
+  azuresqlsecret: ${{ secrets.AzureSqlSecret }}
+  mssqlpassword: sysadmin@1234
   mssqldb: asynchandler
-  mssqlpassword: sysadmin@2024
+  mssqlsecret: "Server=localhost,1433;Initial Catalog=asynchandler;Persist Security Info=False;User ID=sa;Password=sysadmin@1234;MultipleActiveResultSets=False;Encrypt=True;TrustServerCertificate=true;Connection Timeout=20;"
 
 jobs:
   

@@ -1,10 +1,8 @@
 ﻿using System.Reflection;
-using System.Runtime.Serialization;
+using AsyncHandler.Asse;
 using AsyncHandler.EventSourcing.Configuration;
-using AsyncHandler.EventSourcing.Extensions;
 using AsyncHandler.EventSourcing.Projections;
 using AsyncHandler.EventSourcing.Repositories;
-using AsyncHandler.EventSourcing.Repositories.AzureSql;
 using AsyncHandler.EventSourcing.SourceConfig;
 using AsyncHandler.EventSourcing.Workers;
 using Microsoft.Extensions.DependencyInjection;
@@ -19,7 +17,7 @@ public static class EventSourceExtensions
         EventSources source,
         string connectionString)
     {
-        Type? aggregateType = typeof(AggregateRoot).GetAggregate(Assembly.GetCallingAssembly());
+        Type? aggregateType = TDiscover.FindByCallingAsse<AggregateRoot>(Assembly.GetCallingAssembly());
         if (aggregateType == null)
             return configuration;
         configuration.ServiceCollection.AddClientConfiurations();

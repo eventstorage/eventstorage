@@ -1,8 +1,5 @@
 using System.Reflection;
-using System.Reflection.Metadata;
-using System.Security.Cryptography.X509Certificates;
 using AsyncHandler.EventSourcing.Events;
-using Microsoft.Data.SqlClient;
 
 namespace AsyncHandler.EventSourcing.Extensions;
 
@@ -23,20 +20,5 @@ public static class TypeExtensions
         }
         catch(TargetInvocationException) { throw; }
         catch(Exception) { throw; }
-    }
-    public static Type? GetAggregate(this Type type, Assembly caller)
-    {
-        var aggregate = caller.GetTypes()
-        .FirstOrDefault(x => typeof(AggregateRoot).IsAssignableFrom(x));
-        if(aggregate != null)
-            return aggregate;
-        
-        var refs = caller.GetReferencedAssemblies()
-        .Where(r => !r.FullName.StartsWith("Microsoft") && !r.FullName.StartsWith("System"));
-
-        return refs.Where(x => Assembly.Load(x).GetReferencedAssemblies()
-        .Any(r => AssemblyName.ReferenceMatchesDefinition(r, typeof(AggregateRoot).Assembly.GetName())))
-        .SelectMany(x => Assembly.Load(x).GetTypes())
-        .FirstOrDefault(t => typeof(AggregateRoot).IsAssignableFrom(t));
     }
 }
