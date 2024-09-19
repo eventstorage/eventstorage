@@ -8,7 +8,7 @@ public class PostgreSqlConfig : ClientConfigBase
     "CREATE TABLE [dbo].[EventSources]("+
         $"[{EventSourceSchema.Sequence}] [bigint] IDENTITY(1,1) NOT NULL,"+
         $"[{EventSourceSchema.Id}] [uniqueidentifier] NOT NULL,"+
-        $"[{EventSourceSchema.SourceId}] [bigint] NOT NULL,"+
+        $"[{EventSourceSchema.LongSourceId}] [bigint] NOT NULL,"+
         $"[{EventSourceSchema.Version}] [bigint] NOT NULL,"+
         $"[{EventSourceSchema.Type}] [nvarchar](255) NOT NULL,"+
         $"[{EventSourceSchema.Data}] [nvarchar](4000) NOT NULL,"+

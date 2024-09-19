@@ -1,8 +1,8 @@
-using AsyncHandler.EventSourcing.Repositories.AzureSql;
+namespace AsyncHandler.EventSourcing.Repositories;
 
 public interface IEventSource<T>
 {
     Task InitSource();
-    Task<T> CreateOrRestore(long? sourceId = null);
+    Task<T> CreateOrRestore(string? sourceId = null);
     Task Commit(T t);
 }

@@ -4,7 +4,8 @@ public static class EventSourceSchema
 {
     public static string Sequence => "Sequence";
     public static string Id => "Id";
-    public static string SourceId => "SourceId";
+    public static string LongSourceId => "LongSourceId";
+    public static string GuidSourceId => "GuidSourceId";
     public static string Version => "Version";
     public static string Type => "Type";
     public static string Data => "Data";
