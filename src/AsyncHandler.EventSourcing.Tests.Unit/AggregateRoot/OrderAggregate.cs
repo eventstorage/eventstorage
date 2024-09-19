@@ -3,7 +3,7 @@ using AsyncHandler.EventSourcing.Extensions;
 
 namespace AsyncHandler.EventSourcing.Tests.Unit;
 
-public class OrderAggregate : AggregateRoot<Guid>
+public class OrderAggregate : AggregateRoot<long>
 {
     public OrderStatus OrderStatus { get; set; }
     protected override void Apply(SourcedEvent e)
