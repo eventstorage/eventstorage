@@ -17,15 +17,15 @@ public static class EventSourceExtensions
         EventSources source,
         string connectionString)
     {
-        Type? aggregateType = TDiscover.FindByCallingAsse<AggregateRoot>(Assembly.GetCallingAssembly());
+        Type? aggregateType = TDiscover.FindByCallingAsse<IAggregateRoot>(Assembly.GetCallingAssembly());
         if (aggregateType == null)
             return configuration;
         configuration.ServiceCollection.AddClientConfiurations();
         // initialize source when app spins up
         configuration.ServiceCollection.AddSingleton<IHostedService>((sp) =>
         {
-            var repository = new Repository<AggregateRoot>(connectionString, sp, source);
-            return new SourceInitializer(new EventSource<AggregateRoot>(repository, source));
+            var repository = new Repository<IAggregateRoot>(connectionString, sp, source);
+            return new SourceInitializer(new EventSource<IAggregateRoot>(repository, source));
         });
         #pragma warning disable CS8603
         // register repository
