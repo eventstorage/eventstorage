@@ -3,10 +3,10 @@ using AsyncHandler.EventSourcing.Extensions;
 
 namespace AsyncHandler.EventSourcing.Tests.Unit;
 
-public class OrderAggregate(long sourceId) : AggregateRoot(sourceId)
+public class OrderAggregate : AggregateRoot<long>
 {
     public OrderStatus OrderStatus { get; set; }
-    protected override void Apply(SourceEvent e)
+    protected override void Apply(SourcedEvent e)
     {
         this.InvokeApply(e);
     }
@@ -37,8 +37,8 @@ public class OrderAggregate(long sourceId) : AggregateRoot(sourceId)
     }
 }
 
-public record OrderPlaced : SourceEvent;
-public record OrderConfirmed : SourceEvent;
+public record OrderPlaced : SourcedEvent;
+public record OrderConfirmed : SourcedEvent;
 public enum OrderStatus
 {
     Draft = 0,

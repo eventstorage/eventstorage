@@ -9,7 +9,7 @@ public class AggregareRootTests
     public async Task GivenPlaceOrder_ShouldPlaceOrder()
     {
         // given
-        var aggregate = new OrderAggregate(1);
+        var aggregate = new OrderAggregate();
 
         // when
         aggregate.PlaceOrder();
@@ -18,7 +18,7 @@ public class AggregareRootTests
         aggregate.PendingEvents.Any().Should().BeTrue();
         aggregate.Version.Should().Be(1);
         aggregate.OrderStatus.Should().Be(OrderStatus.Placed);
-        Func<SourceEvent,bool> predicate = (e) => typeof(OrderPlaced).IsAssignableFrom(e.GetType());
+        Func<SourcedEvent,bool> predicate = (e) => typeof(OrderPlaced).IsAssignableFrom(e.GetType());
         aggregate.PendingEvents.Any(predicate).Should().Be(true);
         await Task.CompletedTask;
     }
@@ -26,7 +26,7 @@ public class AggregareRootTests
     public async Task GivenPlaceOrder_ShouldApplyOrderPlaced()
     {
         // given
-        var aggregate = new OrderAggregate(1);
+        var aggregate = new OrderAggregate();
 
         // when
         aggregate.PlaceOrder();
@@ -39,7 +39,7 @@ public class AggregareRootTests
     public async Task WhenAppendingEvent_ShouldBumpVersion()
     {
         // given
-        var aggregate = new OrderAggregate(1);
+        var aggregate = new OrderAggregate();
 
         // when
         aggregate.PlaceOrder();
@@ -52,7 +52,7 @@ public class AggregareRootTests
     public async Task GivenConfirmOrder_ShouldApplyOrderConfirmed()
     {
         // given
-        var aggregate = new OrderAggregate(1);
+        var aggregate = new OrderAggregate();
 
         // when
         aggregate.ConfirmOrder();
@@ -65,7 +65,7 @@ public class AggregareRootTests
     public async Task GivenDuplicatePlaceOrder_ShouldAppendOnlyOneEvent()
     {
         // given
-        var aggregate = new OrderAggregate(1);
+        var aggregate = new OrderAggregate();
 
         // when
         aggregate.PlaceOrder();
@@ -79,7 +79,7 @@ public class AggregareRootTests
     public async Task WhenCommittingAggregate_ShouldCommitEvents()
     {
         // given
-        var aggregate = new OrderAggregate(1);
+        var aggregate = new OrderAggregate();
         aggregate.PlaceOrder();
         aggregate.ConfirmOrder();
 
@@ -95,7 +95,7 @@ public class AggregareRootTests
     public async Task WhenRaisingMultipleEvents_ShouldAppendAll()
     {
         // given
-        var aggregate = new OrderAggregate(1);
+        var aggregate = new OrderAggregate();
 
         // when
         aggregate.AppendMultiple();
@@ -108,7 +108,7 @@ public class AggregareRootTests
     public async Task WhenAppendingEvents_ShouldSetCausationId()
     {
         // given
-        var aggregate = new OrderAggregate(1);
+        var aggregate = new OrderAggregate();
 
         // when
         aggregate.PlaceOrder();

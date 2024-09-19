@@ -5,20 +5,22 @@ namespace AsyncHandler.EventSourcing.Extensions;
 
 public static class TypeExtensions
 {
-    public static MethodInfo GetApply(this Type type, SourceEvent e) =>
+    public static MethodInfo GetApply(this Type type, SourcedEvent e) =>
         type.GetMethods().FirstOrDefault(m => m.Name.Equals("Apply") &&
         m.GetParameters().First().ParameterType.IsAssignableFrom(e.GetType()))
         ?? throw new Exception($"No handler defined for the {e.GetType().Name} event.");
-    public static T CreateAggregate<T>(this Type type, long sourceId)
+    public static T CreateAggregate<T>(this Type type, string sourceId)
     {
-        var constructor = type.GetConstructor([typeof(long)]);
-        try
-        {
-            var aggregate = constructor?.Invoke([sourceId]) ??
-                throw new Exception($"Provided type {typeof(T)} is not a valid aggregate.");
-            return (T) aggregate;
-        }
-        catch(TargetInvocationException) { throw; }
-        catch(Exception) { throw; }
+        var cons = type.GetConstructor([])??
+            throw new ArgumentException($"{typeof(T).Name} is not a valid aggregate. "+
+            "no parameterless constructor found.");
+        dynamic aggregate = cons.Invoke([]);
+        if(long.TryParse(sourceId, out long longId))
+            aggregate.SourceId = longId;
+        else if(Guid.TryParse(sourceId, out Guid guidId))
+            aggregate.SourceId = guidId;
+        else
+            throw new ArgumentException($"Invalid sourceId {sourceId}.");
+        return (T) aggregate;
     }
 }

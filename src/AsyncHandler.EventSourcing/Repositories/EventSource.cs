@@ -3,7 +3,7 @@ using AsyncHandler.EventSourcing.Configuration;
 namespace AsyncHandler.EventSourcing.Repositories;
 
 public class EventSource<T>(IRepository<T> repository, EventSources source) 
-    : IEventSource<T> where T : AggregateRoot
+    : IEventSource<T>
 {
     public Task InitSource() => source switch
     {
@@ -12,7 +12,7 @@ public class EventSource<T>(IRepository<T> repository, EventSources source)
         EventSources.SqlServer => repository.SqlServerClient.Init(),
         _ => Task.CompletedTask,
     };
-    public Task<T> CreateOrRestore(long? sourceId = null) => source switch
+    public Task<T> CreateOrRestore(string? sourceId = null) => source switch
     {
         EventSources.AzureSql => repository.AzureSqlClient.CreateOrRestore(sourceId),
         EventSources.PostgresSql => repository.PostgreSqlClient.CreateOrRestore(sourceId),

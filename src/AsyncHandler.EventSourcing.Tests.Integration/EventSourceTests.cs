@@ -56,7 +56,7 @@ public class EventSourceTests : TestBase
         await service.Commit(expectedAggregate);
     
         // When
-        var aggregate = await service.CreateOrRestore(expectedAggregate.SourceId);
+        var aggregate = await service.CreateOrRestore(expectedAggregate.SourceId.ToString());
     
         // Then
         Assert.Equal(expectedAggregate.SourceId, aggregate.SourceId);
@@ -76,7 +76,7 @@ public class EventSourceTests : TestBase
         await service.Commit(aggregate);
     
         // When
-        var result = await service.CreateOrRestore(aggregate.SourceId);
+        var result = await service.CreateOrRestore(aggregate.SourceId.ToString());
         result.ConfirmOrder();
         await service.Commit(result);
     

@@ -1,10 +1,12 @@
 using System.Data;
+using System.Reflection;
 using System.Runtime.Serialization;
 using System.Text.Json;
 using AsyncHandler.EventSourcing.Configuration;
 using AsyncHandler.EventSourcing.Events;
 using AsyncHandler.EventSourcing.Extensions;
 using AsyncHandler.EventSourcing.Schema;
+using AsyncHandler.EventSourcing.SourceConfig;
 using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -12,7 +14,7 @@ using Microsoft.Extensions.Logging;
 namespace AsyncHandler.EventSourcing.Repositories.AzureSql;
 
 public class AzureSqlClient<T>(string conn, IServiceProvider sp, EventSources source) 
-    : ClientBase(sp, source), IAzureSqlClient<T> where T : AggregateRoot
+    : ClientBase<T>(sp, source), IAzureSqlClient<T> where T : IAggregateRoot
 {
     private readonly ILogger<AzureSqlClient<T>> logger = sp.GetRequiredService<ILogger<AzureSqlClient<T>>>();
     public async Task Init()
@@ -24,33 +26,35 @@ public class AzureSqlClient<T>(string conn, IServiceProvider sp, EventSources so
         await command.ExecuteNonQueryAsync();
         logger.LogInformation($"Finished initializing {nameof(AzureSqlClient<T>)}.");
     }
-    public async Task<T> CreateOrRestore(long? sourceId = null)
+    public async Task<T> CreateOrRestore(string? sourceId = null)
     {
         try
         {
-            sourceId ??= await GetSourceId();
+            logger.LogInformation($"Restoring aggregate {typeof(T).Name} started.");
+
+            sourceId ??= await GenerateSourceId();
+            var aggregate = typeof(T).CreateAggregate<T>(sourceId);
+            
             using SqlConnection sqlConnection = new(conn);
             sqlConnection.Open();
             using SqlCommand command = new(GetSourceCommand, sqlConnection);
             command.Parameters.AddWithValue("@sourceId", sourceId);
             using SqlDataReader reader = await command.ExecuteReaderAsync();
             
-            logger.LogInformation($"Restoring aggregate {typeof(T).Name} started.");
-
-            var aggregate = typeof(T).CreateAggregate<T>((long) sourceId);
-            // var aggregate = (AggregateRoot)Activator.CreateInstance(typeof(T), sourceId);
-            List<SourceEvent> sourceEvents = [];
+            List<SourcedEvent> sourcedEvents = [];
             while(await reader.ReadAsync())
             {
+                LongSourceId = reader.GetInt64(EventSourceSchema.LongSourceId);
+                GuidSourceId = reader.GetGuid(EventSourceSchema.GuidSourceId);
+
                 var typeName = reader.GetString(EventSourceSchema.Type);
                 var type = ResolveEventType(typeName);
-
                 var jsonData = reader.GetString(EventSourceSchema.Data);
-                var sourceEvent = JsonSerializer.Deserialize(jsonData, type) as SourceEvent ??
+                var sourcedEvent = JsonSerializer.Deserialize(jsonData, type) as SourcedEvent ??
                     throw new SerializationException($"Deserialize failure for event type {type}, sourceId {sourceId}.");
-                sourceEvents.Add(sourceEvent);
+                sourcedEvents.Add(sourcedEvent);
             };
-            aggregate.RestoreAggregate(Restoration.Stream, sourceEvents.ToArray());
+            aggregate.RestoreAggregate(RestoreType.Stream, sourcedEvents.ToArray());
             logger.LogInformation($"Finished restoring aggregate {typeof(T).Name}.");
 
             return aggregate;
@@ -58,19 +62,19 @@ public class AzureSqlClient<T>(string conn, IServiceProvider sp, EventSources so
         catch(SqlException e)
         {
             if(logger.IsEnabled(LogLevel.Error))
-                logger.LogError($"Failed restoring aggregate {typeof(T)}. {e.Message}");
+                logger.LogError($"Failed restoring aggregate {typeof(T).Name}. {e.Message}");
             throw;
         }
         catch(SerializationException e)
         {
             if(logger.IsEnabled(LogLevel.Error))
-                logger.LogError($"Failed restoring aggregate {typeof(T)}. {e.Message}");
+                logger.LogError($"Failed restoring aggregate {typeof(T).Name}. {e.Message}");
             throw;
         }
         catch (Exception e)
         {
             if(logger.IsEnabled(LogLevel.Error))
-                logger.LogError($"Failed restoring aggregate {typeof(T)}. {e.Message}");
+                logger.LogError($"Failed restoring aggregate {typeof(T).Name}. {e.Message}");
             throw;
         }
     }
@@ -95,47 +99,50 @@ public class AzureSqlClient<T>(string conn, IServiceProvider sp, EventSources so
         catch(SqlException e)
         {
             if(logger.IsEnabled(LogLevel.Error))
-                logger.LogError($"Commit failure for {aggregate.GetType()}. {e.Message}");
+                logger.LogError($"Commit failure for {aggregate.GetType().Name}. {e.Message}");
             throw;
         }
         catch(SerializationException e)
         {
             if(logger.IsEnabled(LogLevel.Error))
-                logger.LogError($"Commit failure for {aggregate.GetType()}. {e.Message}");
+                logger.LogError($"Commit failure for {aggregate.GetType().Name}. {e.Message}");
             throw;
         }
         catch (Exception e)
         {
             if(logger.IsEnabled(LogLevel.Error))
-                logger.LogError($"Commit failure for {aggregate.GetType()}. {e.Message}");
+                logger.LogError($"Commit failure for {aggregate.GetType().Name}. {e.Message}");
             throw;
         }
     }
     // this needs optimistic locking
-    private async Task<long> GetSourceId()
+    private async Task<string> GenerateSourceId()
     {
-        long sourceId = 0;
-        using SqlConnection sqlConnection = new (conn);
+        using SqlConnection sqlConnection = new(conn);
         sqlConnection.Open();
         using SqlCommand sqlCommand = new (GetMaxSourceId, sqlConnection);
         var reader = await sqlCommand.ExecuteReaderAsync();
         await reader.ReadAsync();
+        long longId = 0;
         if(reader.HasRows)
-            sourceId = (long) reader.GetValue(0);
-        return sourceId + 1;
+            longId = (long)reader.GetValue(0);
+        LongSourceId = longId + 1;
+        GuidSourceId = Guid.NewGuid();
+        return SourceTId == TId.LongSourceId ? LongSourceId.ToString() : GuidSourceId.ToString();
     }
-    private string PrepareCommand(SqlCommand command, AggregateRoot aggregate)
+    private string PrepareCommand(SqlCommand command, IAggregateRoot aggregate)
     {
         int count = 0;
         var sqlCommand = InsertSourceCommand;
         foreach (var e in aggregate.PendingEvents)
         {
             sqlCommand +=
-            @$"(@id{count}, @sourceId{count}, @version{count},"+
+            @$"(@id{count}, @longSourceId{count}, @guidSourceId{count}, @version{count},"+
             $"@type{count}, @data{count}, @timestamp{count}, @sourceType{count},"+
             $"@tenantId{count}, @correlationId{count}, @causationId{count}),";
             command.Parameters.AddWithValue($"@id{count}", e.Id);
-            command.Parameters.AddWithValue($"@sourceId{count}", aggregate.SourceId);
+            command.Parameters.AddWithValue($"@longSourceId{count}", LongSourceId);
+            command.Parameters.AddWithValue($"@guidSourceId{count}", GuidSourceId);
             command.Parameters.AddWithValue($"@version{count}", e.Version);
             command.Parameters.AddWithValue($"@type{count}", e.GetType().Name);
             var json = JsonSerializer.Serialize(e, e.GetType(), SerializerOptions);

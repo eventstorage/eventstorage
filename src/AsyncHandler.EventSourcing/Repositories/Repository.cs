@@ -4,7 +4,7 @@ using AsyncHandler.EventSourcing.Repositories.AzureSql;
 namespace AsyncHandler.EventSourcing.Repositories;
 
 public class Repository<T>(string conn, IServiceProvider sp, EventSources source)
-    : IRepository<T> where T : AggregateRoot
+    : IRepository<T> where T : IAggregateRoot
 {
     private AzureSqlClient<T>? _azureSql;
     private AzureSqlClient<T>? _sqlServer;

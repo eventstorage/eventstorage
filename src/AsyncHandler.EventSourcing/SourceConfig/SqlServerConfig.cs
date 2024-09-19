@@ -8,7 +8,8 @@ public class SqlServerConfig : ClientConfigBase
     "CREATE TABLE [dbo].[EventSources]("+
         $"[{EventSourceSchema.Sequence}] [bigint] IDENTITY(1,1) NOT NULL,"+
         $"[{EventSourceSchema.Id}] [uniqueidentifier] NOT NULL,"+
-        $"[{EventSourceSchema.SourceId}] [bigint] NOT NULL,"+
+        $"[{EventSourceSchema.LongSourceId}] [bigint] NOT NULL,"+
+        $"[{EventSourceSchema.GuidSourceId}] [uniqueidentifier] NOT NULL,"+
         $"[{EventSourceSchema.Version}] [bigint] NOT NULL,"+
         $"[{EventSourceSchema.Type}] [nvarchar](255) NOT NULL,"+
         $"[{EventSourceSchema.Data}] [nvarchar](4000) NOT NULL,"+
@@ -18,6 +19,8 @@ public class SqlServerConfig : ClientConfigBase
         $"[{EventSourceSchema.TenantId}] [nvarchar](255) DEFAULT 'Default' NOT NULL,"+
         $"[{EventSourceSchema.CausationId}] [nvarchar](255) DEFAULT 'Default' NOT NULL,"+
         $"CONSTRAINT [PK_Sequence] PRIMARY KEY ([Sequence]),"+
-        $"CONSTRAINT [AK_SourceId_Version] UNIQUE ([SourceId], [Version]),"+
+        $"CONSTRAINT [AK_LongSourceId_Version] UNIQUE ([LongSourceId], [Version]),"+
+        // should be removed if performance affected
+        $"CONSTRAINT [AK_GuidSourceId_Version] UNIQUE ([GuidSourceId], [Version]),"+
     ");";
 }

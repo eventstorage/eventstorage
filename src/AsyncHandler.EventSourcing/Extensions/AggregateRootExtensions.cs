@@ -5,7 +5,7 @@ namespace AsyncHandler.EventSourcing.Extensions;
 
 public static class AggregateRootExtensions
 {
-    public static void InvokeApply(this AggregateRoot aggregate,  SourceEvent e)
+    public static void InvokeApply(this IAggregateRoot aggregate,  SourcedEvent e)
     {
         var apply = aggregate.GetType().GetApply(e);
         try
