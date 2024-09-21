@@ -3,7 +3,7 @@ using System.Text.Json;
 using AsyncHandler.Asse;
 using AsyncHandler.EventSourcing.Configuration;
 using AsyncHandler.EventSourcing.Events;
-using AsyncHandler.EventSourcing.SourceConfig;
+using AsyncHandler.EventSourcing.Schema.ClientConfig;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace AsyncHandler.EventSourcing.Repositories;

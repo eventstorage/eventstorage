@@ -1,6 +1,7 @@
 using AsyncHandler.EventSourcing.Configuration;
 using AsyncHandler.EventSourcing.Repositories;
 using AsyncHandler.EventSourcing.Repositories.AzureSql;
+using AsyncHandler.EventSourcing.Schema.ClientConfig;
 using AsyncHandler.EventSourcing.SourceConfig;
 using AsyncHandler.EventSourcing.Tests.Unit;
 using Castle.Core.Logging;

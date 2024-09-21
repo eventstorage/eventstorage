@@ -1,6 +1,4 @@
-using AsyncHandler.EventSourcing.Schema;
-
-namespace AsyncHandler.EventSourcing.SourceConfig;
+namespace AsyncHandler.EventSourcing.Schema.ClientConfig;
 
 public abstract class ClientConfigBase : IClientConfig
 {

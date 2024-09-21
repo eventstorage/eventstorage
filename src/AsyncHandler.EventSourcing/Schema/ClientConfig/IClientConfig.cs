@@ -1,4 +1,4 @@
-namespace AsyncHandler.EventSourcing.SourceConfig;
+namespace AsyncHandler.EventSourcing.Schema.ClientConfig;
 
 public interface IClientConfig
 {

@@ -3,7 +3,7 @@ using AsyncHandler.Asse;
 using AsyncHandler.EventSourcing.Configuration;
 using AsyncHandler.EventSourcing.Projections;
 using AsyncHandler.EventSourcing.Repositories;
-using AsyncHandler.EventSourcing.SourceConfig;
+using AsyncHandler.EventSourcing.Schema.ClientConfig;
 using AsyncHandler.EventSourcing.Workers;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
