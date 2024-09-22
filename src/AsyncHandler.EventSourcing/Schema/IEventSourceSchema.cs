@@ -1,6 +1,6 @@
-namespace AsyncHandler.EventSourcing.Schema.ClientConfig;
+namespace AsyncHandler.EventSourcing.Schema;
 
-public interface IClientConfig
+public interface IEventSourceSchema
 {
     string CreateIfNotExists { get; }
     string GetSourceCommand(string sourceTId);

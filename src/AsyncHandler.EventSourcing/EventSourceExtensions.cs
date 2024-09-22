@@ -3,7 +3,7 @@ using AsyncHandler.Asse;
 using AsyncHandler.EventSourcing.Configuration;
 using AsyncHandler.EventSourcing.Projections;
 using AsyncHandler.EventSourcing.Repositories;
-using AsyncHandler.EventSourcing.Schema.ClientConfig;
+using AsyncHandler.EventSourcing.Schema;
 using AsyncHandler.EventSourcing.Workers;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -20,7 +20,7 @@ public static class EventSourceExtensions
         Type? aggregateType = TDiscover.FindByCallingAsse<IAggregateRoot>(Assembly.GetCallingAssembly());
         if (aggregateType == null)
             return configuration;
-        configuration.ServiceCollection.AddClientConfiurations();
+        configuration.ServiceCollection.AddEventSourceSchema();
         // initialize source when app spins up
         configuration.ServiceCollection.AddSingleton<IHostedService>((sp) =>
         {
@@ -51,13 +51,13 @@ public static class EventSourceExtensions
     {
         return configuration;
     }
-    private static IServiceCollection AddClientConfiurations(this IServiceCollection services)
+    private static IServiceCollection AddEventSourceSchema(this IServiceCollection services)
     {
-        Dictionary<EventSources,IClientConfig> configs = [];
-        configs.Add(EventSources.AzureSql, new AzureSqlConfig());
-        configs.Add(EventSources.PostgresSql, new PostgreSqlConfig());
-        configs.Add(EventSources.SqlServer, new SqlServerConfig());
-        services.AddKeyedSingleton("SourceConfig", configs);
+        Dictionary<EventSources,IEventSourceSchema> schemas = [];
+        schemas.Add(EventSources.AzureSql, new AzureSqlSchema());
+        schemas.Add(EventSources.PostgresSql, new PostgreSqlSchema());
+        schemas.Add(EventSources.SqlServer, new SqlServerSchema());
+        services.AddKeyedSingleton("Schema", schemas);
         return services;
     }
 }
