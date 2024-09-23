@@ -19,9 +19,9 @@ public abstract class TestBase
     {
         var services = new ServiceCollection();
         Dictionary<EventSources,IEventSourceSchema> schemas = [];
-        schemas.Add(EventSources.AzureSql, new AzureSqlSchema());
-        schemas.Add(EventSources.PostgresSql, new PostgreSqlSchema());
-        schemas.Add(EventSources.SqlServer, new SqlServerSchema());
+        schemas.Add(EventSources.AzureSql, new AzureSqlSchema("ah"));
+        schemas.Add(EventSources.PostgresSql, new PostgreSqlSchema("ah"));
+        schemas.Add(EventSources.SqlServer, new SqlServerSchema("ah"));
         services.AddKeyedSingleton("Schema", schemas);
         services.AddTransient<ILogger<AzureSqlClient<OrderAggregate>>>(sp =>
         {

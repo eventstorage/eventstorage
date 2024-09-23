@@ -9,24 +9,24 @@ public static class AsyncHandlerExtensions
         this IServiceCollection services,
         Action<AsyncHandlerConfiguration> configure)
     {
-        var asynchandlerConfiguration = new AsyncHandlerConfiguration(services);
+        AsyncHandlerConfiguration asynchandlerConfiguration = new(services);
         configure(asynchandlerConfiguration);
         return services;
     }
     public static EventSourceConfiguration AddEventSourcing(
-        this AsyncHandlerConfiguration configuration,
+        this AsyncHandlerConfiguration config,
         Action<EventSourceConfiguration> configure)
     {
-        var eventSourceConfiguration = new EventSourceConfiguration(configuration.ServiceCollection);
-        configure(eventSourceConfiguration);
-        return eventSourceConfiguration;
+        EventSourceConfiguration sourceConfig = new(config.ServiceCollection, config.Schema);
+        configure(sourceConfig);
+        return sourceConfig;
     }
     public static void EnableTransactionalOutbox(
-        this AsyncHandlerConfiguration configuration,
+        this AsyncHandlerConfiguration config,
         MessageBus messageBus,
         string busConnection)
     {
-        var eventSourceConfiguration = new EventSourceConfiguration(configuration.ServiceCollection);
+        var eventSourceConfiguration = new EventSourceConfiguration(config.ServiceCollection, "");
         // configure(eventSourceConfiguration);
     }
 }

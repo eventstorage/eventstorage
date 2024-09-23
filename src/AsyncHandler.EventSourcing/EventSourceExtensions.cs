@@ -20,7 +20,7 @@ public static class EventSourceExtensions
         Type? aggregateType = TDiscover.FindByCallingAsse<IAggregateRoot>(Assembly.GetCallingAssembly());
         if (aggregateType == null)
             return configuration;
-        configuration.ServiceCollection.AddEventSourceSchema();
+        configuration.ServiceCollection.AddEventSourceSchema(configuration.Schema);
         // initialize source when app spins up
         configuration.ServiceCollection.AddSingleton<IHostedService>((sp) =>
         {
@@ -51,12 +51,12 @@ public static class EventSourceExtensions
     {
         return configuration;
     }
-    private static IServiceCollection AddEventSourceSchema(this IServiceCollection services)
+    private static IServiceCollection AddEventSourceSchema(this IServiceCollection services, string schema)
     {
         Dictionary<EventSources,IEventSourceSchema> schemas = [];
-        schemas.Add(EventSources.AzureSql, new AzureSqlSchema());
-        schemas.Add(EventSources.PostgresSql, new PostgreSqlSchema());
-        schemas.Add(EventSources.SqlServer, new SqlServerSchema());
+        schemas.Add(EventSources.AzureSql, new AzureSqlSchema(schema));
+        schemas.Add(EventSources.PostgresSql, new PostgreSqlSchema(schema));
+        schemas.Add(EventSources.SqlServer, new SqlServerSchema(schema));
         services.AddKeyedSingleton("Schema", schemas);
         return services;
     }

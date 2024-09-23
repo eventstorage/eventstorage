@@ -1,7 +1,8 @@
 namespace AsyncHandler.EventSourcing.Schema;
 
-public abstract class EventSourceSchema : IEventSourceSchema
+public abstract class EventSourceSchema(string schema) : IEventSourceSchema
 {
+    protected string Schema => schema;
     public static string Sequence => "Sequence";
     public static string Id => "Id";
     public static string LongSourceId => "LongSourceId";
@@ -17,9 +18,10 @@ public abstract class EventSourceSchema : IEventSourceSchema
 
     public abstract string CreateIfNotExists { get; }
     public virtual string GetSourceCommand(string sourceTId) =>
-        @$"SELECT {LongSourceId}, {GuidSourceId}, {Type}, {Data} FROM [EventSources] WHERE [{sourceTId}] = @sourceId";
-    public virtual string InsertSourceCommand => @"INSERT INTO [EventSources] VALUES ";
+        @$"SELECT {LongSourceId}, {GuidSourceId}, {Type}, {Data} FROM [{schema}].[EventSources]
+        WHERE [{sourceTId}] = @sourceId";
+    public virtual string InsertSourceCommand => @$"INSERT INTO [{schema}].[EventSources] VALUES ";
     public virtual string GetMaxSourceId =>
-        @"SELECT T.LongSourceId FROM (SELECT MAX([LongSourceId]) as LongSourceId
-        FROM [EventSources]) as T WHERE T.LongSourceId is not null;";
+        @$"SELECT T.LongSourceId FROM (SELECT MAX([LongSourceId]) as LongSourceId
+        FROM [{schema}].[EventSources]) as T WHERE T.LongSourceId is not null;";
 }

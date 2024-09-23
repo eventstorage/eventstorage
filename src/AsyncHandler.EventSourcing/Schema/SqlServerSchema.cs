@@ -1,10 +1,12 @@
 namespace AsyncHandler.EventSourcing.Schema;
 
-public class SqlServerSchema : EventSourceSchema
+public class SqlServerSchema(string schema) : EventSourceSchema(schema)
 {
     public override string CreateIfNotExists =>
-        $@"IF NOT EXISTS(SELECT * FROM sys.tables WHERE NAME = 'EventSources')
-        CREATE TABLE [dbo].[EventSources](
+        @$"IF SCHEMA_ID('{Schema}') IS NULL
+        EXEC ('CREATE SCHEMA [{Schema}]');
+        IF OBJECT_ID('{Schema}.EventSources') IS NULL
+        CREATE TABLE [{Schema}].[EventSources](
             [{Sequence}] [bigint] IDENTITY(1,1) NOT NULL,
             [{Id}] [uniqueidentifier] NOT NULL,
             [{LongSourceId}] [bigint] NOT NULL,
