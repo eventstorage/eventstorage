@@ -1,56 +1,18 @@
 using AsyncHandler.EventSourcing.Configuration;
 using AsyncHandler.EventSourcing.Repositories;
 using AsyncHandler.EventSourcing.Repositories.AzureSql;
-using AsyncHandler.EventSourcing.Schema;
 using AsyncHandler.EventSourcing.Tests.Unit;
-using Castle.Core.Logging;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging;
 
 namespace AsyncHandler.EventSourcing.Tests.Integration;
 
-public abstract class TestBase
+public class TestBase<T> where T : OrderAggregate
 {
-    private static string GetConnection(EventSources source) => BuildConfiguration(source);
-    public static IEventSource<OrderAggregate> GetEventSource(EventSources source) =>
-        BuildContainer(source).GetRequiredService<IEventSource<OrderAggregate>>();
-    public static ServiceProvider BuildContainer(EventSources source)
-    {
-        var services = new ServiceCollection();
-        Dictionary<EventSources,IEventSourceSchema> schemas = [];
-        schemas.Add(EventSources.AzureSql, new AzureSqlSchema("ah"));
-        schemas.Add(EventSources.PostgresSql, new PostgreSqlSchema("ah"));
-        schemas.Add(EventSources.SqlServer, new SqlServerSchema("ah"));
-        services.AddKeyedSingleton("Schema", schemas);
-        services.AddTransient<ILogger<AzureSqlClient<OrderAggregate>>>(sp =>
-        {
-            return new Logger<AzureSqlClient<OrderAggregate>>(new LoggerFactory());
-        });
-        services.AddSingleton<IRepository<OrderAggregate>>(sp =>
-        {
-            return new Repository<OrderAggregate>(GetConnection(source), sp, source);
-        });
-        services.AddSingleton<IEventSource<OrderAggregate>>(sp =>
-        {
-            var repository = sp.GetRequiredService<IRepository<OrderAggregate>>();
-            return new EventSource<OrderAggregate>(repository, source);
-        });
-        return services.BuildServiceProvider();
-    }
-    protected static string BuildConfiguration(EventSources source)
-    {
-        var builder = new ConfigurationBuilder()
-        .AddUserSecrets<TestBase>().AddEnvironmentVariables();
-        return source switch
-        {
-            EventSources.SqlServer => builder.Build().GetValue<string>("mssqlsecret") ??
-                throw new Exception("no connection string found"),
-            EventSources.AzureSql => builder.Build().GetValue<string>("azuresqlsecret") ??
-                throw new Exception("no connection string found"),
-            EventSources.PostgresSql => builder.Build().GetValue<string>("mssqlsecret") ??
-                throw new Exception("no connection string found"),
-            _ => string.Empty
-        };
-    }
+    private static readonly IServiceProvider _container = Configuration<T>.Container;
+    public static IEventSource<T> EventSource(EventSources source) =>
+        _container.GetRequiredKeyedService<IEventSource<T>>(source);
+    public static IAzureSqlClient<T> AzureSqlClient =>
+        _container.GetRequiredKeyedService<IRepository<T>>(EventSources.AzureSql).AzureSqlClient;
+    public static IAzureSqlClient<T> SqlServerClient =>
+        _container.GetRequiredKeyedService<IRepository<T>>(EventSources.SqlServer).SqlServerClient;
 }

@@ -2,9 +2,9 @@ namespace AsyncHandler.EventSourcing.Schema;
 
 public class PostgreSqlSchema(string schema) : EventSourceSchema(schema)
 {
-    public override string CreateIfNotExists =>
+    public override string CreateSchemaIfNotExists => 
         @$"IF SCHEMA_ID('{Schema}') IS NULL
-        EXEC ('CREATE SCHEMA [{Schema}]');
+        EXEC ('CREATE SCHEMA {Schema}')
         IF OBJECT_ID('{Schema}.EventSources') IS NULL
         CREATE TABLE [{Schema}].[EventSources](
             [{Sequence}] [bigint] IDENTITY(1,1) NOT NULL,
@@ -22,5 +22,5 @@ public class PostgreSqlSchema(string schema) : EventSourceSchema(schema)
             CONSTRAINT [PK_Sequence] PRIMARY KEY ([Sequence]),
             CONSTRAINT [AK_LongSourceId_Version] UNIQUE ([LongSourceId], [Version]),
             CONSTRAINT [AK_GuidSourceId_Version] UNIQUE ([GuidSourceId], [Version]),
-        );";
+        )";
 }

@@ -16,7 +16,7 @@ public abstract class EventSourceSchema(string schema) : IEventSourceSchema
     public static string TenantId => "TenantId";
     public static string CausationId => "CausationId";
 
-    public abstract string CreateIfNotExists { get; }
+    public abstract string CreateSchemaIfNotExists { get; }
     public virtual string GetSourceCommand(string sourceTId) =>
         @$"SELECT {LongSourceId}, {GuidSourceId}, {Type}, {Data} FROM [{schema}].[EventSources]
         WHERE [{sourceTId}] = @sourceId";

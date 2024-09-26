@@ -2,10 +2,8 @@ namespace AsyncHandler.EventSourcing.Schema;
 
 public class AzureSqlSchema(string schema) : EventSourceSchema(schema)
 {
-    public override string CreateIfNotExists =>
-        @$"IF SCHEMA_ID('{Schema}') IS NULL
-        EXEC ('CREATE SCHEMA [{Schema}]');
-        IF OBJECT_ID('{Schema}.EventSources') IS NULL
+    public override string CreateSchemaIfNotExists =>
+        @$"IF OBJECT_ID('{Schema}.EventSources') IS NULL
         CREATE TABLE [{Schema}].[EventSources](
             [{Sequence}] [bigint] IDENTITY(1,1) NOT NULL,
             [{Id}] [uniqueidentifier] NOT NULL,

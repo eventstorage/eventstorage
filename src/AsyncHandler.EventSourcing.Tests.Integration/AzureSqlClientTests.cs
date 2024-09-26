@@ -1,19 +1,14 @@
-using AsyncHandler.EventSourcing.Configuration;
-using AsyncHandler.EventSourcing.Repositories.AzureSql;
 using AsyncHandler.EventSourcing.Tests.Unit;
 
 namespace AsyncHandler.EventSourcing.Tests.Integration;
 
-public class AzureSqlClientTests : TestBase
+public class AzureSqlClientTests : TestBase<OrderAggregate>
 {
     [Fact]
-    public async Task TestMsSqlClient()
+    public async Task GivenSqlServerSource_ShouldCreateEventStream()
     {
         // giveb
-        var source = EventSources.SqlServer;
-        var sp = BuildContainer(source);
-        var conn = BuildConfiguration(source);
-        var client = new AzureSqlClient<OrderAggregate>(conn, sp, source);
+        var client = SqlServerClient;
         await client.Init();
 
         //when
@@ -23,13 +18,10 @@ public class AzureSqlClientTests : TestBase
         Assert.NotNull(aggregate);
     }
     [Fact]
-    public async Task TestAzureSqlClient()
+    public async Task GivenAzureSqlSource_ShouldCreateEventStream()
     {
         // giveb
-        var source = EventSources.AzureSql;
-        var sp = BuildContainer(source);
-        var conn = BuildConfiguration(source);
-        var client = new AzureSqlClient<OrderAggregate>(conn, sp, source);
+        var client = AzureSqlClient;
         await client.Init();
 
         //when
