@@ -1,4 +1,3 @@
-using System.Numerics;
 using AsyncHandler.EventSourcing.Events;
 
 namespace AsyncHandler.EventSourcing;

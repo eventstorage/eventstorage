@@ -6,7 +6,6 @@ using AsyncHandler.EventSourcing.Configuration;
 using AsyncHandler.EventSourcing.Events;
 using AsyncHandler.EventSourcing.Extensions;
 using AsyncHandler.EventSourcing.Schema;
-using AsyncHandler.EventSourcing.SourceConfig;
 using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;

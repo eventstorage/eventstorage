@@ -2,8 +2,7 @@ using AsyncHandler.EventSourcing.Configuration;
 
 namespace AsyncHandler.EventSourcing.Repositories;
 
-public class EventSource<T>(IRepository<T> repository, EventSources source) 
-    : IEventSource<T>
+public class EventSource<T>(IRepository<T> repository, EventSources source) : IEventSource<T>
 {
     public Task InitSource() => source switch
     {

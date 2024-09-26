@@ -2,7 +2,8 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace AsyncHandler.EventSourcing.Configuration;
 
-public class EventSourceConfiguration(IServiceCollection services) : AsyncHandlerConfiguration(services)
+public class EventSourceConfiguration(IServiceCollection services, string schema) 
+    : AsyncHandlerConfiguration(services, schema)
 {
-    // public EventSources EventSource { get; set; }
+
 }

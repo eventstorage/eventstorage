@@ -1,20 +1,19 @@
-using System.Reflection;
 using System.Text.Json;
 using AsyncHandler.Asse;
 using AsyncHandler.EventSourcing.Configuration;
 using AsyncHandler.EventSourcing.Events;
-using AsyncHandler.EventSourcing.SourceConfig;
+using AsyncHandler.EventSourcing.Schema;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace AsyncHandler.EventSourcing.Repositories;
 
 public abstract class ClientBase<T>(IServiceProvider sp, EventSources source)
 {
-    private readonly IClientConfig _config = GetClientConfig(sp, source);
-    protected string GetSourceCommand => _config.GetSourceCommand(SourceTId.ToString());
-    protected string InsertSourceCommand => _config.InsertSourceCommand;
-    protected string CreateIfNotExists => _config.CreateIfNotExists;
-    public string GetMaxSourceId => _config.GetMaxSourceId;
+    private readonly IEventSourceSchema _schema = GetEventSourceSchema(sp, source);
+    protected string GetSourceCommand => _schema.GetSourceCommand(SourceTId.ToString());
+    protected string InsertSourceCommand => _schema.InsertSourceCommand;
+    protected string CreateIfNotExists => _schema.CreateIfNotExists;
+    public string GetMaxSourceId => _schema.GetMaxSourceId;
     public static JsonSerializerOptions SerializerOptions => new() { IncludeFields = true };
     
     protected long LongSourceId { get; set; } = 1;
@@ -27,8 +26,8 @@ public abstract class ClientBase<T>(IServiceProvider sp, EventSources source)
         TDiscover.FindByTypeName<SourcedEvent>(typeName) ??
         throw new Exception($"Deserialize failure for event {typeName}, couldn't determine event type.");
     
-    private static IClientConfig GetClientConfig(IServiceProvider sp, EventSources source) =>
-    sp.GetRequiredKeyedService<Dictionary<EventSources,IClientConfig>>("SourceConfig")
+    private static IEventSourceSchema GetEventSourceSchema(IServiceProvider sp, EventSources source) =>
+    sp.GetRequiredKeyedService<Dictionary<EventSources,IEventSourceSchema>>("Schema")
     .FirstOrDefault(x => x.Key == source).Value;
 }
 public enum TId
