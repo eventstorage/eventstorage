@@ -12,7 +12,7 @@ public abstract class ClientBase<T>(IServiceProvider sp, EventSources source)
     private readonly IEventSourceSchema _schema = GetEventSourceSchema(sp, source);
     protected string GetSourceCommand => _schema.GetSourceCommand(SourceTId.ToString());
     protected string InsertSourceCommand => _schema.InsertSourceCommand;
-    protected string CreateIfNotExists => _schema.CreateIfNotExists;
+    protected string CreateSchemaIfNotExists => _schema.CreateSchemaIfNotExists;
     public string GetMaxSourceId => _schema.GetMaxSourceId;
     public static JsonSerializerOptions SerializerOptions => new() { IncludeFields = true };
     

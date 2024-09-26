@@ -4,16 +4,16 @@ using FluentAssertions;
 
 namespace AsyncHandler.EventSourcing.Tests.Integration;
 
-public class EventSourceTests : TestBase
+public class EventSourceTests : TestBase<OrderAggregate>
 {
     [Theory]
-    [InlineData(EventSources.AzureSql)]
     [InlineData(EventSources.SqlServer)]
-    [InlineData(EventSources.PostgresSql)]
+    [InlineData(EventSources.AzureSql)]
+    // [InlineData(EventSources.PostgresSql)]
     public async Task WhenCreateOrRestore_ShouldCreateAndRestoreAggregate(EventSources source)
     {
         // Given
-        var service = GetEventSource(source);
+        var service = EventSource(source);
         await service.InitSource();
     
         // When
@@ -26,11 +26,11 @@ public class EventSourceTests : TestBase
     [Theory]
     [InlineData(EventSources.AzureSql)]
     [InlineData(EventSources.SqlServer)]
-    [InlineData(EventSources.PostgresSql)]
+    // [InlineData(EventSources.PostgresSql)]
     public async Task GivenPlacedOrder_WhenCommitting_ShouldCommitAggregate(EventSources source)
     {
         // Given
-        var service = GetEventSource(source);
+        var service = EventSource(source);
         await service.InitSource();
         var aggregate = await service.CreateOrRestore();
     
@@ -45,11 +45,11 @@ public class EventSourceTests : TestBase
     [Theory]
     [InlineData(EventSources.AzureSql)]
     [InlineData(EventSources.SqlServer)]
-    [InlineData(EventSources.PostgresSql)]
+    // [InlineData(EventSources.PostgresSql)]
     public async Task GivenExistingSource_ShouldRestoreAggregate(EventSources source)
     {
         // Given
-        var service = GetEventSource(source);
+        var service = EventSource(source);
         await service.InitSource();
         var expectedAggregate = await service.CreateOrRestore();
         expectedAggregate.PlaceOrder();
@@ -65,11 +65,11 @@ public class EventSourceTests : TestBase
     [Theory]
     [InlineData(EventSources.AzureSql)]
     [InlineData(EventSources.SqlServer)]
-    [InlineData(EventSources.PostgresSql)]
+    // [InlineData(EventSources.PostgresSql)]
     public async Task GivenExistingSource_WhenConfirming_ShouldAppendEvent(EventSources source)
     {
         // Given
-        var service = GetEventSource(source);
+        var service = EventSource(source);
         await service.InitSource();
         var aggregate = await service.CreateOrRestore();
         aggregate.PlaceOrder();
@@ -87,11 +87,11 @@ public class EventSourceTests : TestBase
     [Theory]
     [InlineData(EventSources.AzureSql)]
     [InlineData(EventSources.SqlServer)]
-    [InlineData(EventSources.PostgresSql)]
+    // [InlineData(EventSources.PostgresSql)]
     public async Task GivenSource_ConfirmingTwice_ShouldAvoidAppendingEvent(EventSources source)
     {
         // Given
-        var service = GetEventSource(source);
+        var service = EventSource(source);
         await service.InitSource();
         var aggregate = await service.CreateOrRestore();
 

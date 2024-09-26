@@ -1,5 +1,4 @@
 using System.Data;
-using System.Reflection;
 using System.Runtime.Serialization;
 using System.Text.Json;
 using AsyncHandler.EventSourcing.Configuration;
@@ -15,15 +14,18 @@ namespace AsyncHandler.EventSourcing.Repositories.AzureSql;
 public class AzureSqlClient<T>(string conn, IServiceProvider sp, EventSources source) 
     : ClientBase<T>(sp, source), IAzureSqlClient<T> where T : IAggregateRoot
 {
+    private readonly SemaphoreSlim _semaphore = new (1, 1);
     private readonly ILogger<AzureSqlClient<T>> logger = sp.GetRequiredService<ILogger<AzureSqlClient<T>>>();
     public async Task Init()
     {
         logger.LogInformation($"Begin initializing {nameof(AzureSqlClient<T>)}.");
+        _semaphore.Wait();
         using SqlConnection sqlConnection = new(conn);
-        using SqlCommand command = new(CreateIfNotExists, sqlConnection);
         sqlConnection.Open();
+        using SqlCommand command = new(CreateSchemaIfNotExists, sqlConnection);
         await command.ExecuteNonQueryAsync();
         logger.LogInformation($"Finished initializing {nameof(AzureSqlClient<T>)}.");
+        _semaphore.Release();
     }
     public async Task<T> CreateOrRestore(string? sourceId = null)
     {
