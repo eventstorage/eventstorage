@@ -9,7 +9,7 @@ public class EventSourceTests : TestBase<OrderAggregate>
     [Theory]
     [InlineData(EventSources.SqlServer)]
     [InlineData(EventSources.AzureSql)]
-    // [InlineData(EventSources.PostgresSql)]
+    [InlineData(EventSources.PostgresSql)]
     public async Task WhenCreateOrRestore_ShouldCreateAndRestoreAggregate(EventSources source)
     {
         // Given
@@ -26,7 +26,7 @@ public class EventSourceTests : TestBase<OrderAggregate>
     [Theory]
     [InlineData(EventSources.AzureSql)]
     [InlineData(EventSources.SqlServer)]
-    // [InlineData(EventSources.PostgresSql)]
+    [InlineData(EventSources.PostgresSql)]
     public async Task GivenPlacedOrder_WhenCommitting_ShouldCommitAggregate(EventSources source)
     {
         // Given
@@ -45,7 +45,7 @@ public class EventSourceTests : TestBase<OrderAggregate>
     [Theory]
     [InlineData(EventSources.AzureSql)]
     [InlineData(EventSources.SqlServer)]
-    // [InlineData(EventSources.PostgresSql)]
+    [InlineData(EventSources.PostgresSql)]
     public async Task GivenExistingSource_ShouldRestoreAggregate(EventSources source)
     {
         // Given
@@ -65,7 +65,7 @@ public class EventSourceTests : TestBase<OrderAggregate>
     [Theory]
     [InlineData(EventSources.AzureSql)]
     [InlineData(EventSources.SqlServer)]
-    // [InlineData(EventSources.PostgresSql)]
+    [InlineData(EventSources.PostgresSql)]
     public async Task GivenExistingSource_WhenConfirming_ShouldAppendEvent(EventSources source)
     {
         // Given
@@ -87,7 +87,7 @@ public class EventSourceTests : TestBase<OrderAggregate>
     [Theory]
     [InlineData(EventSources.AzureSql)]
     [InlineData(EventSources.SqlServer)]
-    // [InlineData(EventSources.PostgresSql)]
+    [InlineData(EventSources.PostgresSql)]
     public async Task GivenSource_ConfirmingTwice_ShouldAvoidAppendingEvent(EventSources source)
     {
         // Given

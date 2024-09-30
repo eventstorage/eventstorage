@@ -1,3 +1,6 @@
+using System.Data;
+using NpgsqlTypes;
+
 namespace AsyncHandler.EventSourcing.Schema;
 
 public abstract class EventSourceSchema(string schema) : IEventSourceSchema
@@ -16,12 +19,19 @@ public abstract class EventSourceSchema(string schema) : IEventSourceSchema
     public static string TenantId => "TenantId";
     public static string CausationId => "CausationId";
 
+    public string[] SchemaFields => ["@id", "@longSourceId", "@guidSourceId", "@version",
+        "@type", "@data", "@timestamp", "@sourceType", "@tenantId" ,"@correlationId", "@causationId"];
+    public Dictionary<string,object> Fields =>
+        SchemaFields.Select((x, i) => (x, FieldTypes[i])).ToDictionary();
+    protected abstract object[] FieldTypes { get; }
     public abstract string CreateSchemaIfNotExists { get; }
     public virtual string GetSourceCommand(string sourceTId) =>
-        @$"SELECT {LongSourceId}, {GuidSourceId}, {Type}, {Data} FROM [{schema}].[EventSources]
-        WHERE [{sourceTId}] = @sourceId";
-    public virtual string InsertSourceCommand => @$"INSERT INTO [{schema}].[EventSources] VALUES ";
+        @$"SELECT {LongSourceId}, {GuidSourceId}, {Type}, {Data} FROM {schema}.EventSources
+        WHERE {sourceTId} = @sourceId";
+    public virtual string InsertSourceCommand => @$"INSERT INTO {schema}.EventSources
+    ({Id}, {LongSourceId}, {GuidSourceId}, {Version}, {Type}, {Data}, {Timestamp}, {SourceType},
+    {CorrelationId}, {TenantId}, {CausationId}) VALUES";
     public virtual string GetMaxSourceId =>
-        @$"SELECT T.LongSourceId FROM (SELECT MAX([LongSourceId]) as LongSourceId
-        FROM [{schema}].[EventSources]) as T WHERE T.LongSourceId is not null;";
+        @$"SELECT T.LongSourceId FROM (SELECT MAX(LongSourceId) as LongSourceId
+        FROM {schema}.EventSources) as T WHERE T.LongSourceId is not null;";
 }

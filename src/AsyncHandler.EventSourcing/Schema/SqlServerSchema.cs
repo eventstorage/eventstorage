@@ -1,3 +1,6 @@
+using System.Data;
+using NpgsqlTypes;
+
 namespace AsyncHandler.EventSourcing.Schema;
 
 public class SqlServerSchema(string schema) : EventSourceSchema(schema)
@@ -23,4 +26,8 @@ public class SqlServerSchema(string schema) : EventSourceSchema(schema)
             CONSTRAINT [AK_LongSourceId_Version] UNIQUE ([LongSourceId], [Version]),
             CONSTRAINT [AK_GuidSourceId_Version] UNIQUE ([GuidSourceId], [Version]),
         )";
+    protected override object[] FieldTypes =>
+        [SqlDbType.UniqueIdentifier, SqlDbType.BigInt, SqlDbType.UniqueIdentifier,
+        SqlDbType.Int, SqlDbType.Text, SqlDbType.NVarChar, SqlDbType.DateTime,
+        SqlDbType.Text, SqlDbType.Text, SqlDbType.Text, SqlDbType.Text];
 }

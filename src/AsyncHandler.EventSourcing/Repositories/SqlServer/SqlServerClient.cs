@@ -4,27 +4,28 @@ using System.Text.Json;
 using AsyncHandler.EventSourcing.Configuration;
 using AsyncHandler.EventSourcing.Events;
 using AsyncHandler.EventSourcing.Extensions;
+using AsyncHandler.EventSourcing.Repositories.SqlServer;
 using AsyncHandler.EventSourcing.Schema;
 using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
-namespace AsyncHandler.EventSourcing.Repositories.AzureSql;
+namespace AsyncHandler.EventSourcing.Repositories.SqlServer;
 
-public class AzureSqlClient<T>(string conn, IServiceProvider sp, EventSources source) 
-    : ClientBase<T>(sp, source), IAzureSqlClient<T> where T : IAggregateRoot
+public class SqlServerClient<T>(string conn, IServiceProvider sp, EventSources source) 
+    : ClientBase<T>(sp, source), ISqlServerClient<T> where T : IAggregateRoot
 {
     private readonly SemaphoreSlim _semaphore = new (1, 1);
-    private readonly ILogger<AzureSqlClient<T>> logger = sp.GetRequiredService<ILogger<AzureSqlClient<T>>>();
+    private readonly ILogger logger = sp.GetRequiredService<ILogger<SqlServerClient<T>>>();
     public async Task Init()
     {
-        logger.LogInformation($"Begin initializing {nameof(AzureSqlClient<T>)}.");
+        logger.LogInformation($"Begin initializing {nameof(SqlServerClient<T>)}.");
         _semaphore.Wait();
         using SqlConnection sqlConnection = new(conn);
         sqlConnection.Open();
         using SqlCommand command = new(CreateSchemaIfNotExists, sqlConnection);
         await command.ExecuteNonQueryAsync();
-        logger.LogInformation($"Finished initializing {nameof(AzureSqlClient<T>)}.");
+        logger.LogInformation($"Finished initializing {nameof(SqlServerClient<T>)}.");
         _semaphore.Release();
     }
     public async Task<T> CreateOrRestore(string? sourceId = null)
@@ -33,14 +34,16 @@ public class AzureSqlClient<T>(string conn, IServiceProvider sp, EventSources so
         {
             logger.LogInformation($"Restoring aggregate {typeof(T).Name} started.");
 
-            sourceId ??= await GenerateSourceId();
+            await using SqlConnection sqlConnection = new(conn);
+            await sqlConnection.OpenAsync();
+            await using SqlCommand command = sqlConnection.CreateCommand();
+
+            sourceId ??= await GenerateSourceId(command);
             var aggregate = typeof(T).CreateAggregate<T>(sourceId);
             
-            using SqlConnection sqlConnection = new(conn);
-            sqlConnection.Open();
-            using SqlCommand command = new(GetSourceCommand, sqlConnection);
+            command.CommandText = GetSourceCommand;
             command.Parameters.AddWithValue("@sourceId", sourceId);
-            using SqlDataReader reader = await command.ExecuteReaderAsync();
+            await using SqlDataReader reader = await command.ExecuteReaderAsync();
             
             List<SourcedEvent> sourcedEvents = [];
             while(await reader.ReadAsync())
@@ -87,11 +90,15 @@ public class AzureSqlClient<T>(string conn, IServiceProvider sp, EventSources so
         {
             if(aggregate.PendingEvents.Any())
             {
-                using SqlConnection sqlConnection = new(conn);
-                sqlConnection.Open();
-                using SqlCommand command = new ("", sqlConnection);
-                var preparedCommand = PrepareCommand(command, aggregate);
-                command.CommandText = preparedCommand[0..^1];
+                await using SqlConnection sqlConnection = new(conn);
+                await sqlConnection.OpenAsync();
+                await using SqlCommand command = sqlConnection.CreateCommand();
+                PrepareCommand((names, values, count) => values.Select((x, i) => new SqlParameter
+                {
+                    ParameterName = names.Keys.ElementAt(i) + count,
+                    SqlDbType = (SqlDbType)names.Values.ElementAt(i),
+                    SqlValue = x
+                }).ToArray(), command, aggregate.PendingEvents.ToArray());
                 await command.ExecuteNonQueryAsync();
             }
             aggregate.CommitPendingEvents();
@@ -115,46 +122,5 @@ public class AzureSqlClient<T>(string conn, IServiceProvider sp, EventSources so
                 logger.LogError($"Commit failure for {aggregate.GetType().Name}. {e.Message}");
             throw;
         }
-    }
-    // this needs optimistic locking
-    private async Task<string> GenerateSourceId()
-    {
-        using SqlConnection sqlConnection = new(conn);
-        sqlConnection.Open();
-        using SqlCommand sqlCommand = new (GetMaxSourceId, sqlConnection);
-        var reader = await sqlCommand.ExecuteReaderAsync();
-        await reader.ReadAsync();
-        long longId = 0;
-        if(reader.HasRows)
-            longId = (long)reader.GetValue(0);
-        LongSourceId = longId + 1;
-        GuidSourceId = Guid.NewGuid();
-        return SourceTId == TId.LongSourceId ? LongSourceId.ToString() : GuidSourceId.ToString();
-    }
-    private string PrepareCommand(SqlCommand command, IAggregateRoot aggregate)
-    {
-        int count = 0;
-        var sqlCommand = InsertSourceCommand;
-        foreach (var e in aggregate.PendingEvents)
-        {
-            sqlCommand +=
-            @$"(@id{count}, @longSourceId{count}, @guidSourceId{count}, @version{count},"+
-            $"@type{count}, @data{count}, @timestamp{count}, @sourceType{count},"+
-            $"@tenantId{count}, @correlationId{count}, @causationId{count}),";
-            command.Parameters.AddWithValue($"@id{count}", e.Id);
-            command.Parameters.AddWithValue($"@longSourceId{count}", LongSourceId);
-            command.Parameters.AddWithValue($"@guidSourceId{count}", GuidSourceId);
-            command.Parameters.AddWithValue($"@version{count}", e.Version);
-            command.Parameters.AddWithValue($"@type{count}", e.GetType().Name);
-            var json = JsonSerializer.Serialize(e, e.GetType(), SerializerOptions);
-            command.Parameters.AddWithValue($"@data{count}", json);
-            command.Parameters.AddWithValue($"@timestamp{count}", DateTime.UtcNow);
-            command.Parameters.AddWithValue($"@sourceType{count}", typeof(T).Name);
-            command.Parameters.AddWithValue($"@tenantId{count}", e.TenantId ?? "Default");
-            command.Parameters.AddWithValue($"@correlationId{count}", e.CorrelationId ?? "Default");
-            command.Parameters.AddWithValue($"@causationId{count}", e.CausationId ?? "Default");
-            count++;
-        }
-        return sqlCommand;
     }
 }

@@ -1,6 +1,7 @@
 using AsyncHandler.EventSourcing.Configuration;
 using AsyncHandler.EventSourcing.Repositories;
-using AsyncHandler.EventSourcing.Repositories.AzureSql;
+using AsyncHandler.EventSourcing.Repositories.PostgreSql;
+using AsyncHandler.EventSourcing.Repositories.SqlServer;
 using AsyncHandler.EventSourcing.Schema;
 using AsyncHandler.EventSourcing.Tests.Unit;
 using Microsoft.Extensions.Configuration;
@@ -26,8 +27,10 @@ public class Configuration<T> where T : OrderAggregate
         schemas.Add(EventSources.SqlServer, new SqlServerSchema("ah"));
         services.AddKeyedSingleton("Schema", schemas);
 
-        services.AddSingleton<ILogger<AzureSqlClient<T>>>(sp =>
-            new Logger<AzureSqlClient<T>>(new LoggerFactory()));
+        services.AddSingleton<ILogger<SqlServerClient<T>>>(sp =>
+            new Logger<SqlServerClient<T>>(new LoggerFactory()));
+        services.AddSingleton<ILogger<PostgreSqlClient<T>>>(sp =>
+            new Logger<PostgreSqlClient<T>>(new LoggerFactory()));
 
         foreach(EventSources source in Enum.GetValues(typeof(EventSources)))
         {
@@ -44,7 +47,7 @@ public class Configuration<T> where T : OrderAggregate
                 throw new Exception("no connection string found"),
             EventSources.AzureSql => _configuration["azuresqlsecret"]??
                 throw new Exception("no connection string found"),
-            EventSources.PostgresSql => _configuration["mssqlsecret"]??
+            EventSources.PostgresSql => _configuration["postgresqlsecret"]??
                 throw new Exception("no connection string found"),
             _ => string.Empty
         };

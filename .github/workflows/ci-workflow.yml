@@ -8,10 +8,13 @@ on:
     branches: [ "main" ]
 
 env:
-  azuresqlsecret: ${{ secrets.AzureSqlSecret }}
+  mssqldb: ah
+  postgresqldb: ah
   mssqlpassword: sysadmin@1234
-  mssqldb: asynchandler
-  mssqlsecret: "Server=localhost,1433;Initial Catalog=asynchandler;Persist Security Info=False;User ID=sa;Password=sysadmin@1234;MultipleActiveResultSets=False;Encrypt=True;TrustServerCertificate=true;Connection Timeout=20;"
+  postgreqlpassword: postgres
+  azuresqlsecret: ${{ secrets.AzureSqlSecret }}
+  mssqlsecret: "Server=localhost,1433;Initial Catalog=ah;Persist Security Info=False;User ID=sa;Password=sysadmin@1234;MultipleActiveResultSets=False;Encrypt=True;TrustServerCertificate=true;Connection Timeout=30;"
+  postgresqlsecret: "host=localhost;port=5432;username=postgres;password=postgres;database=ah"
 
 jobs:
   
@@ -49,6 +52,15 @@ jobs:
         env:
           ACCEPT_EULA: true
           MSSQL_SA_PASSWORD: ${{ env.mssqlpassword }}
+
+      postgres:
+        image: postgres
+        ports:
+          - "5432:5432"
+        env:
+          POSTGRES_DB: ${{ env.postgresqldb }}
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: ${{ env.postgreqlpassword }}
 
     steps:
     - uses: actions/checkout@v4
