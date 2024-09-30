@@ -1,18 +1,20 @@
 version: '3'
 services:
-  sqlserver:
+  mssql:
     image: mcr.microsoft.com/mssql/server:2019-latest
-    container_name: asynchandler_mssql
+    container_name: mssql
     ports:
       - 1433:1433
     environment:
       ACCEPT_EULA: Y
-      MSSQL_SA_PASSWORD: sysadmin@2024
+      MSSQL_SA_PASSWORD: sysadmin@1234
+
   postgres:
     image: postgres
-    container_name: asynchandler_postgres
+    container_name: postgres
     ports:
       - "5432:5432"
     environment:
+      POSTGRES_DB: ah
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
