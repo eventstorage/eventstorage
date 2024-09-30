@@ -1,6 +1,6 @@
-namespace AsyncHandler.EventSourcing.Repositories.AzureSql;
+namespace AsyncHandler.EventSourcing.Repositories.PostgreSql;
 
-public interface IAzureSqlClient<T>
+public interface IPostgreSqlClient<T>
 {
     Task Init();
     Task<T> CreateOrRestore(string? sourceId = null);
