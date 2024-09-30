@@ -12,12 +12,10 @@ public class EventSourceTests
     private readonly Mock<IRepository<AggregateRoot<long>>> _mockRepo = new();
     private readonly IReturnsThrows<IRepository<AggregateRoot<long>>,Task<AggregateRoot<long>>> _createOrRestoreSetup;
     private readonly IReturnsThrows<IRepository<AggregateRoot<long>>,Task<AggregateRoot<long>>> _createOrRestoreSetup1;
-    private readonly IReturnsThrows<IRepository<AggregateRoot<long>>,Task<AggregateRoot<long>>> _createOrRestoreSetup2;
     public EventSourceTests()
     {
-        _createOrRestoreSetup = _mockRepo.Setup(x => x.AzureSqlClient.CreateOrRestore(It.IsAny<string>()));
+        _createOrRestoreSetup = _mockRepo.Setup(x => x.SqlServerClient.CreateOrRestore(It.IsAny<string>()));
         _createOrRestoreSetup1 = _mockRepo.Setup(x => x.PostgreSqlClient.CreateOrRestore(It.IsAny<string>()));
-        _createOrRestoreSetup2 = _mockRepo.Setup(x => x.SqlServerClient.CreateOrRestore(It.IsAny<string>()));
     }
     public EventSource<AggregateRoot<long>> BuildSut(EventSources source) =>
         new (_mockRepo.Object, source);
@@ -31,7 +29,6 @@ public class EventSourceTests
         // given
         _createOrRestoreSetup.ReturnsAsync(It.IsAny<AggregateRoot<long>>());
         _createOrRestoreSetup1.ReturnsAsync(It.IsAny<AggregateRoot<long>>());
-        _createOrRestoreSetup2.ReturnsAsync(It.IsAny<AggregateRoot<long>>());
 
         // when
         var sut = BuildSut(source);
@@ -40,10 +37,10 @@ public class EventSourceTests
         // then
         Expression<Func<IRepository<AggregateRoot<long>>,Task<AggregateRoot<long>>>> exp = source switch
         {
-            EventSources.AzureSql => x => x.AzureSqlClient.CreateOrRestore(It.IsAny<string>()),
+            EventSources.AzureSql => x => x.SqlServerClient.CreateOrRestore(It.IsAny<string>()),
             EventSources.PostgresSql => x => x.PostgreSqlClient.CreateOrRestore(It.IsAny<string>()),
             EventSources.SqlServer => x => x.SqlServerClient.CreateOrRestore(It.IsAny<string>()),
-            _ => x => x.AzureSqlClient.CreateOrRestore(It.IsAny<string>()),
+            _ => x => x.SqlServerClient.CreateOrRestore(It.IsAny<string>()),
         };
         
         _mockRepo.Verify(exp, Times.Once());
@@ -54,6 +51,7 @@ public class EventSourceTests
         // given
         var expected = new OrderAggregate();
         _createOrRestoreSetup.ReturnsAsync(expected);
+        _createOrRestoreSetup1.ReturnsAsync(expected);
 
         // when
         var sut = BuildSut(It.IsAny<EventSources>());
