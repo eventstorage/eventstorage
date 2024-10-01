@@ -1,6 +1,6 @@
 # asynchandler
 
-### A lightweight event sourcing framework designed for your event-store of choice.
+### A lightweight event sourcing framework for .Net with event storage of choice.
 
 [![Github follow](https://img.shields.io/badge/follow-asynchandler-bf9136?logo=github)](https://github.com/asynchandler)
 [![Github follow](https://img.shields.io/badge/follow-eventsourcer-bf9136?logo=github)](https://github.com/eventsourcer)
@@ -16,7 +16,7 @@
 
 ### Overview
 
-asynchandler is a high-performance event sourcing framework built for .Net that allows selecting event storage of choice. Combining consistency with schema flexibility, asynchandler aims to simplify event sourcing for everyone. Currently supports Azure Sql database and Sql Server, with Postgres and others in the upcoming releases.
+asynchandler is a high-performance event sourcing framework built for .Net that allows selecting event storage of choice. Combining consistency with schema flexibility, asynchandler aims to make event sourcing simplified for everyone. Currently supports Azure Sql, Postgres and Sql Server.
 
 ### Environment setup
 
@@ -28,17 +28,17 @@ asynchandler runs on the stable release of .Net 8 and requires the SDK installed
 
 [![My Skills](https://skillicons.dev/icons?i=docker)](https://dotnet.microsoft.com/en-us/download/dotnet/8.0)
 
-Use docker to run sqlserver or postgres databases, execute `docker-compose` or `docker run`:
+Use docker to run mssql or postgres databases, execute `docker-compose` or `docker run`:
 
-    docker compose --project-name some-name up -d
+    docker compose --project-name asynchandler up -d
 
 `Postgres`
 
-    docker run --name some-postgres -p 5432:5432 -e POSTGRES_PASSWORD=mysecretpassword -d postgres
+    docker run --name some-postgres -p 5432:5432 -e POSTGRES_PASSWORD=postgres -d postgres
 
-`SqlServer`
+`Sql Server`
 
-    docker run --name some-mssql -p 1433:1433 -e "ACCEPT_EULA=Y" -e "MSSQL_SA_PASSWORD=password" -d mcr.microsoft.com/mssql/server:2019-latest
+    docker run --name some-mssql -p 1433:1433 -e "ACCEPT_EULA=Y" -e "MSSQL_SA_PASSWORD=sysadmin@1234" -d mcr.microsoft.com/mssql/server:2019-latest
 
 ### Getting started
 
@@ -54,18 +54,21 @@ Use docker to run sqlserver or postgres databases, execute `docker-compose` or `
 ###### Use `AddAsyncHandler` service collection extension.
 
 ```csharp
+var connectionString = builder.Configuration["postgresqlsecret"]??
+    throw new Exception("No connection defined");
+
 builder.Services.AddAsyncHandler(asynchandler =>
 {
+    asynchandler.Schema = "ah";
     asynchandler.AddEventSourcing(source =>
     {
-        source.SelectEventSource(EventSources.AzureSql, connectionString);
+        source.SelectEventSource(EventSources.PostgresSql, connectionString);
     });
 });
 ```
 
-Select your event source of choice from `SelectEventSource`, currently AzureSql and SqlServer are supported.
-
-Make sure you have defined your connection string from appsettings.
+Select your event source of choice from `SelectEventSource`.
+Make sure you have defined your connection string.
 
 #### Define your aggregate
 ###### Add your aggregate with AggregateRoot
@@ -90,6 +93,7 @@ public class OrderBookingAggregate : AggregateRoot<long> // or Guid
     }
 }
 ```
+AggregateRoot allows selecting `long` or `Guid` for sourceId, selecting `long` offers lightnening-fast queries. 
 
 #### Use `IEventSource<T>` service
 
@@ -101,6 +105,7 @@ async(IEventSource<OrderBookingAggregate> eventSource, PlaceOrder command) =>
     aggregate.PlaceOrder(command);
 
     await eventSource.Commit(aggregate);
+    return Results.Ok(aggregate.SourceId);
 });
 ```
 
@@ -108,7 +113,7 @@ Add two more methods to your aggregate to confirm an order, `ConfirmOrder` and `
 
 ```csharp
 app.MapPost("api/confirmorder/{orderId}", 
-async(IEventSource<OrderBookingAggregate> eventSource, long orderId, ConfirmOrder command) =>
+async(IEventSource<OrderBookingAggregate> eventSource, string orderId, ConfirmOrder command) =>
 {
     var aggregate = await eventSource.CreateOrRestore(orderId);
     aggregate.ConfirmOrder(command);
