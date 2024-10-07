@@ -2,7 +2,7 @@
 trigger:
 - main
 
-pool: asynchandler
+pool: eventstorage
 
 variables:
   buildConfiguration: 'Release'
@@ -19,7 +19,6 @@ jobs:
           version: '8.0.x'
 
       - script: |
-          cd src
           dotnet restore
         displayName: 'restore'
         
