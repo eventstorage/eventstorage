@@ -1,4 +1,4 @@
-namespace AsyncHandler.EventSourcing.Projections;
+namespace EventStorage.Projections;
 
 public enum ProjectionMode
 {

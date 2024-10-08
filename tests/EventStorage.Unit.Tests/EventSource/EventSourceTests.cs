@@ -1,25 +1,27 @@
 using System.Linq.Expressions;
-using AsyncHandler.EventSourcing.Configuration;
-using AsyncHandler.EventSourcing.Repositories;
+using EventStorage.AggregateRoot;
+using EventStorage.Configurations;
+using EventStorage.Repositories;
+using EventStorage.Unit.Tests.AggregateRoot;
 using FluentAssertions;
 using Moq;
 using Moq.Language.Flow;
 
-namespace AsyncHandler.EventSourcing.Tests.Unit;
+namespace EventStorage.Unit.Tests.EventSource;
 
 public class EventSourceTests
 {
     private readonly Mock<IRepository<AggregateRoot<long>>> _mockRepo = new();
-    private readonly IReturnsThrows<IRepository<AggregateRoot<long>>,Task<AggregateRoot<long>>> _createOrRestoreSetup;
-    private readonly IReturnsThrows<IRepository<AggregateRoot<long>>,Task<AggregateRoot<long>>> _createOrRestoreSetup1;
+    private readonly IReturnsThrows<IRepository<AggregateRoot<long>>, Task<AggregateRoot<long>>> _createOrRestoreSetup;
+    private readonly IReturnsThrows<IRepository<AggregateRoot<long>>, Task<AggregateRoot<long>>> _createOrRestoreSetup1;
     public EventSourceTests()
     {
         _createOrRestoreSetup = _mockRepo.Setup(x => x.SqlServerClient.CreateOrRestore(It.IsAny<string>()));
         _createOrRestoreSetup1 = _mockRepo.Setup(x => x.PostgreSqlClient.CreateOrRestore(It.IsAny<string>()));
     }
     public EventSource<AggregateRoot<long>> BuildSut(EventSources source) =>
-        new (_mockRepo.Object, source);
-    
+        new(_mockRepo.Object, source);
+
     [Theory]
     [InlineData(EventSources.AzureSql)]
     [InlineData(EventSources.PostgresSql)]
@@ -35,14 +37,14 @@ public class EventSourceTests
         await sut.CreateOrRestore(It.IsAny<string>());
 
         // then
-        Expression<Func<IRepository<AggregateRoot<long>>,Task<AggregateRoot<long>>>> exp = source switch
+        Expression<Func<IRepository<AggregateRoot<long>>, Task<AggregateRoot<long>>>> exp = source switch
         {
             EventSources.AzureSql => x => x.SqlServerClient.CreateOrRestore(It.IsAny<string>()),
             EventSources.PostgresSql => x => x.PostgreSqlClient.CreateOrRestore(It.IsAny<string>()),
             EventSources.SqlServer => x => x.SqlServerClient.CreateOrRestore(It.IsAny<string>()),
             _ => x => x.SqlServerClient.CreateOrRestore(It.IsAny<string>()),
         };
-        
+
         _mockRepo.Verify(exp, Times.Once());
     }
     [Fact]

@@ -1,6 +1,6 @@
-using AsyncHandler.EventSourcing.Events;
+using EventStorage.Events;
 
-namespace AsyncHandler.EventSourcing;
+namespace EventStorage.AggregateRoot;
 
 public abstract class AggregateRoot<TId> : Entity<TId>, IAggregateRoot where TId : IComparable
 {
@@ -13,7 +13,7 @@ public abstract class AggregateRoot<TId> : Entity<TId>, IAggregateRoot where TId
     private string? _causationId;
     public string? TenantId => _tenantId;
     protected abstract void Apply(SourcedEvent e);
-    private void BumpVersion(Action append) {append(); Version++;}
+    private void BumpVersion(Action append) { append(); Version++; }
     protected virtual void RaiseEvent(SourcedEvent e)
     {
         e = e with
@@ -33,8 +33,10 @@ public abstract class AggregateRoot<TId> : Entity<TId>, IAggregateRoot where TId
         foreach (var e in events)
         {
             Apply(e);
-            BumpVersion(type switch {
-                RestoreType.Pending => delegate {_pendingEvents.Add(e);},
+            BumpVersion(type switch
+            {
+                RestoreType.Pending => delegate { _pendingEvents.Add(e); }
+                ,
                 _ => () => _eventStream.Add(e)
             });
             _causationId = e.Id.ToString();

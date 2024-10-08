@@ -1,6 +1,6 @@
-using AsyncHandler.EventSourcing.Events;
+using EventStorage.Events;
 
-namespace AsyncHandler.EventSourcing;
+namespace EventStorage.AggregateRoot;
 
 public interface IAggregateRoot
 {

@@ -1,6 +1,6 @@
 using System.Data;
 
-namespace AsyncHandler.EventSourcing.Schema;
+namespace EventStorage.Schema;
 
 public class AzureSqlSchema(string schema) : EventSourceSchema(schema)
 {

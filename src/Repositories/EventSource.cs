@@ -1,6 +1,6 @@
-using AsyncHandler.EventSourcing.Configuration;
+using EventStorage.Configurations;
 
-namespace AsyncHandler.EventSourcing.Repositories;
+namespace EventStorage.Repositories;
 
 public class EventSource<T>(IRepository<T> repository, EventSources source) : IEventSource<T>
 {

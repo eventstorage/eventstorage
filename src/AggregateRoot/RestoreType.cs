@@ -1,4 +1,4 @@
-namespace AsyncHandler.EventSourcing;
+namespace EventStorage.AggregateRoot;
 
 public enum RestoreType
 {

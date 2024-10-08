@@ -1,5 +1,5 @@
 
-name: ci workflow
+name: build workflow
 
 on:
   push:
@@ -20,24 +20,21 @@ jobs:
   
   build:
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: ./src
 
     steps:
     - name: checkout repo
       uses: actions/checkout@v4
     
-    - name: Install sdk
+    - name: install net8
       uses: actions/setup-dotnet@v4
       with:
         dotnet-version: 8.0.x
 
-    - name: Restore
+    - name: restore
       run: dotnet restore
 
-    - name: Build
-      run: dotnet build --no-restore
+    - name: build
+      run: dotnet build --no-restore --configuration release
 
   test:
     if: ${{ success() }}
@@ -63,15 +60,16 @@ jobs:
           POSTGRES_PASSWORD: ${{ env.postgreqlpassword }}
 
     steps:
-    - uses: actions/checkout@v4
+    - name: checkout repo
+      uses: actions/checkout@v4
 
-    - name: Run scripts
+    - name: run scripts
       run: ./scripts.sh
 
-    - name: Test
-      working-directory: ./src
+    - name: test
+      # working-directory: ./test
       run: |
-        dotnet build
-        dotnet test --no-build --verbosity normal
+        dotnet build --configuration release
+        dotnet test --no-restore --no-build --verbosity normal
 
     

@@ -1,4 +1,4 @@
-namespace AsyncHandler.EventSourcing.Schema;
+namespace EventStorage.Schema;
 
 public interface IEventSourceSchema
 {

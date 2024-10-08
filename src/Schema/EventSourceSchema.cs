@@ -1,7 +1,6 @@
 using System.Data;
-using NpgsqlTypes;
 
-namespace AsyncHandler.EventSourcing.Schema;
+namespace EventStorage.Schema;
 
 public abstract class EventSourceSchema(string schema) : IEventSourceSchema
 {

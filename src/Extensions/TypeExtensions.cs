@@ -1,7 +1,7 @@
 using System.Reflection;
-using AsyncHandler.EventSourcing.Events;
+using EventStorage.Events;
 
-namespace AsyncHandler.EventSourcing.Extensions;
+namespace EventStorage.Extensions;
 
 public static class TypeExtensions
 {

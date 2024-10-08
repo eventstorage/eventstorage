@@ -1,7 +1,7 @@
-using AsyncHandler.EventSourcing.Events;
+using EventStorage.Events;
 using FluentAssertions;
 
-namespace AsyncHandler.EventSourcing.Tests.Unit;
+namespace EventStorage.Unit.Tests.AggregateRoot;
 
 public class AggregareRootTests
 {
@@ -18,7 +18,7 @@ public class AggregareRootTests
         aggregate.PendingEvents.Any().Should().BeTrue();
         aggregate.Version.Should().Be(1);
         aggregate.OrderStatus.Should().Be(OrderStatus.Placed);
-        Func<SourcedEvent,bool> predicate = (e) => typeof(OrderPlaced).IsAssignableFrom(e.GetType());
+        Func<SourcedEvent, bool> predicate = (e) => typeof(OrderPlaced).IsAssignableFrom(e.GetType());
         aggregate.PendingEvents.Any(predicate).Should().Be(true);
         await Task.CompletedTask;
     }

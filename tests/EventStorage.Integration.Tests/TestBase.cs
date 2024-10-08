@@ -1,11 +1,11 @@
-using AsyncHandler.EventSourcing.Configuration;
-using AsyncHandler.EventSourcing.Repositories;
-using AsyncHandler.EventSourcing.Repositories.PostgreSql;
-using AsyncHandler.EventSourcing.Repositories.SqlServer;
-using AsyncHandler.EventSourcing.Tests.Unit;
+using EventStorage.Configurations;
+using EventStorage.Repositories;
+using EventStorage.Repositories.PostgreSql;
+using EventStorage.Repositories.SqlServer;
+using EventStorage.Unit.Tests.AggregateRoot;
 using Microsoft.Extensions.DependencyInjection;
 
-namespace AsyncHandler.EventSourcing.Tests.Integration;
+namespace EventStorage.Integration.Tests;
 
 public class TestBase<T> where T : OrderAggregate
 {

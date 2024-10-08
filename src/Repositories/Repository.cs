@@ -1,8 +1,9 @@
-using AsyncHandler.EventSourcing.Configuration;
-using AsyncHandler.EventSourcing.Repositories.PostgreSql;
-using AsyncHandler.EventSourcing.Repositories.SqlServer;
+using EventStorage.AggregateRoot;
+using EventStorage.Configurations;
+using EventStorage.Repositories.PostgreSql;
+using EventStorage.Repositories.SqlServer;
 
-namespace AsyncHandler.EventSourcing.Repositories;
+namespace EventStorage.Repositories;
 
 public class Repository<T>(string conn, IServiceProvider sp, EventSources source) 
     : IRepository<T> where T : IAggregateRoot

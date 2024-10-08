@@ -1,8 +1,8 @@
-using AsyncHandler.EventSourcing.Configuration;
-using AsyncHandler.EventSourcing.Tests.Unit;
+using EventStorage.Configurations;
+using EventStorage.Unit.Tests.AggregateRoot;
 using FluentAssertions;
 
-namespace AsyncHandler.EventSourcing.Tests.Integration;
+namespace EventStorage.Integration.Tests;
 
 public class EventSourceTests : TestBase<OrderAggregate>
 {
@@ -15,10 +15,10 @@ public class EventSourceTests : TestBase<OrderAggregate>
         // Given
         var service = EventSource(source);
         await service.InitSource();
-    
+
         // When
         var aggregate = await service.CreateOrRestore();
-    
+
         // Then
         Assert.NotNull(aggregate);
         aggregate.SourceId.Should().BeGreaterThan(0);
@@ -33,11 +33,11 @@ public class EventSourceTests : TestBase<OrderAggregate>
         var service = EventSource(source);
         await service.InitSource();
         var aggregate = await service.CreateOrRestore();
-    
+
         // When
         aggregate.PlaceOrder();
         await service.Commit(aggregate);
-    
+
         // Then
         aggregate.PendingEvents.Count().Should().Be(0);
         aggregate.EventStream.Count().Should().BeGreaterThan(0);
@@ -54,10 +54,10 @@ public class EventSourceTests : TestBase<OrderAggregate>
         var expectedAggregate = await service.CreateOrRestore();
         expectedAggregate.PlaceOrder();
         await service.Commit(expectedAggregate);
-    
+
         // When
         var aggregate = await service.CreateOrRestore(expectedAggregate.SourceId.ToString());
-    
+
         // Then
         Assert.Equal(expectedAggregate.SourceId, aggregate.SourceId);
         aggregate.EventStream.Count().Should().BeGreaterThan(0);
@@ -74,12 +74,12 @@ public class EventSourceTests : TestBase<OrderAggregate>
         var aggregate = await service.CreateOrRestore();
         aggregate.PlaceOrder();
         await service.Commit(aggregate);
-    
+
         // When
         var result = await service.CreateOrRestore(aggregate.SourceId.ToString());
         result.ConfirmOrder();
         await service.Commit(result);
-    
+
         // Then
         result.EventStream.Count().Should().Be(2);
         result.Version.Should().Be(2);
@@ -99,7 +99,7 @@ public class EventSourceTests : TestBase<OrderAggregate>
         aggregate.ConfirmOrder();
         aggregate.ConfirmOrder();
         await service.Commit(aggregate);
-    
+
         // Then
         aggregate.EventStream.Count().Should().Be(1);
         aggregate.Version.Should().Be(1);

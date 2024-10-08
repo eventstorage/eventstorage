@@ -1,6 +1,7 @@
+using EventStorage.Configurations;
 using Microsoft.Extensions.DependencyInjection;
 
-namespace AsyncHandler.EventSourcing.Configuration;
+namespace EventStorage.Configurations;
 
 public class EventSourceConfiguration(IServiceCollection services, string schema) 
     : AsyncHandlerConfiguration(services, schema)

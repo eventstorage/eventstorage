@@ -1,16 +1,17 @@
 using System.Data;
 using System.Runtime.Serialization;
 using System.Text.Json;
-using AsyncHandler.EventSourcing.Configuration;
-using AsyncHandler.EventSourcing.Events;
-using AsyncHandler.EventSourcing.Extensions;
-using AsyncHandler.EventSourcing.Schema;
+using EventStorage.AggregateRoot;
+using EventStorage.Configurations;
+using EventStorage.Events;
+using EventStorage.Extensions;
+using EventStorage.Schema;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Npgsql;
 using NpgsqlTypes;
 
-namespace AsyncHandler.EventSourcing.Repositories.PostgreSql;
+namespace EventStorage.Repositories.PostgreSql;
 
 public class PostgreSqlClient<T>(string conn, IServiceProvider sp)
     : ClientBase<T>(sp, EventSources.PostgresSql), IPostgreSqlClient<T> where T : IAggregateRoot
