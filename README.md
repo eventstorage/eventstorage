@@ -11,7 +11,7 @@
 [![build Status](https://dev.azure.com/asynchandler/AsyncHandler.EventSourcing/_apis/build/status%2Fasynchandler.AsyncHandler.EventSourcing?branchName=main&label=azure%20pipes)](https://dev.azure.com/asynchandler/AsyncHandler.EventSourcing/_build/latest?definitionId=11&branchName=main)
 
 <div align="left">
-    <img src="assets/ah_radius.PNG" width="80" height="80" style="float:left;" alt="asynchandler">
+    <img src=".assets/ah_radius.PNG" width="80" height="80" style="float:left;" alt="asynchandler">
 </div>
 
 ### Overview

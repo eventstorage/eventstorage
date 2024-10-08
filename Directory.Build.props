@@ -2,28 +2,25 @@
 
     <PropertyGroup>
     <TargetFramework>net8.0</TargetFramework>
-    <!-- <LangVersion>13</LangVersion> -->
-    <!-- <GeneratePackageOnBuild>true</GeneratePackageOnBuild> -->
-    <!-- <PackageId>AsyncHandler.EventSourcing</PackageId> -->
-    <Version>1.0.5</Version>
-    <Authors>asynchandler</Authors>
-    <Company>asynchandler</Company>
+    <Version>0.0.0-alpha.0</Version>
+    <Authors>eventstorage</Authors>
+    <Company>eventstorage</Company>
     <PackageTags>EventSourcing;EventStore;Messaging;AzureSql;Postgres;Event-Driven</PackageTags>
     <Description>
       A lightweight event sourcing framework with event storage of choice.
     </Description>
-    <PackageProjectUrl>https://github.com/asynchandler/AsyncHandler.EventSourcing</PackageProjectUrl>
+    <PackageProjectUrl>https://github.com/eventstorage/eventstorage</PackageProjectUrl>
     <PackageIcon>github.png</PackageIcon>
     <PackageReadmeFile>README.md</PackageReadmeFile>
-    <RepositoryUrl>https://github.com/asynchandler/AsyncHandler.EventSourcing</RepositoryUrl>
+    <RepositoryUrl>https://github.com/eventstorage/eventstorage.git</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
     <PackageLicenseFile>LICENSE</PackageLicenseFile>
   </PropertyGroup>
 
   <ItemGroup>
-    <None Include="..\..\assets\github.png" Pack="true" PackagePath="\"/>
+    <None Include="..\.assets\github.png" Pack="true" PackagePath="\"/>
     <None Include="README.md" Pack="true" PackagePath="\"/>
-    <None Include="..\..\LICENSE" Pack="true" PackagePath="\"/>
+    <None Include="..\LICENSE" Pack="true" PackagePath="\"/>
   </ItemGroup>
 
 </Project>
