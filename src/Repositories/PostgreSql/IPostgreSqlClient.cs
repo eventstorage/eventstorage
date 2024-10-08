@@ -1,4 +1,4 @@
-namespace AsyncHandler.EventSourcing.Repositories.PostgreSql;
+namespace EventStorage.Repositories.PostgreSql;
 
 public interface IPostgreSqlClient<T>
 {

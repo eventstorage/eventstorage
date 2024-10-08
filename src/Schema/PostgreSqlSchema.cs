@@ -1,5 +1,5 @@
 using NpgsqlTypes;
-namespace AsyncHandler.EventSourcing.Schema;
+namespace EventStorage.Schema;
 
 public class PostgreSqlSchema(string schema) : EventSourceSchema(schema)
 {

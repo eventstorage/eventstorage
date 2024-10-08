@@ -1,16 +1,16 @@
 using System.Data;
 using System.Runtime.Serialization;
 using System.Text.Json;
-using AsyncHandler.EventSourcing.Configuration;
-using AsyncHandler.EventSourcing.Events;
-using AsyncHandler.EventSourcing.Extensions;
-using AsyncHandler.EventSourcing.Repositories.SqlServer;
-using AsyncHandler.EventSourcing.Schema;
+using EventStorage.AggregateRoot;
+using EventStorage.Configurations;
+using EventStorage.Events;
+using EventStorage.Extensions;
+using EventStorage.Schema;
 using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
-namespace AsyncHandler.EventSourcing.Repositories.SqlServer;
+namespace EventStorage.Repositories.SqlServer;
 
 public class SqlServerClient<T>(string conn, IServiceProvider sp, EventSources source) 
     : ClientBase<T>(sp, source), ISqlServerClient<T> where T : IAggregateRoot

@@ -1,6 +1,6 @@
-using AsyncHandler.EventSourcing.Tests.Unit;
+using EventStorage.Unit.Tests.AggregateRoot;
 
-namespace AsyncHandler.EventSourcing.Tests.Integration;
+namespace EventStorage.Integration.Tests;
 
 public class SqlServerClientTests : TestBase<OrderAggregate>
 {

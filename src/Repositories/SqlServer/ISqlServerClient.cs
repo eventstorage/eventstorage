@@ -1,4 +1,4 @@
-namespace AsyncHandler.EventSourcing.Repositories.SqlServer;
+namespace EventStorage.Repositories.SqlServer;
 
 public interface ISqlServerClient<T>
 {

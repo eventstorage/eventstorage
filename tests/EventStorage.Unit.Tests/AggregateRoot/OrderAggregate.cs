@@ -1,7 +1,8 @@
-using AsyncHandler.EventSourcing.Events;
-using AsyncHandler.EventSourcing.Extensions;
+using EventStorage.AggregateRoot;
+using EventStorage.Events;
+using EventStorage.Extensions;
 
-namespace AsyncHandler.EventSourcing.Tests.Unit;
+namespace EventStorage.Unit.Tests.AggregateRoot;
 
 public class OrderAggregate : AggregateRoot<long>
 {

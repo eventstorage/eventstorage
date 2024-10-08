@@ -1,5 +1,5 @@
 
-namespace AsyncHandler.EventSourcing;
+namespace EventStorage.AggregateRoot;
 
 public abstract class Entity<TId> : IEquatable<Entity<TId>> where TId : IComparable
 {

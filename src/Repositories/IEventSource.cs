@@ -1,4 +1,4 @@
-namespace AsyncHandler.EventSourcing.Repositories;
+namespace EventStorage.Repositories;
 
 public interface IEventSource<T>
 {

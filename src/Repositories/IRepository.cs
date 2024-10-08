@@ -1,7 +1,7 @@
-using AsyncHandler.EventSourcing.Repositories.PostgreSql;
-using AsyncHandler.EventSourcing.Repositories.SqlServer;
+using EventStorage.Repositories.PostgreSql;
+using EventStorage.Repositories.SqlServer;
 
-namespace AsyncHandler.EventSourcing.Repositories;
+namespace EventStorage.Repositories;
 
 public interface IRepository<T> 
 {

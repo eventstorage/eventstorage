@@ -1,9 +1,9 @@
 using Microsoft.Extensions.DependencyInjection;
 
-namespace AsyncHandler.EventSourcing.Configuration;
+namespace EventStorage.Configurations;
 
 public class AsyncHandlerConfiguration(IServiceCollection services, string? schema = null)
 {
     internal IServiceCollection ServiceCollection = services;
-    public string Schema = schema?? "ah";
+    public string Schema = schema ?? "ah";
 }

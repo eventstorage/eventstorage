@@ -1,7 +1,8 @@
-using AsyncHandler.EventSourcing.Repositories;
+using EventStorage.AggregateRoot;
+using EventStorage.Repositories;
 using Microsoft.Extensions.Hosting;
 
-namespace AsyncHandler.EventSourcing.Workers;
+namespace EventStorage.Workers;
 
 internal class SourceInitializer(IEventSource<IAggregateRoot> eventSource) : IHostedService
 {
@@ -11,7 +12,7 @@ internal class SourceInitializer(IEventSource<IAggregateRoot> eventSource) : IHo
         // {
         //     eventSource.InitSource();
         // }, cancellationToken);
-        
+
         // block thread on source initialization
         await eventSource.InitSource();
     }

@@ -1,14 +1,15 @@
 ﻿using System.Reflection;
 using AsyncHandler.Asse;
-using AsyncHandler.EventSourcing.Configuration;
-using AsyncHandler.EventSourcing.Projections;
-using AsyncHandler.EventSourcing.Repositories;
-using AsyncHandler.EventSourcing.Schema;
-using AsyncHandler.EventSourcing.Workers;
+using EventStorage.AggregateRoot;
+using EventStorage.Configurations;
+using EventStorage.Projections;
+using EventStorage.Repositories;
+using EventStorage.Schema;
+using EventStorage.Workers;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 
-namespace AsyncHandler.EventSourcing;
+namespace EventStorage;
 
 public static class EventSourceExtensions
 {
@@ -53,7 +54,7 @@ public static class EventSourceExtensions
     }
     private static IServiceCollection AddEventSourceSchema(this IServiceCollection services, string schema)
     {
-        Dictionary<EventSources,IEventSourceSchema> schemas = [];
+        Dictionary<EventSources, IEventSourceSchema> schemas = [];
         schemas.Add(EventSources.AzureSql, new AzureSqlSchema(schema));
         schemas.Add(EventSources.PostgresSql, new PostgreSqlSchema(schema));
         schemas.Add(EventSources.SqlServer, new SqlServerSchema(schema));

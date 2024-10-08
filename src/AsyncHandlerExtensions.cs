@@ -1,7 +1,7 @@
-﻿using AsyncHandler.EventSourcing.Configuration;
+﻿using EventStorage.Configurations;
 using Microsoft.Extensions.DependencyInjection;
 
-namespace AsyncHandler.EventSourcing;
+namespace EventStorage;
 
 public static class AsyncHandlerExtensions
 {

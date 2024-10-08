@@ -1,4 +1,4 @@
-namespace AsyncHandler.EventSourcing.Events;
+namespace EventStorage.Events;
 
 public record SourcedEvent(string? CorrelationId = null)
 {

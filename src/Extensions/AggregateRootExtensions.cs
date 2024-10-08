@@ -1,17 +1,18 @@
 using System.Reflection;
-using AsyncHandler.EventSourcing.Events;
+using EventStorage.AggregateRoot;
+using EventStorage.Events;
 
-namespace AsyncHandler.EventSourcing.Extensions;
+namespace EventStorage.Extensions;
 
 public static class AggregateRootExtensions
 {
-    public static void InvokeApply(this IAggregateRoot aggregate,  SourcedEvent e)
+    public static void InvokeApply(this IAggregateRoot aggregate, SourcedEvent e)
     {
         var apply = aggregate.GetType().GetApply(e);
         try
         {
             apply.Invoke(aggregate, [e]);
         }
-        catch(TargetInvocationException){ throw; }
+        catch (TargetInvocationException) { throw; }
     }
 }

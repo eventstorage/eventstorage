@@ -1,4 +1,4 @@
-namespace AsyncHandler.EventSourcing.Configuration;
+namespace EventStorage.Configurations;
 
 public enum EventSources
 {
