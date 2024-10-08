@@ -46,7 +46,7 @@ jobs:
     - name: github push
       run: >
         dotnet nuget push ${{ env.packageIdd }}.${{ steps.get-version.outputs.tag }}.nupkg
-        -k ${{ secrets.GITHUB_TOKEN }} -s github
+        -k ${{ secrets.GITHUB_TOKEN }} -s "https://nuget.pkg.github.com/eventstorage/index.json"
 
     - name: nuget push
       run: >
