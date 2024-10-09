@@ -6,16 +6,15 @@ on:
       - '*.*.*'
 
 env:
-  packageIdd: EventStorage
+  packId: EventStorage
+  github_url: https://nuget.pkg.github.com/eventstorage/index.json
+  nuget_url: https://api.nuget.org/v3/index.json
 
 jobs:
   pack:
     runs-on: ubuntu-latest
     permissions:
       packages: write
-    # defaults:
-    #   run:
-    #     working-directory: ./src
 
     steps:
     - name: checkout repo
@@ -26,29 +25,26 @@ jobs:
       with:
         dotnet-version: 8.0.x
 
-    - name: build
-      run: dotnet build --configuration release
-
-    - id: get-version
+    - name: get version
+      id: get-version
       run: |
         vtag=${{ github.ref_name }}; tag=${vtag#v}; echo "tag=$tag" >> $GITHUB_OUTPUT
 
+    - name: build
+      run: dotnet build --configuration release
+
     - name: pack
       run: >
-        dotnet pack --no-build --no-restore --configuration release -p:PackageId=${{ env.packageIdd }}
-        -p:PackageVersion=${{ steps.get-version.outputs.tag }} --output .
+        dotnet pack --no-build -c release -p:PackageId=${{ env.packId }}
+        -p:PackageVersion=${{ steps.get-version.outputs.tag }} -o .
 
-    # - name: authenticate
-    #   run: >
-    #     dotnet nuget add source --username eventstorage --password ${{ secrets.GITHUB_TOKEN }}
-    #     --store-password-in-clear-text --name workflow "https://nuget.pkg.github.com/eventstorage/index.json"
+    - name: github auth
+      run: >
+        dotnet nuget add source --username eventsourcer --password ${{ secrets.GITHUB_TOKEN }}
+        --store-password-in-clear-text --name github ${{ env.github_url }}
 
     - name: github push
-      run: >
-        dotnet nuget push ${{ env.packageIdd }}.${{ steps.get-version.outputs.tag }}.nupkg
-        -k ${{ secrets.GITHUB_TOKEN }} -s "https://nuget.pkg.github.com/eventstorage/index.json"
+      run: dotnet nuget push *.nupkg -s github --skip-duplicate
 
     - name: nuget push
-      run: >
-        dotnet nuget push ${{ env.packageIdd }}.${{ steps.get-version.outputs.tag }}.nupkg
-        -k ${{ secrets.NUGETAPIKEY }} -s nuget
+      run: dotnet nuget push *.nupkg -k ${{ secrets.NugetApikey }} -s nuget.org --skip-duplicate
