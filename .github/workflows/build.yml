@@ -8,13 +8,13 @@ on:
     branches: [ "main" ]
 
 env:
-  mssqldb: ah
-  postgresqldb: ah
+  mssqldb: es
+  postgresqldb: es
   mssqlpassword: sysadmin@1234
   postgreqlpassword: postgres
   azuresqlsecret: ${{ secrets.AzureSqlSecret }}
-  mssqlsecret: "Server=localhost,1433;Initial Catalog=ah;Persist Security Info=False;User ID=sa;Password=sysadmin@1234;MultipleActiveResultSets=False;Encrypt=True;TrustServerCertificate=true;Connection Timeout=30;"
-  postgresqlsecret: "host=localhost;port=5432;username=postgres;password=postgres;database=ah"
+  mssqlsecret: "Server=localhost,1433;Initial Catalog=es;Persist Security Info=False;User ID=sa;Password=sysadmin@1234;MultipleActiveResultSets=False;Encrypt=True;TrustServerCertificate=true;Connection Timeout=30;"
+  postgresqlsecret: "host=localhost;port=5432;username=postgres;password=postgres;database=es"
 
 jobs:
   
