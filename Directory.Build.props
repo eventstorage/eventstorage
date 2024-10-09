@@ -5,12 +5,14 @@
     <Version>0.0.0-alpha.0</Version>
     <Authors>eventstorage</Authors>
     <Company>eventstorage</Company>
-    <PackageTags>EventSourcing;EventStore;Messaging;AzureSql;Postgres;Event-Driven</PackageTags>
+    <PackageTags>
+    EventSourcing;EventStore;EventStorage;Messaging;AzureSql;Postgres;Event-Driven;SqlServer;
+    </PackageTags>
     <Description>
       A lightweight event sourcing framework with event storage of choice.
     </Description>
     <PackageProjectUrl>https://github.com/eventstorage/eventstorage</PackageProjectUrl>
-    <PackageIcon>github.png</PackageIcon>
+    <!-- <PackageIcon>github.png</PackageIcon> -->
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <RepositoryUrl>https://github.com/eventstorage/eventstorage.git</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
@@ -18,7 +20,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <None Include="..\.assets\github.png" Pack="true" PackagePath="\"/>
+    <!-- <None Include="..\.assets\github.png" Pack="true" PackagePath="\"/> -->
     <None Include="README.md" Pack="true" PackagePath="\"/>
     <None Include="..\LICENSE" Pack="true" PackagePath="\"/>
   </ItemGroup>
