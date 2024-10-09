@@ -5,7 +5,7 @@ namespace EventStorage;
 
 public static class AsyncHandlerExtensions
 {
-    public static IServiceCollection AddAsyncHandler(
+    public static IServiceCollection AddEventStorage(
         this IServiceCollection services,
         Action<AsyncHandlerConfiguration> configure)
     {
