@@ -34,7 +34,7 @@ jobs:
       run: dotnet restore
 
     - name: build
-      run: dotnet build --no-restore --configuration release
+      run: dotnet build --no-restore
 
   test:
     if: ${{ success() }}
@@ -67,9 +67,8 @@ jobs:
       run: ./scripts.sh
 
     - name: test
-      # working-directory: ./test
       run: |
-        dotnet build --configuration release
-        dotnet test --no-restore --no-build --verbosity normal
+        dotnet build
+        dotnet test --no-build --verbosity normal
 
     
