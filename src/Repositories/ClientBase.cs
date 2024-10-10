@@ -1,11 +1,11 @@
 using System.Data;
 using System.Data.Common;
 using System.Text.Json;
-using AsyncHandler.Asse;
 using EventStorage.Configurations;
 using EventStorage.Events;
 using EventStorage.Schema;
 using Microsoft.Extensions.DependencyInjection;
+using TDiscover;
 
 namespace EventStorage.Repositories;
 
@@ -25,7 +25,7 @@ public abstract class ClientBase<T>(IServiceProvider sp, EventSources source)
         _genericTypeArg.IsAssignableFrom(typeof(long)) ? TId.LongSourceId : TId.GuidSourceId;
 
     protected static Type ResolveEventType(string typeName) =>
-        TDiscover.FindByTypeName<SourcedEvent>(typeName) ??
+        Td.FindByTypeName<SourcedEvent>(typeName) ??
         throw new Exception($"Deserialize failure for event {typeName}, couldn't determine event type.");
 
     private static IEventSourceSchema GetEventSourceSchema(IServiceProvider sp, EventSources source) =>
