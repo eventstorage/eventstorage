@@ -1,5 +1,4 @@
 ﻿using System.Reflection;
-using AsyncHandler.Asse;
 using EventStorage.AggregateRoot;
 using EventStorage.Configurations;
 using EventStorage.Projections;
@@ -8,6 +7,7 @@ using EventStorage.Schema;
 using EventStorage.Workers;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using TDiscover;
 
 namespace EventStorage;
 
@@ -18,7 +18,7 @@ public static class EventSourceExtensions
         EventSources source,
         string connectionString)
     {
-        Type? aggregateType = TDiscover.FindByCallingAsse<IAggregateRoot>(Assembly.GetCallingAssembly());
+        Type? aggregateType = Td.FindByCallingAsse<IAggregateRoot>(Assembly.GetCallingAssembly());
         if (aggregateType == null)
             return configuration;
         configuration.ServiceCollection.AddEventSourceSchema(configuration.Schema);

@@ -10,7 +10,7 @@
 [![build Status](https://dev.azure.com/eventstorage/eventstorage/_apis/build/status%2Feventstorage?branchName=main&label=azure%20pipes)](https://dev.azure.com/eventstorage/eventstorage/_build/latest?definitionId=1&branchName=main)
 
 <div align="left">
-    <img src=".assets/github_r.PNG" width="80" height="80" style="float:left;" alt="eventstorage">
+    <img src=".assets/es.png" width="80" height="80" style="float:left;" alt="eventstorage">
 </div>
 
 ### Overview
