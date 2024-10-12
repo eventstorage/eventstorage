@@ -18,15 +18,15 @@ public static class EventSourceExtensions
         EventSources source,
         string connectionString)
     {
-        Type? aggregateType = Td.FindByCallingAsse<IAggregateRoot>(Assembly.GetCallingAssembly());
+        Type? aggregateType = Td.FindByCallingAsse<IEventSource>(Assembly.GetCallingAssembly());
         if (aggregateType == null)
             return configuration;
         configuration.ServiceCollection.AddEventSourceSchema(configuration.Schema);
         // initialize source when app spins up
         configuration.ServiceCollection.AddSingleton<IHostedService>((sp) =>
         {
-            var repository = new Repository<IAggregateRoot>(connectionString, sp, source);
-            return new SourceInitializer(new EventSource<IAggregateRoot>(repository, source));
+            var repository = new Repository<IEventSource>(connectionString, sp, source);
+            return new SourceInitializer(new EventStorage<IEventSource>(repository, source));
         });
         #pragma warning disable CS8603
         // register repository
@@ -37,8 +37,8 @@ public static class EventSourceExtensions
             return Activator.CreateInstance(repositoryType, connectionString, sp, source);
         });
         // register event source
-        Type eventSourceInterfaceType = typeof(IEventSource<>).MakeGenericType(aggregateType);
-        Type eventSourceType = typeof(EventSource<>).MakeGenericType(aggregateType);
+        Type eventSourceInterfaceType = typeof(IEventStorage<>).MakeGenericType(aggregateType);
+        Type eventSourceType = typeof(EventStorage<>).MakeGenericType(aggregateType);
         configuration.ServiceCollection.AddScoped(eventSourceInterfaceType, sp =>
         {
             var repository = sp.GetService(repositoryInterfaceType);

@@ -43,10 +43,10 @@ Use `AddEventStorage` service collection extension.
 var connectionString = builder.Configuration["postgresqlsecret"]??
     throw new Exception("No connection defined");
 
-builder.Services.AddEventStorage(asynchandler =>
+builder.Services.AddEventStorage(eventstorage =>
 {
-    asynchandler.Schema = "es";
-    asynchandler.AddEventSourcing(source =>
+    eventstorage.Schema = "es";
+    eventstorage.AddEventSource(source =>
     {
         source.SelectEventSource(EventSources.PostgresSql, connectionString);
     });
@@ -57,10 +57,10 @@ Select your event source of choice from `SelectEventSource`.
 Make sure you have defined your connection string.
 
 #### Define your aggregate
-Add your aggregate with AggregateRoot
+Add your aggregate with EventSource<TId>
 
 ```csharp
-public class OrderBookingAggregate : AggregateRoot<long> // or Guid
+public class OrderBooking : EventSource<long> // or Guid
 {
     public OrderStatus OrderStatus { get; private set; }
     protected override void Apply(SourcedEvent e)
@@ -79,7 +79,7 @@ public class OrderBookingAggregate : AggregateRoot<long> // or Guid
     }
 }
 ```
-AggregateRoot allows selecting `long` or `Guid` for sourceId, selecting `long` offers lightnening-fast queries. 
+EventSource<TId> allows selecting `long` or `Guid` for sourceId, selecting `long` offers lightnening-fast queries. 
 
 To continue please visit our [GitHub](https://github.com/eventstorage/eventstorage) handle.
 

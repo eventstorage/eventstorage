@@ -3,18 +3,18 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace EventStorage;
 
-public static class AsyncHandlerExtensions
+public static class EventStorageExtensions
 {
     public static IServiceCollection AddEventStorage(
         this IServiceCollection services,
-        Action<AsyncHandlerConfiguration> configure)
+        Action<EventStorageConfiguration> configure)
     {
-        AsyncHandlerConfiguration asynchandlerConfiguration = new(services);
-        configure(asynchandlerConfiguration);
+        EventStorageConfiguration eventStorageConfiguration = new(services);
+        configure(eventStorageConfiguration);
         return services;
     }
-    public static EventSourceConfiguration AddEventSourcing(
-        this AsyncHandlerConfiguration config,
+    public static EventSourceConfiguration AddEventSource(
+        this EventStorageConfiguration config,
         Action<EventSourceConfiguration> configure)
     {
         EventSourceConfiguration sourceConfig = new(config.ServiceCollection, config.Schema);
@@ -22,7 +22,7 @@ public static class AsyncHandlerExtensions
         return sourceConfig;
     }
     public static void EnableTransactionalOutbox(
-        this AsyncHandlerConfiguration config,
+        this EventStorageConfiguration config,
         MessageBus messageBus,
         string busConnection)
     {

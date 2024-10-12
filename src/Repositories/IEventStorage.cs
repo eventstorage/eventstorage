@@ -1,6 +1,6 @@
 namespace EventStorage.Repositories;
 
-public interface IEventSource<T>
+public interface IEventStorage<T>
 {
     Task InitSource();
     Task<T> CreateOrRestore(string? sourceId = null);

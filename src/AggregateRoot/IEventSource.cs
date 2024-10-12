@@ -2,7 +2,7 @@ using EventStorage.Events;
 
 namespace EventStorage.AggregateRoot;
 
-public interface IAggregateRoot
+public interface IEventSource
 {
     IEnumerable<SourcedEvent> PendingEvents { get; }
     void RestoreAggregate(RestoreType restoration, SourcedEvent[] events);

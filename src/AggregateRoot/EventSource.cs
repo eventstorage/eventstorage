@@ -2,7 +2,7 @@ using EventStorage.Events;
 
 namespace EventStorage.AggregateRoot;
 
-public abstract class AggregateRoot<TId> : Entity<TId>, IAggregateRoot where TId : IComparable
+public abstract class EventSource<TId> : Entity<TId>, IEventSource where TId : IComparable
 {
     private readonly List<SourcedEvent> _pendingEvents = [];
     private readonly List<SourcedEvent> _eventStream = [];
@@ -35,8 +35,7 @@ public abstract class AggregateRoot<TId> : Entity<TId>, IAggregateRoot where TId
             Apply(e);
             BumpVersion(type switch
             {
-                RestoreType.Pending => delegate { _pendingEvents.Add(e); }
-                ,
+                RestoreType.Pending => delegate { _pendingEvents.Add(e); },
                 _ => () => _eventStream.Add(e)
             });
             _causationId = e.Id.ToString();
