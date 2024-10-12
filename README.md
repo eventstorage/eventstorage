@@ -56,10 +56,10 @@ Use docker to run mssql or postgres databases, execute `docker-compose` or `dock
 var connectionString = builder.Configuration["postgresqlsecret"]??
     throw new Exception("No connection defined");
 
-builder.Services.AddEventStorage(asynchandler =>
+builder.Services.AddEventStorage(eventstorage =>
 {
-    asynchandler.Schema = "es";
-    asynchandler.AddEventSourcing(source =>
+    eventstorage.Schema = "es";
+    eventstorage.AddEventSource(source =>
     {
         source.SelectEventSource(EventSources.PostgresSql, connectionString);
     });
@@ -70,10 +70,10 @@ Select your event source of choice from `SelectEventSource`.
 Make sure you have defined your connection string.
 
 #### Define your aggregate
-###### Add your aggregate with AggregateRoot
+###### Add your aggregate with EventSource<TId>
 
 ```csharp
-public class OrderBookingAggregate : AggregateRoot<long> // or Guid
+public class OrderBooking : EventSource<long> // or Guid
 {
     public OrderStatus OrderStatus { get; private set; }
     protected override void Apply(SourcedEvent e)
@@ -92,13 +92,13 @@ public class OrderBookingAggregate : AggregateRoot<long> // or Guid
     }
 }
 ```
-AggregateRoot allows selecting `long` or `Guid` for sourceId, selecting `long` offers lightnening-fast queries. 
+EventSource<TId> allows selecting `long` or `Guid` for sourceId, selecting `long` offers lightnening-fast queries. 
 
-#### Use `IEventSource<T>` service
+#### Use `IEventStorage<T>` service
 
 ```csharp
 app.MapPost("api/placeorder", 
-async(IEventSource<OrderBookingAggregate> eventSource, PlaceOrder command) =>
+async(IEventStorage<OrderBooking> eventSource, PlaceOrder command) =>
 {
     var aggregate = await eventSource.CreateOrRestore();
     aggregate.PlaceOrder(command);
@@ -112,7 +112,7 @@ Add two more methods to your aggregate to confirm an order, `ConfirmOrder` and `
 
 ```csharp
 app.MapPost("api/confirmorder/{orderId}", 
-async(IEventSource<OrderBookingAggregate> eventSource, string orderId, ConfirmOrder command) =>
+async(IEventStorage<OrderBooking> eventSource, string orderId, ConfirmOrder command) =>
 {
     var aggregate = await eventSource.CreateOrRestore(orderId);
     aggregate.ConfirmOrder(command);
