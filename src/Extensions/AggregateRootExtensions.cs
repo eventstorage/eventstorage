@@ -6,7 +6,7 @@ namespace EventStorage.Extensions;
 
 public static class AggregateRootExtensions
 {
-    public static void InvokeApply(this IAggregateRoot aggregate, SourcedEvent e)
+    public static void InvokeApply(this IEventSource aggregate, SourcedEvent e)
     {
         var apply = aggregate.GetType().GetApply(e);
         try

@@ -7,19 +7,19 @@ using FluentAssertions;
 using Moq;
 using Moq.Language.Flow;
 
-namespace EventStorage.Unit.Tests.EventSource;
+namespace EventStorage.Unit.Tests.EventStorage;
 
 public class EventSourceTests
 {
-    private readonly Mock<IRepository<AggregateRoot<long>>> _mockRepo = new();
-    private readonly IReturnsThrows<IRepository<AggregateRoot<long>>, Task<AggregateRoot<long>>> _createOrRestoreSetup;
-    private readonly IReturnsThrows<IRepository<AggregateRoot<long>>, Task<AggregateRoot<long>>> _createOrRestoreSetup1;
+    private readonly Mock<IRepository<EventSource<long>>> _mockRepo = new();
+    private readonly IReturnsThrows<IRepository<EventSource<long>>, Task<EventSource<long>>> _createOrRestoreSetup;
+    private readonly IReturnsThrows<IRepository<EventSource<long>>, Task<EventSource<long>>> _createOrRestoreSetup1;
     public EventSourceTests()
     {
         _createOrRestoreSetup = _mockRepo.Setup(x => x.SqlServerClient.CreateOrRestore(It.IsAny<string>()));
         _createOrRestoreSetup1 = _mockRepo.Setup(x => x.PostgreSqlClient.CreateOrRestore(It.IsAny<string>()));
     }
-    public EventSource<AggregateRoot<long>> BuildSut(EventSources source) =>
+    public EventStorage<EventSource<long>> BuildSut(EventSources source) =>
         new(_mockRepo.Object, source);
 
     [Theory]
@@ -29,15 +29,15 @@ public class EventSourceTests
     public async Task GivenSourceToCreate_ShouldInvokeResponsibleClient(EventSources source)
     {
         // given
-        _createOrRestoreSetup.ReturnsAsync(It.IsAny<AggregateRoot<long>>());
-        _createOrRestoreSetup1.ReturnsAsync(It.IsAny<AggregateRoot<long>>());
+        _createOrRestoreSetup.ReturnsAsync(It.IsAny<EventSource<long>>());
+        _createOrRestoreSetup1.ReturnsAsync(It.IsAny<EventSource<long>>());
 
         // when
         var sut = BuildSut(source);
         await sut.CreateOrRestore(It.IsAny<string>());
 
         // then
-        Expression<Func<IRepository<AggregateRoot<long>>, Task<AggregateRoot<long>>>> exp = source switch
+        Expression<Func<IRepository<EventSource<long>>, Task<EventSource<long>>>> exp = source switch
         {
             EventSources.AzureSql => x => x.SqlServerClient.CreateOrRestore(It.IsAny<string>()),
             EventSources.PostgresSql => x => x.PostgreSqlClient.CreateOrRestore(It.IsAny<string>()),

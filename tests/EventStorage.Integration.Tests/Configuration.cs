@@ -22,9 +22,9 @@ public class Configuration<T> where T : OrderAggregate
         var services = new ServiceCollection();
 
         Dictionary<EventSources, IEventSourceSchema> schemas = [];
-        schemas.Add(EventSources.AzureSql, new AzureSqlSchema("ah"));
-        schemas.Add(EventSources.PostgresSql, new PostgreSqlSchema("ah"));
-        schemas.Add(EventSources.SqlServer, new SqlServerSchema("ah"));
+        schemas.Add(EventSources.AzureSql, new AzureSqlSchema("es"));
+        schemas.Add(EventSources.PostgresSql, new PostgreSqlSchema("es"));
+        schemas.Add(EventSources.SqlServer, new SqlServerSchema("es"));
         services.AddKeyedSingleton("Schema", schemas);
 
         services.AddSingleton<ILogger<SqlServerClient<T>>>(sp =>
@@ -36,8 +36,8 @@ public class Configuration<T> where T : OrderAggregate
         {
             services.AddKeyedSingleton<IRepository<T>>(source, (sp, o) =>
                 new Repository<T>(GetConnection(source), sp, source));
-            services.AddKeyedSingleton<IEventSource<T>>(source, (sp, o) =>
-                new EventSource<T>(sp.GetRequiredKeyedService<IRepository<T>>(source), source));
+            services.AddKeyedSingleton<IEventStorage<T>>(source, (sp, o) =>
+                new EventStorage<T>(sp.GetRequiredKeyedService<IRepository<T>>(source), source));
         }
         return services.BuildServiceProvider();
     }

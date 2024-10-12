@@ -4,7 +4,7 @@ using EventStorage.Extensions;
 
 namespace EventStorage.Unit.Tests.AggregateRoot;
 
-public class OrderAggregate : AggregateRoot<long>
+public class OrderAggregate : EventSource<long>
 {
     public OrderStatus OrderStatus { get; set; }
     protected override void Apply(SourcedEvent e)

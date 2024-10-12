@@ -4,7 +4,7 @@ using Microsoft.Extensions.Hosting;
 
 namespace EventStorage.Workers;
 
-internal class SourceInitializer(IEventSource<IAggregateRoot> eventSource) : IHostedService
+internal class SourceInitializer(IEventStorage<IEventSource> eventSource) : IHostedService
 {
     public async Task StartAsync(CancellationToken cancellationToken)
     {

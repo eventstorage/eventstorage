@@ -10,8 +10,8 @@ namespace EventStorage.Integration.Tests;
 public class TestBase<T> where T : OrderAggregate
 {
     private static readonly IServiceProvider _container = Configuration<T>.Container;
-    public static IEventSource<T> EventSource(EventSources source) =>
-        _container.GetRequiredKeyedService<IEventSource<T>>(source);
+    public static IEventStorage<T> EventSource(EventSources source) =>
+        _container.GetRequiredKeyedService<IEventStorage<T>>(source);
     public static ISqlServerClient<T> AzureSqlClient =>
         _container.GetRequiredKeyedService<IRepository<T>>(EventSources.AzureSql).SqlServerClient;
     public static ISqlServerClient<T> SqlServerClient =>

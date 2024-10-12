@@ -2,7 +2,7 @@ using EventStorage.Configurations;
 
 namespace EventStorage.Repositories;
 
-public class EventSource<T>(IRepository<T> repository, EventSources source) : IEventSource<T>
+public class EventStorage<T>(IRepository<T> repository, EventSources source) : IEventStorage<T>
 {
     public Task InitSource() => source switch
     {

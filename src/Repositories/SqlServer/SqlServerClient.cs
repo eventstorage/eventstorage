@@ -13,7 +13,7 @@ using Microsoft.Extensions.Logging;
 namespace EventStorage.Repositories.SqlServer;
 
 public class SqlServerClient<T>(string conn, IServiceProvider sp, EventSources source) 
-    : ClientBase<T>(sp, source), ISqlServerClient<T> where T : IAggregateRoot
+    : ClientBase<T>(sp, source), ISqlServerClient<T> where T : IEventSource
 {
     private readonly SemaphoreSlim _semaphore = new (1, 1);
     private readonly ILogger logger = sp.GetRequiredService<ILogger<SqlServerClient<T>>>();
