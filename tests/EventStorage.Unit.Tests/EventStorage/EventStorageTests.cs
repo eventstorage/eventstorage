@@ -19,14 +19,14 @@ public class EventStorageTests
         _createOrRestoreSetup = _mockRepo.Setup(x => x.SqlServerClient.CreateOrRestore(It.IsAny<string>()));
         _createOrRestoreSetup1 = _mockRepo.Setup(x => x.PostgreSqlClient.CreateOrRestore(It.IsAny<string>()));
     }
-    public EventStorage<EventSource<long>> BuildSut(EventSources source) =>
+    public EventStorage<EventSource<long>> BuildSut(EventStore source) =>
         new(_mockRepo.Object, source);
 
     [Theory]
-    [InlineData(EventSources.AzureSql)]
-    [InlineData(EventSources.PostgresSql)]
-    [InlineData(EventSources.SqlServer)]
-    public async Task GivenSourceToCreate_ShouldInvokeResponsibleClient(EventSources source)
+    [InlineData(EventStore.AzureSql)]
+    [InlineData(EventStore.PostgresSql)]
+    [InlineData(EventStore.SqlServer)]
+    public async Task GivenSourceToCreate_ShouldInvokeResponsibleClient(EventStore source)
     {
         // given
         _createOrRestoreSetup.ReturnsAsync(It.IsAny<EventSource<long>>());
@@ -39,9 +39,9 @@ public class EventStorageTests
         // then
         Expression<Func<IRepository<EventSource<long>>, Task<EventSource<long>>>> exp = source switch
         {
-            EventSources.AzureSql => x => x.SqlServerClient.CreateOrRestore(It.IsAny<string>()),
-            EventSources.PostgresSql => x => x.PostgreSqlClient.CreateOrRestore(It.IsAny<string>()),
-            EventSources.SqlServer => x => x.SqlServerClient.CreateOrRestore(It.IsAny<string>()),
+            EventStore.AzureSql => x => x.SqlServerClient.CreateOrRestore(It.IsAny<string>()),
+            EventStore.PostgresSql => x => x.PostgreSqlClient.CreateOrRestore(It.IsAny<string>()),
+            EventStore.SqlServer => x => x.SqlServerClient.CreateOrRestore(It.IsAny<string>()),
             _ => x => x.SqlServerClient.CreateOrRestore(It.IsAny<string>()),
         };
 
@@ -56,7 +56,7 @@ public class EventStorageTests
         _createOrRestoreSetup1.ReturnsAsync(expected);
 
         // when
-        var sut = BuildSut(It.IsAny<EventSources>());
+        var sut = BuildSut(It.IsAny<EventStore>());
         var aggregate = await sut.CreateOrRestore(It.IsAny<string>());
 
         // then

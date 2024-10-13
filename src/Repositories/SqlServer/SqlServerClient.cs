@@ -12,7 +12,7 @@ using Microsoft.Extensions.Logging;
 
 namespace EventStorage.Repositories.SqlServer;
 
-public class SqlServerClient<T>(string conn, IServiceProvider sp, EventSources source) 
+public class SqlServerClient<T>(string conn, IServiceProvider sp, EventStore source) 
     : ClientBase<T>(sp, source), ISqlServerClient<T> where T : IEventSource
 {
     private readonly SemaphoreSlim _semaphore = new (1, 1);

@@ -5,7 +5,7 @@ using EventStorage.Repositories.SqlServer;
 
 namespace EventStorage.Repositories;
 
-public class Repository<T>(string conn, IServiceProvider sp, EventSources source) 
+public class Repository<T>(string conn, IServiceProvider sp, EventStore source) 
     : IRepository<T> where T : IEventSource
 {
     private readonly SqlServerClient<T> _sqlServer = new(conn, sp, source);

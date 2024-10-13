@@ -14,7 +14,7 @@ using NpgsqlTypes;
 namespace EventStorage.Repositories.PostgreSql;
 
 public class PostgreSqlClient<T>(string conn, IServiceProvider sp)
-    : ClientBase<T>(sp, EventSources.PostgresSql), IPostgreSqlClient<T> where T : IEventSource
+    : ClientBase<T>(sp, EventStore.PostgresSql), IPostgreSqlClient<T> where T : IEventSource
 {
     private readonly ILogger logger = sp.GetRequiredService<ILogger<PostgreSqlClient<T>>>();
     public async Task Init()

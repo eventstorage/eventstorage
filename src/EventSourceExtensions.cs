@@ -15,7 +15,7 @@ public static class EventSourceExtensions
 {
     public static EventSourceConfiguration SelectEventStorage(
         this EventSourceConfiguration configuration,
-        EventSources source,
+        EventStore source,
         string connectionString)
     {
         Type? aggregateType = Td.FindByCallingAsse<IEventSource>(Assembly.GetCallingAssembly());
@@ -54,10 +54,10 @@ public static class EventSourceExtensions
     }
     private static IServiceCollection AddEventSourceSchema(this IServiceCollection services, string schema)
     {
-        Dictionary<EventSources, IEventSourceSchema> schemas = [];
-        schemas.Add(EventSources.AzureSql, new AzureSqlSchema(schema));
-        schemas.Add(EventSources.PostgresSql, new PostgreSqlSchema(schema));
-        schemas.Add(EventSources.SqlServer, new SqlServerSchema(schema));
+        Dictionary<EventStore, IEventSourceSchema> schemas = [];
+        schemas.Add(EventStore.AzureSql, new AzureSqlSchema(schema));
+        schemas.Add(EventStore.PostgresSql, new PostgreSqlSchema(schema));
+        schemas.Add(EventStore.SqlServer, new SqlServerSchema(schema));
         services.AddKeyedSingleton("Schema", schemas);
         return services;
     }

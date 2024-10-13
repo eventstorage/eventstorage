@@ -21,10 +21,10 @@ public class Configuration<T> where T : OrderAggregate
     {
         var services = new ServiceCollection();
 
-        Dictionary<EventSources, IEventSourceSchema> schemas = [];
-        schemas.Add(EventSources.AzureSql, new AzureSqlSchema("es"));
-        schemas.Add(EventSources.PostgresSql, new PostgreSqlSchema("es"));
-        schemas.Add(EventSources.SqlServer, new SqlServerSchema("es"));
+        Dictionary<EventStore, IEventSourceSchema> schemas = [];
+        schemas.Add(EventStore.AzureSql, new AzureSqlSchema("es"));
+        schemas.Add(EventStore.PostgresSql, new PostgreSqlSchema("es"));
+        schemas.Add(EventStore.SqlServer, new SqlServerSchema("es"));
         services.AddKeyedSingleton("Schema", schemas);
 
         services.AddSingleton<ILogger<SqlServerClient<T>>>(sp =>
@@ -32,7 +32,7 @@ public class Configuration<T> where T : OrderAggregate
         services.AddSingleton<ILogger<PostgreSqlClient<T>>>(sp =>
             new Logger<PostgreSqlClient<T>>(new LoggerFactory()));
 
-        foreach (EventSources source in Enum.GetValues(typeof(EventSources)))
+        foreach (EventStore source in Enum.GetValues(typeof(EventStore)))
         {
             services.AddKeyedSingleton<IRepository<T>>(source, (sp, o) =>
                 new Repository<T>(GetConnection(source), sp, source));
@@ -41,13 +41,13 @@ public class Configuration<T> where T : OrderAggregate
         }
         return services.BuildServiceProvider();
     }
-    private static string GetConnection(EventSources source) => source switch
+    private static string GetConnection(EventStore source) => source switch
     {
-        EventSources.SqlServer => _configuration["mssqlsecret"] ??
+        EventStore.SqlServer => _configuration["mssqlsecret"] ??
             throw new Exception("no connection string found"),
-        EventSources.AzureSql => _configuration["azuresqlsecret"] ??
+        EventStore.AzureSql => _configuration["azuresqlsecret"] ??
             throw new Exception("no connection string found"),
-        EventSources.PostgresSql => _configuration["postgresqlsecret"] ??
+        EventStore.PostgresSql => _configuration["postgresqlsecret"] ??
             throw new Exception("no connection string found"),
         _ => string.Empty
     };

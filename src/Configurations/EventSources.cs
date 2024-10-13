@@ -1,6 +1,6 @@
 namespace EventStorage.Configurations;
 
-public enum EventSources
+public enum EventStore
 {
     AzureSql = 0,
     PostgresSql = 1,

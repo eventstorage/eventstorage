@@ -48,7 +48,7 @@ builder.Services.AddEventStorage(eventstorage =>
     eventstorage.Schema = "es";
     eventstorage.AddEventSource(source =>
     {
-        source.SelectEventSource(EventSources.PostgresSql, connectionString);
+        source.SelectEventSource(EventStore.PostgresSql, connectionString);
     });
 });
 ```

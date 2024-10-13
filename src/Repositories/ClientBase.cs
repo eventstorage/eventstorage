@@ -9,7 +9,7 @@ using TDiscover;
 
 namespace EventStorage.Repositories;
 
-public abstract class ClientBase<T>(IServiceProvider sp, EventSources source)
+public abstract class ClientBase<T>(IServiceProvider sp, EventStore source)
 {
     private readonly IEventSourceSchema _schema = GetEventSourceSchema(sp, source);
     protected string GetSourceCommand => _schema.GetSourceCommand(SourceTId.ToString());
@@ -28,8 +28,8 @@ public abstract class ClientBase<T>(IServiceProvider sp, EventSources source)
         Td.FindByTypeName<SourcedEvent>(typeName) ??
         throw new Exception($"Deserialize failure for event {typeName}, couldn't determine event type.");
 
-    private static IEventSourceSchema GetEventSourceSchema(IServiceProvider sp, EventSources source) =>
-        sp.GetRequiredKeyedService<Dictionary<EventSources, IEventSourceSchema>>("Schema")
+    private static IEventSourceSchema GetEventSourceSchema(IServiceProvider sp, EventStore source) =>
+        sp.GetRequiredKeyedService<Dictionary<EventStore, IEventSourceSchema>>("Schema")
         .FirstOrDefault(x => x.Key == source).Value;
 
     // this needs optimistic locking
