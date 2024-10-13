@@ -9,12 +9,12 @@ using Moq.Language.Flow;
 
 namespace EventStorage.Unit.Tests.EventStorage;
 
-public class EventSourceTests
+public class EventStorageTests
 {
     private readonly Mock<IRepository<EventSource<long>>> _mockRepo = new();
     private readonly IReturnsThrows<IRepository<EventSource<long>>, Task<EventSource<long>>> _createOrRestoreSetup;
     private readonly IReturnsThrows<IRepository<EventSource<long>>, Task<EventSource<long>>> _createOrRestoreSetup1;
-    public EventSourceTests()
+    public EventStorageTests()
     {
         _createOrRestoreSetup = _mockRepo.Setup(x => x.SqlServerClient.CreateOrRestore(It.IsAny<string>()));
         _createOrRestoreSetup1 = _mockRepo.Setup(x => x.PostgreSqlClient.CreateOrRestore(It.IsAny<string>()));

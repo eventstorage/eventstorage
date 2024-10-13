@@ -13,7 +13,7 @@ namespace EventStorage;
 
 public static class EventSourceExtensions
 {
-    public static EventSourceConfiguration SelectEventSource(
+    public static EventSourceConfiguration SelectEventStorage(
         this EventSourceConfiguration configuration,
         EventSources source,
         string connectionString)
@@ -22,7 +22,7 @@ public static class EventSourceExtensions
         if (aggregateType == null)
             return configuration;
         configuration.ServiceCollection.AddEventSourceSchema(configuration.Schema);
-        // initialize source when app spins up
+        // initialize source while app spins up
         configuration.ServiceCollection.AddSingleton<IHostedService>((sp) =>
         {
             var repository = new Repository<IEventSource>(connectionString, sp, source);
@@ -36,7 +36,7 @@ public static class EventSourceExtensions
         {
             return Activator.CreateInstance(repositoryType, connectionString, sp, source);
         });
-        // register event source
+        // register event storage
         Type eventSourceInterfaceType = typeof(IEventStorage<>).MakeGenericType(aggregateType);
         Type eventSourceType = typeof(EventStorage<>).MakeGenericType(aggregateType);
         configuration.ServiceCollection.AddScoped(eventSourceInterfaceType, sp =>

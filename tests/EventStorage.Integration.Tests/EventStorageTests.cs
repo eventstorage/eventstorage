@@ -4,7 +4,7 @@ using FluentAssertions;
 
 namespace EventStorage.Integration.Tests;
 
-public class EventSourceTests : TestBase<OrderAggregate>
+public class EventStorageTests : TestBase<OrderAggregate>
 {
     [Theory]
     [InlineData(EventSources.SqlServer)]
@@ -13,7 +13,7 @@ public class EventSourceTests : TestBase<OrderAggregate>
     public async Task WhenCreateOrRestore_ShouldCreateAndRestoreAggregate(EventSources source)
     {
         // Given
-        var service = EventSource(source);
+        var service = EventStorage(source);
         await service.InitSource();
 
         // When
@@ -30,7 +30,7 @@ public class EventSourceTests : TestBase<OrderAggregate>
     public async Task GivenPlacedOrder_WhenCommitting_ShouldCommitAggregate(EventSources source)
     {
         // Given
-        var service = EventSource(source);
+        var service = EventStorage(source);
         await service.InitSource();
         var aggregate = await service.CreateOrRestore();
 
@@ -49,7 +49,7 @@ public class EventSourceTests : TestBase<OrderAggregate>
     public async Task GivenExistingSource_ShouldRestoreAggregate(EventSources source)
     {
         // Given
-        var service = EventSource(source);
+        var service = EventStorage(source);
         await service.InitSource();
         var expectedAggregate = await service.CreateOrRestore();
         expectedAggregate.PlaceOrder();
@@ -69,7 +69,7 @@ public class EventSourceTests : TestBase<OrderAggregate>
     public async Task GivenExistingSource_WhenConfirming_ShouldAppendEvent(EventSources source)
     {
         // Given
-        var service = EventSource(source);
+        var service = EventStorage(source);
         await service.InitSource();
         var aggregate = await service.CreateOrRestore();
         aggregate.PlaceOrder();
@@ -91,7 +91,7 @@ public class EventSourceTests : TestBase<OrderAggregate>
     public async Task GivenSource_ConfirmingTwice_ShouldAvoidAppendingEvent(EventSources source)
     {
         // Given
-        var service = EventSource(source);
+        var service = EventStorage(source);
         await service.InitSource();
         var aggregate = await service.CreateOrRestore();
 
