@@ -5,6 +5,7 @@ using EventStorage.AggregateRoot;
 using EventStorage.Configurations;
 using EventStorage.Events;
 using EventStorage.Extensions;
+using EventStorage.Projections;
 using EventStorage.Schema;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -14,17 +15,20 @@ using NpgsqlTypes;
 namespace EventStorage.Repositories.PostgreSql;
 
 public class PostgreSqlClient<T>(string conn, IServiceProvider sp)
-    : ClientBase<T>(sp, EventSources.PostgresSql), IPostgreSqlClient<T> where T : IEventSource
+    : ClientBase<T>(sp, EventStore.PostgresSql), IPostgreSqlClient<T> where T : IEventSource
 {
+    private readonly SemaphoreSlim _semaphore = new (1, 1);
     private readonly ILogger logger = sp.GetRequiredService<ILogger<PostgreSqlClient<T>>>();
     public async Task Init()
     {
         logger.LogInformation($"Begin initializing {nameof(PostgreSqlClient<T>)}.");
+        _semaphore.Wait();
         await using NpgsqlConnection sqlConnection = new(conn);
         await sqlConnection.OpenAsync();
         await using NpgsqlCommand sqlCommand = new(CreateSchemaIfNotExists, sqlConnection);
         await sqlCommand.ExecuteNonQueryAsync();
         logger.LogInformation($"Finished initializing {nameof(PostgreSqlClient<T>)}.");
+        _semaphore.Release();
     }
     public async Task<T> CreateOrRestore(string? sourceId = null)
     {
@@ -121,5 +125,30 @@ public class PostgreSqlClient<T>(string conn, IServiceProvider sp)
                 logger.LogError($"Commit failure for {aggregate.GetType().Name}. {e.Message}");
             throw;
         }
+    }
+    public async Task<M> Project<M>(string sourceId) where M : class
+    {
+        await using NpgsqlConnection sqlConnection = new(conn);
+        await sqlConnection.OpenAsync();
+        var command = "select * from es.eventsources where longsourceid=@sourceId";
+        await using NpgsqlCommand sqlCommand = new(command, sqlConnection);
+        object id = SourceTId == TId.LongSourceId ? long.Parse(sourceId) : Guid.Parse(sourceId);
+        sqlCommand.Parameters.AddWithValue("@sourceId", id);
+        await using NpgsqlDataReader reader = await sqlCommand.ExecuteReaderAsync();
+
+        List<SourcedEvent> events = [];
+        while(await reader.ReadAsync())
+        {
+            var typeName = reader.GetString(EventSourceSchema.Type);
+            var type = ResolveEventType(typeName);
+            var json = reader.GetString(EventSourceSchema.Data);
+            var sourcedEvent = JsonSerializer.Deserialize(json, type) as SourcedEvent??
+                throw new Exception("deserialization failure.");
+            events.Add(sourcedEvent);
+        }
+
+        var projection = sp.GetRequiredService<IProjectionEngine>();
+        var model = projection.Project<M>(events);
+        return model;
     }
 }

@@ -10,12 +10,12 @@ namespace EventStorage.Integration.Tests;
 public class TestBase<T> where T : OrderAggregate
 {
     private static readonly IServiceProvider _container = Configuration<T>.Container;
-    public static IEventStorage<T> EventSource(EventSources source) =>
+    public static IEventStorage<T> EventStorage(EventStore source) =>
         _container.GetRequiredKeyedService<IEventStorage<T>>(source);
     public static ISqlServerClient<T> AzureSqlClient =>
-        _container.GetRequiredKeyedService<IRepository<T>>(EventSources.AzureSql).SqlServerClient;
+        _container.GetRequiredKeyedService<IRepository<T>>(EventStore.AzureSql).SqlServerClient;
     public static ISqlServerClient<T> SqlServerClient =>
-        _container.GetRequiredKeyedService<IRepository<T>>(EventSources.SqlServer).SqlServerClient;
+        _container.GetRequiredKeyedService<IRepository<T>>(EventStore.SqlServer).SqlServerClient;
     public static IPostgreSqlClient<T> PostgreSqlClient =>
-        _container.GetRequiredKeyedService<IRepository<T>>(EventSources.PostgresSql).PostgreSqlClient;
+        _container.GetRequiredKeyedService<IRepository<T>>(EventStore.PostgresSql).PostgreSqlClient;
 }

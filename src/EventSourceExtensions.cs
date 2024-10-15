@@ -13,16 +13,16 @@ namespace EventStorage;
 
 public static class EventSourceExtensions
 {
-    public static EventSourceConfiguration SelectEventSource(
+    public static EventSourceConfiguration SelectEventStorage(
         this EventSourceConfiguration configuration,
-        EventSources source,
+        EventStore source,
         string connectionString)
     {
         Type? aggregateType = Td.FindByCallingAsse<IEventSource>(Assembly.GetCallingAssembly());
         if (aggregateType == null)
             return configuration;
         configuration.ServiceCollection.AddEventSourceSchema(configuration.Schema);
-        // initialize source when app spins up
+        // initialize source while app spins up
         configuration.ServiceCollection.AddSingleton<IHostedService>((sp) =>
         {
             var repository = new Repository<IEventSource>(connectionString, sp, source);
@@ -36,7 +36,7 @@ public static class EventSourceExtensions
         {
             return Activator.CreateInstance(repositoryType, connectionString, sp, source);
         });
-        // register event source
+        // register event storage
         Type eventSourceInterfaceType = typeof(IEventStorage<>).MakeGenericType(aggregateType);
         Type eventSourceType = typeof(EventStorage<>).MakeGenericType(aggregateType);
         configuration.ServiceCollection.AddScoped(eventSourceInterfaceType, sp =>
@@ -46,18 +46,21 @@ public static class EventSourceExtensions
         });
         return configuration;
     }
-    public static EventSourceConfiguration AddProjection<T>(
+    public static EventSourceConfiguration Project<T>(
         this EventSourceConfiguration configuration,
         ProjectionMode projectionMode)
     {
+        var interfaceType = typeof(T).GetInterfaces().First();
+        configuration.ServiceCollection.AddSingleton(interfaceType, typeof(T));
+        configuration.ServiceCollection.AddTransient<IProjectionEngine,ProjectionEngine>();
         return configuration;
     }
     private static IServiceCollection AddEventSourceSchema(this IServiceCollection services, string schema)
     {
-        Dictionary<EventSources, IEventSourceSchema> schemas = [];
-        schemas.Add(EventSources.AzureSql, new AzureSqlSchema(schema));
-        schemas.Add(EventSources.PostgresSql, new PostgreSqlSchema(schema));
-        schemas.Add(EventSources.SqlServer, new SqlServerSchema(schema));
+        Dictionary<EventStore, IEventSourceSchema> schemas = [];
+        schemas.Add(EventStore.AzureSql, new AzureSqlSchema(schema));
+        schemas.Add(EventStore.PostgresSql, new PostgreSqlSchema(schema));
+        schemas.Add(EventStore.SqlServer, new SqlServerSchema(schema));
         services.AddKeyedSingleton("Schema", schemas);
         return services;
     }

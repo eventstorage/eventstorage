@@ -3,7 +3,7 @@ using FluentAssertions;
 
 namespace EventStorage.Unit.Tests.AggregateRoot;
 
-public class AggregareRootTests
+public class EventSourceTests
 {
     [Fact]
     public async Task GivenPlaceOrder_ShouldPlaceOrder()

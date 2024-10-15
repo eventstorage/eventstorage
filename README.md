@@ -61,7 +61,7 @@ builder.Services.AddEventStorage(eventstorage =>
     eventstorage.Schema = "es";
     eventstorage.AddEventSource(source =>
     {
-        source.SelectEventSource(EventSources.PostgresSql, connectionString);
+        source.SelectEventSource(EventStore.PostgresSql, connectionString);
     });
 });
 ```
@@ -70,7 +70,7 @@ Select your event source of choice from `SelectEventSource`.
 Make sure you have defined your connection string.
 
 #### Define your aggregate
-###### Add your aggregate with EventSource<TId>
+###### Add your aggregate with `EventSource<TId>`
 
 ```csharp
 public class OrderBooking : EventSource<long> // or Guid
@@ -92,18 +92,18 @@ public class OrderBooking : EventSource<long> // or Guid
     }
 }
 ```
-EventSource<TId> allows selecting `long` or `Guid` for sourceId, selecting `long` offers lightnening-fast queries. 
+`EventSource<TId>` allows selecting `long` or `Guid` for sourceId, selecting `long` offers lightnening-fast queries. 
 
 #### Use `IEventStorage<T>` service
 
 ```csharp
 app.MapPost("api/placeorder", 
-async(IEventStorage<OrderBooking> eventSource, PlaceOrder command) =>
+async(IEventStorage<OrderBooking> eventStorage, PlaceOrder command) =>
 {
-    var aggregate = await eventSource.CreateOrRestore();
+    var aggregate = await eventStorage.CreateOrRestore();
     aggregate.PlaceOrder(command);
 
-    await eventSource.Commit(aggregate);
+    await eventStorage.Commit(aggregate);
     return Results.Ok(aggregate.SourceId);
 });
 ```
@@ -112,12 +112,42 @@ Add two more methods to your aggregate to confirm an order, `ConfirmOrder` and `
 
 ```csharp
 app.MapPost("api/confirmorder/{orderId}", 
-async(IEventStorage<OrderBooking> eventSource, string orderId, ConfirmOrder command) =>
+async(IEventStorage<OrderBooking> eventStorage, string orderId, ConfirmOrder command) =>
 {
-    var aggregate = await eventSource.CreateOrRestore(orderId);
+    var aggregate = await eventStorage.CreateOrRestore(orderId);
     aggregate.ConfirmOrder(command);
 
-    await eventSource.Commit(aggregate);
+    await eventStorage.Commit(aggregate);
+});
+```
+
+#### Add a runtime projection (work in progress)
+```csharp
+public class OrderProjection : IProjection<Order>
+{
+    public static Order Project(Order order, OrderPlaced orderPlaced) =>
+        order with { SourceId = orderPlaced.SourceId, Status = OrderStatus.Placed };
+    public static Order Project(Order order, OrderConfirmed orderConfirmed) =>
+        order with { SourceId = orderConfirmed.SourceId, Status = OrderStatus.Confirmed };
+}
+```
+
+##### Add projection to event source configuration
+```csharp
+eventstorage.AddEventSource(eventsource =>
+{
+    eventsource.SelectEventStorage(EventStore.PostgresSql, conn)
+    .Project<OrderProjection>(ProjectionMode.Runtime);
+});
+```
+
+##### Define an endpoint
+```csharp
+app.MapGet("api/getorder/{orderId}",
+async(IEventStorage<OrderBookingAggregate> eventStorage, string orderId) =>
+{
+    var order = await eventStorage.Project<Order>(orderId);
+    return Results.Ok(order);
 });
 ```
 

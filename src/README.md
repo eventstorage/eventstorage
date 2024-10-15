@@ -48,7 +48,7 @@ builder.Services.AddEventStorage(eventstorage =>
     eventstorage.Schema = "es";
     eventstorage.AddEventSource(source =>
     {
-        source.SelectEventSource(EventSources.PostgresSql, connectionString);
+        source.SelectEventSource(EventStore.PostgresSql, connectionString);
     });
 });
 ```
@@ -57,7 +57,7 @@ Select your event source of choice from `SelectEventSource`.
 Make sure you have defined your connection string.
 
 #### Define your aggregate
-Add your aggregate with EventSource<TId>
+Add your aggregate with `EventSource<TId>`
 
 ```csharp
 public class OrderBooking : EventSource<long> // or Guid
@@ -79,7 +79,7 @@ public class OrderBooking : EventSource<long> // or Guid
     }
 }
 ```
-EventSource<TId> allows selecting `long` or `Guid` for sourceId, selecting `long` offers lightnening-fast queries. 
+`EventSource<TId>` allows selecting `long` or `Guid` for sourceId, selecting `long` offers lightnening-fast queries. 
 
 To continue please visit our [GitHub](https://github.com/eventstorage/eventstorage) handle.
 

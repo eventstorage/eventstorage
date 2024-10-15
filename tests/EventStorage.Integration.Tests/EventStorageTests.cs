@@ -4,16 +4,16 @@ using FluentAssertions;
 
 namespace EventStorage.Integration.Tests;
 
-public class EventSourceTests : TestBase<OrderAggregate>
+public class EventStorageTests : TestBase<OrderAggregate>
 {
     [Theory]
-    [InlineData(EventSources.SqlServer)]
-    [InlineData(EventSources.AzureSql)]
-    [InlineData(EventSources.PostgresSql)]
-    public async Task WhenCreateOrRestore_ShouldCreateAndRestoreAggregate(EventSources source)
+    [InlineData(EventStore.SqlServer)]
+    [InlineData(EventStore.AzureSql)]
+    [InlineData(EventStore.PostgresSql)]
+    public async Task WhenCreateOrRestore_ShouldCreateAndRestoreAggregate(EventStore source)
     {
         // Given
-        var service = EventSource(source);
+        var service = EventStorage(source);
         await service.InitSource();
 
         // When
@@ -24,13 +24,13 @@ public class EventSourceTests : TestBase<OrderAggregate>
         aggregate.SourceId.Should().BeGreaterThan(0);
     }
     [Theory]
-    [InlineData(EventSources.AzureSql)]
-    [InlineData(EventSources.SqlServer)]
-    [InlineData(EventSources.PostgresSql)]
-    public async Task GivenPlacedOrder_WhenCommitting_ShouldCommitAggregate(EventSources source)
+    [InlineData(EventStore.AzureSql)]
+    [InlineData(EventStore.SqlServer)]
+    [InlineData(EventStore.PostgresSql)]
+    public async Task GivenPlacedOrder_WhenCommitting_ShouldCommitAggregate(EventStore source)
     {
         // Given
-        var service = EventSource(source);
+        var service = EventStorage(source);
         await service.InitSource();
         var aggregate = await service.CreateOrRestore();
 
@@ -43,13 +43,13 @@ public class EventSourceTests : TestBase<OrderAggregate>
         aggregate.EventStream.Count().Should().BeGreaterThan(0);
     }
     [Theory]
-    [InlineData(EventSources.AzureSql)]
-    [InlineData(EventSources.SqlServer)]
-    [InlineData(EventSources.PostgresSql)]
-    public async Task GivenExistingSource_ShouldRestoreAggregate(EventSources source)
+    [InlineData(EventStore.AzureSql)]
+    [InlineData(EventStore.SqlServer)]
+    [InlineData(EventStore.PostgresSql)]
+    public async Task GivenExistingSource_ShouldRestoreAggregate(EventStore source)
     {
         // Given
-        var service = EventSource(source);
+        var service = EventStorage(source);
         await service.InitSource();
         var expectedAggregate = await service.CreateOrRestore();
         expectedAggregate.PlaceOrder();
@@ -63,13 +63,13 @@ public class EventSourceTests : TestBase<OrderAggregate>
         aggregate.EventStream.Count().Should().BeGreaterThan(0);
     }
     [Theory]
-    [InlineData(EventSources.AzureSql)]
-    [InlineData(EventSources.SqlServer)]
-    [InlineData(EventSources.PostgresSql)]
-    public async Task GivenExistingSource_WhenConfirming_ShouldAppendEvent(EventSources source)
+    [InlineData(EventStore.AzureSql)]
+    [InlineData(EventStore.SqlServer)]
+    [InlineData(EventStore.PostgresSql)]
+    public async Task GivenExistingSource_WhenConfirming_ShouldAppendEvent(EventStore source)
     {
         // Given
-        var service = EventSource(source);
+        var service = EventStorage(source);
         await service.InitSource();
         var aggregate = await service.CreateOrRestore();
         aggregate.PlaceOrder();
@@ -85,13 +85,13 @@ public class EventSourceTests : TestBase<OrderAggregate>
         result.Version.Should().Be(2);
     }
     [Theory]
-    [InlineData(EventSources.AzureSql)]
-    [InlineData(EventSources.SqlServer)]
-    [InlineData(EventSources.PostgresSql)]
-    public async Task GivenSource_ConfirmingTwice_ShouldAvoidAppendingEvent(EventSources source)
+    [InlineData(EventStore.AzureSql)]
+    [InlineData(EventStore.SqlServer)]
+    [InlineData(EventStore.PostgresSql)]
+    public async Task GivenSource_ConfirmingTwice_ShouldAvoidAppendingEvent(EventStore source)
     {
         // Given
-        var service = EventSource(source);
+        var service = EventStorage(source);
         await service.InitSource();
         var aggregate = await service.CreateOrRestore();
 

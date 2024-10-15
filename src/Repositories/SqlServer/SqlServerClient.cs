@@ -5,6 +5,7 @@ using EventStorage.AggregateRoot;
 using EventStorage.Configurations;
 using EventStorage.Events;
 using EventStorage.Extensions;
+using EventStorage.Projections;
 using EventStorage.Schema;
 using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.DependencyInjection;
@@ -12,7 +13,7 @@ using Microsoft.Extensions.Logging;
 
 namespace EventStorage.Repositories.SqlServer;
 
-public class SqlServerClient<T>(string conn, IServiceProvider sp, EventSources source) 
+public class SqlServerClient<T>(string conn, IServiceProvider sp, EventStore source)
     : ClientBase<T>(sp, source), ISqlServerClient<T> where T : IEventSource
 {
     private readonly SemaphoreSlim _semaphore = new (1, 1);
@@ -122,5 +123,29 @@ public class SqlServerClient<T>(string conn, IServiceProvider sp, EventSources s
                 logger.LogError($"Commit failure for {aggregate.GetType().Name}. {e.Message}");
             throw;
         }
+    }
+    public async Task<M> Project<M>(string sourceId) where M : class
+    {
+        await using SqlConnection sqlConnection = new(conn);
+        await sqlConnection.OpenAsync();
+        var command = "select * from es.eventsources where longsourceid=@sourceId";
+        await using SqlCommand sqlCommand = new(command, sqlConnection);
+        sqlCommand.Parameters.AddWithValue("@sourceId", sourceId);
+        await using SqlDataReader reader = await sqlCommand.ExecuteReaderAsync();
+
+        List<SourcedEvent> events = [];
+        while(await reader.ReadAsync())
+        {
+            var typeName = reader.GetString(EventSourceSchema.Type);
+            var type = ResolveEventType(typeName);
+            var json = reader.GetString(EventSourceSchema.Data);
+            var sourcedEvent = JsonSerializer.Deserialize(json, type) as SourcedEvent??
+                throw new Exception("deserialization failure.");
+            events.Add(sourcedEvent);
+        }
+
+        var projection = sp.GetRequiredService<IProjectionEngine>();
+        var model = projection.Project<M>(events);
+        return model;
     }
 }
