@@ -46,10 +46,13 @@ public static class EventSourceExtensions
         });
         return configuration;
     }
-    public static EventSourceConfiguration AddProjection<T>(
+    public static EventSourceConfiguration Project<T>(
         this EventSourceConfiguration configuration,
         ProjectionMode projectionMode)
     {
+        var interfaceType = typeof(T).GetInterfaces().First();
+        configuration.ServiceCollection.AddSingleton(interfaceType, typeof(T));
+        configuration.ServiceCollection.AddTransient<IProjectionEngine,ProjectionEngine>();
         return configuration;
     }
     private static IServiceCollection AddEventSourceSchema(this IServiceCollection services, string schema)
