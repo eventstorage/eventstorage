@@ -1,23 +1,22 @@
 using System.Reflection;
 using EventStorage.Events;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace EventStorage.Projections;
 
 public class ProjectionEngine(IServiceProvider sp) : IProjectionEngine
 {
-    public M Project<M>(IEnumerable<SourcedEvent> events) where M : class
+    public M Project<M>(IEnumerable<SourcedEvent> events)
     {
-        var interfaceType = typeof(IProjection<>).MakeGenericType(typeof(M));
-        var service = sp.GetService(interfaceType);
-
-        var model = Activator.CreateInstance<M>();
+        var projection = sp.GetRequiredService<IProjection<M>>();
+        var model = projection.Init(events.First());
         foreach (var e in events)
         {
-            MethodInfo? project = service?.GetType().GetMethod("Project", [typeof(M), e.GetType()]);
+            var project = projection.GetType().GetMethod("Project", [typeof(M), e.GetType()]);
             if(project == null)
                 continue;
-            model = (M?) project.Invoke(service, [model, e]);
+            project.Invoke(projection, [model, e]);
         }
-        return model?? default!;
+        return model;
     }
 }

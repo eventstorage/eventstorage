@@ -1,8 +1,9 @@
-using EventStorage.AggregateRoot;
+using EventStorage.Events;
 
 namespace EventStorage.Projections;
 
-public interface IProjection<T>
+public interface IProjection;
+public interface IProjection<M> : IProjection
 {
-    // Task<T> Project(IEventSource eventSource);
+    M Init(SourcedEvent e);
 }

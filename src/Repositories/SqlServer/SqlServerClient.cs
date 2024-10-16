@@ -124,7 +124,7 @@ public class SqlServerClient<T>(string conn, IServiceProvider sp, EventStore sou
             throw;
         }
     }
-    public async Task<M> Project<M>(string sourceId) where M : class
+    public async Task<M> Project<M>(string sourceId)
     {
         await using SqlConnection sqlConnection = new(conn);
         await sqlConnection.OpenAsync();

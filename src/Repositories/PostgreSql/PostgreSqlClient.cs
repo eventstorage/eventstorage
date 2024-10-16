@@ -126,7 +126,7 @@ public class PostgreSqlClient<T>(string conn, IServiceProvider sp)
             throw;
         }
     }
-    public async Task<M> Project<M>(string sourceId) where M : class
+    public async Task<M> Project<M>(string sourceId)
     {
         await using NpgsqlConnection sqlConnection = new(conn);
         await sqlConnection.OpenAsync();
