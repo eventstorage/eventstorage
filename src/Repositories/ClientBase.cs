@@ -1,5 +1,6 @@
 using System.Data;
 using System.Data.Common;
+using System.Runtime.Serialization;
 using System.Text.Json;
 using EventStorage.Configurations;
 using EventStorage.Events;
@@ -11,6 +12,7 @@ namespace EventStorage.Repositories;
 
 public abstract class ClientBase<T>(IServiceProvider sp, EventStore source)
 {
+    public IServiceProvider Sp => sp;
     private readonly IEventSourceSchema _schema = GetEventSourceSchema(sp, source);
     protected string GetSourceCommand => _schema.GetSourceCommand(SourceTId.ToString());
     protected string InsertSourceCommand => _schema.InsertSourceCommand;
@@ -44,6 +46,28 @@ public abstract class ClientBase<T>(IServiceProvider sp, EventStore source)
         LongSourceId = longId + 1;
         GuidSourceId = Guid.NewGuid();
         return SourceTId == TId.LongSourceId ? LongSourceId.ToString() : GuidSourceId.ToString();
+    }
+    
+    protected async Task<IEnumerable<SourcedEvent>> LoadEventSource(DbCommand command, Func<DbParameter> p)
+    {
+        command.CommandText = GetSourceCommand;
+        command.Parameters.Add(p());
+        await using DbDataReader reader = await command.ExecuteReaderAsync();
+
+        List<SourcedEvent> events = [];
+        while(await reader.ReadAsync())
+        {
+            LongSourceId = reader.GetInt64(EventSourceSchema.LongSourceId);
+            GuidSourceId = reader.GetGuid(EventSourceSchema.GuidSourceId);
+
+            var typeName = reader.GetString(EventSourceSchema.Type);
+            var type = ResolveEventType(typeName);
+            var json = reader.GetString(EventSourceSchema.Data);
+            var sourcedEvent = JsonSerializer.Deserialize(json, type) as SourcedEvent??
+                throw new SerializationException($"Deserialize failure for event type {type}");
+            events.Add(sourcedEvent);
+        }
+        return events;
     }
     protected void PrepareCommand(
         Func<Dictionary<string, object>, object[], int, DbParameter[]> parameters,

@@ -1,4 +1,5 @@
 using System.Data;
+using System.Data.Common;
 using System.Runtime.Serialization;
 using System.Text.Json;
 using EventStorage.AggregateRoot;
@@ -41,24 +42,8 @@ public class SqlServerClient<T>(string conn, IServiceProvider sp, EventStore sou
 
             sourceId ??= await GenerateSourceId(command);
             var aggregate = typeof(T).CreateAggregate<T>(sourceId);
-            
-            command.CommandText = GetSourceCommand;
-            command.Parameters.AddWithValue("@sourceId", sourceId);
-            await using SqlDataReader reader = await command.ExecuteReaderAsync();
-            
-            List<SourcedEvent> sourcedEvents = [];
-            while(await reader.ReadAsync())
-            {
-                LongSourceId = reader.GetInt64(EventSourceSchema.LongSourceId);
-                GuidSourceId = reader.GetGuid(EventSourceSchema.GuidSourceId);
 
-                var typeName = reader.GetString(EventSourceSchema.Type);
-                var type = ResolveEventType(typeName);
-                var jsonData = reader.GetString(EventSourceSchema.Data);
-                var sourcedEvent = JsonSerializer.Deserialize(jsonData, type) as SourcedEvent ??
-                    throw new SerializationException($"Deserialize failure for event type {type}, sourceId {sourceId}.");
-                sourcedEvents.Add(sourcedEvent);
-            };
+            var sourcedEvents = await LoadEventSource(command, () => new SqlParameter("sourceId", sourceId));
             aggregate.RestoreAggregate(RestoreType.Stream, sourcedEvents.ToArray());
             logger.LogInformation($"Finished restoring aggregate {typeof(T).Name}.");
 
@@ -128,23 +113,10 @@ public class SqlServerClient<T>(string conn, IServiceProvider sp, EventStore sou
     {
         await using SqlConnection sqlConnection = new(conn);
         await sqlConnection.OpenAsync();
-        var command = "select * from es.eventsources where longsourceid=@sourceId";
-        await using SqlCommand sqlCommand = new(command, sqlConnection);
-        sqlCommand.Parameters.AddWithValue("@sourceId", sourceId);
-        await using SqlDataReader reader = await sqlCommand.ExecuteReaderAsync();
+        await using SqlCommand command = sqlConnection.CreateCommand();
 
-        List<SourcedEvent> events = [];
-        while(await reader.ReadAsync())
-        {
-            var typeName = reader.GetString(EventSourceSchema.Type);
-            var type = ResolveEventType(typeName);
-            var json = reader.GetString(EventSourceSchema.Data);
-            var sourcedEvent = JsonSerializer.Deserialize(json, type) as SourcedEvent??
-                throw new Exception("deserialization failure.");
-            events.Add(sourcedEvent);
-        }
-
-        var projection = sp.GetRequiredService<IProjectionEngine>();
+        var projection = Sp.GetRequiredService<IProjectionEngine>();
+        var events = await LoadEventSource(command, () => new SqlParameter("sourceId", sourceId));
         var model = projection.Project<M>(events);
         return model;
     }

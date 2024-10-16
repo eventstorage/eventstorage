@@ -44,23 +44,7 @@ public class PostgreSqlClient<T>(string conn, IServiceProvider sp)
             var aggregate = typeof(T).CreateAggregate<T>(sourceId);
             
             object param = SourceTId == TId.LongSourceId ? long.Parse(sourceId) : Guid.Parse(sourceId);
-            command.CommandText = GetSourceCommand;
-            command.Parameters.AddWithValue("@sourceId", param);
-            await using NpgsqlDataReader reader = await command.ExecuteReaderAsync();
-            
-            List<SourcedEvent> sourcedEvents = [];
-            while(await reader.ReadAsync())
-            {
-                LongSourceId = reader.GetInt64(EventSourceSchema.LongSourceId);
-                GuidSourceId = reader.GetGuid(EventSourceSchema.GuidSourceId);
-
-                var typeName = reader.GetString(EventSourceSchema.Type);
-                var type = ResolveEventType(typeName);
-                var jsonData = reader.GetString(EventSourceSchema.Data);
-                var sourcedEvent = JsonSerializer.Deserialize(jsonData, type) as SourcedEvent ??
-                    throw new SerializationException($"Deserialize failure for event type {type}, sourceId {sourceId}.");
-                sourcedEvents.Add(sourcedEvent);
-            };
+            var sourcedEvents = await LoadEventSource(command, () => new NpgsqlParameter("sourceId", param));
             aggregate.RestoreAggregate(RestoreType.Stream, sourcedEvents.ToArray());
             logger.LogInformation($"Finished restoring aggregate {typeof(T).Name}.");
 
@@ -147,7 +131,7 @@ public class PostgreSqlClient<T>(string conn, IServiceProvider sp)
             events.Add(sourcedEvent);
         }
 
-        var projection = sp.GetRequiredService<IProjectionEngine>();
+        var projection = Sp.GetRequiredService<IProjectionEngine>();
         var model = projection.Project<M>(events);
         return model;
     }
