@@ -118,6 +118,7 @@ public class SqlServerClient<T>(string conn, IServiceProvider sp, EventStore sou
         var projection = Sp.GetRequiredService<IProjectionEngine>();
         var events = await LoadEventSource(command, () => new SqlParameter("sourceId", sourceId));
         var model = projection.Project<M>(events);
+        // var projections = Projections;
         return model;
     }
 }

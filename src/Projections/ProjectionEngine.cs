@@ -9,7 +9,7 @@ public class ProjectionEngine(IServiceProvider sp) : IProjectionEngine
     public M Project<M>(IEnumerable<SourcedEvent> events)
     {
         var projection = sp.GetRequiredService<IProjection<M>>();
-        var model = projection.Init(events.First());
+        M model = default;
         foreach (var e in events)
         {
             var project = projection.GetType().GetMethod("Project", [typeof(M), e.GetType()]);

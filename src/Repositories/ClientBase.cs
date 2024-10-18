@@ -4,6 +4,7 @@ using System.Runtime.Serialization;
 using System.Text.Json;
 using EventStorage.Configurations;
 using EventStorage.Events;
+using EventStorage.Projections;
 using EventStorage.Schema;
 using Microsoft.Extensions.DependencyInjection;
 using TDiscover;

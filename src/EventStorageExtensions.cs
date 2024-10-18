@@ -17,9 +17,10 @@ public static class EventStorageExtensions
         this EventStorageConfiguration config,
         Action<EventSourceConfiguration> configure)
     {
-        EventSourceConfiguration sourceConfig = new(config.ServiceCollection, config.Schema);
-        configure(sourceConfig);
-        return sourceConfig;
+        EventSourceConfiguration eventsource = new(config.ServiceCollection, config.Schema);
+        configure(eventsource);
+        eventsource.InitSource();
+        return eventsource;
     }
     public static void EnableTransactionalOutbox(
         this EventStorageConfiguration config,
