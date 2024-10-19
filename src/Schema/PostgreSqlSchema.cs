@@ -23,10 +23,18 @@ public class PostgreSqlSchema(string schema) : EventSourceSchema(schema)
             CONSTRAINT UK_GuidSourceId_Version UNIQUE (GuidSourceId, Version)
         );
         CREATE INDEX IF NOT EXISTS Idx_EventSources_LongSourceId on {Schema}.EventSources (LongSourceId);
-        CREATE INDEX IF NOT EXISTS Idx_EventSources_GuidSourceId on {Schema}.EventSources (GuidSourceId);
-        ";
+        CREATE INDEX IF NOT EXISTS Idx_EventSources_GuidSourceId on {Schema}.EventSources (GuidSourceId);";
     protected override object[] FieldTypes =>
         [NpgsqlDbType.Uuid, NpgsqlDbType.Bigint, NpgsqlDbType.Uuid,
         NpgsqlDbType.Integer, NpgsqlDbType.Text, NpgsqlDbType.Jsonb, NpgsqlDbType.TimestampTz,
         NpgsqlDbType.Text, NpgsqlDbType.Text, NpgsqlDbType.Text, NpgsqlDbType.Text];
+    public override string CreateProjectionIfNotExists(string projection) =>
+        @$"CREATE TABLE IF NOT EXISTS {Schema}.{projection}s(
+        Id bigint NOT NULL generated always as identity,
+        LongSourceId bigint NOT NULL,
+        GuidSourceId uuid NOT NULL,
+        Data jsonb NOT NULL,
+        Type text NOT NULL,
+        UpdatedAt timestamptz NOT NULL DEFAULT now(),
+        CONSTRAINT Pk_Id PRIMARY KEY (Id));";
 }
