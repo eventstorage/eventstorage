@@ -54,11 +54,20 @@ public static class EventSourceExtensions
     }
     public static EventSourceConfiguration Project<TProjection>(
         this EventSourceConfiguration configuration,
-        ProjectionMode mode) where TProjection : Projection, new()
+        ProjectionMode mode,
+        Func<DestinationConfiguration,DestinationConfiguration> destination = default!)
+        where TProjection : Projection, new()
     {
         var iprojection = typeof(TProjection).GetInterfaces().First();
-        configuration.ServiceCollection.AddSingleton(iprojection, new TProjection { Mode = mode });
+        var tprojection = new TProjection { Mode = mode, Destination = destination(new()) };
+        configuration.ServiceCollection.AddSingleton(iprojection, tprojection);
         configuration.ServiceCollection.AddSingleton<IProjectionEngine, ProjectionEngine>();
+        return configuration;
+    }
+    public static DestinationConfiguration Redis(this DestinationConfiguration configuration, string connection)
+    {
+        configuration.Destination = Destination.Redis;
+        configuration.ConnectionString = connection;
         return configuration;
     }
 }

@@ -10,8 +10,8 @@ namespace EventStorage.Configurations;
 public class EventSourceConfiguration(IServiceCollection services, string schema) 
     : EventStorageConfiguration(services, schema)
 {
-    public string ConnectionString { get; set; } = string.Empty;
     public EventStore Source { get; set; }
+    public string ConnectionString { get; set; } = string.Empty;
     public void InitSource()
     {
         // initialize source while app spins up
