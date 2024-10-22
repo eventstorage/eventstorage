@@ -38,8 +38,9 @@ public abstract class ClientBase<T>(IServiceProvider sp, EventStore source)
         .FirstOrDefault(x => x.Key == source).Value;
 
     protected IEnumerable<IProjection> Projections => Sp.GetServices<IProjection>();
-    protected IEnumerable<Type?> ProjectionTypes =>
+    protected IEnumerable<Type?> ProjectionTypes(DestinationStore destination) =>
         Projections.Where(p => p.Mode != ProjectionMode.Runtime)
+        .Where(p => p.Destination.Store == destination)
         .Select(p => p.GetType().BaseType?.GenericTypeArguments.First());
 
     // this needs optimistic locking

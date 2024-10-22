@@ -59,14 +59,15 @@ public static class EventSourceExtensions
         where TProjection : Projection, new()
     {
         var iprojection = typeof(TProjection).GetInterfaces().First();
-        var tprojection = new TProjection { Mode = mode, Destination = destination(new()) };
+        destination ??= (config) => new();
+        var tprojection = new TProjection { Mode = mode, Destination = destination(new())};
         configuration.ServiceCollection.AddSingleton(iprojection, tprojection);
         configuration.ServiceCollection.AddSingleton<IProjectionEngine, ProjectionEngine>();
         return configuration;
     }
     public static DestinationConfiguration Redis(this DestinationConfiguration configuration, string connection)
     {
-        configuration.Destination = Destination.Redis;
+        configuration.Store = DestinationStore.Redis;
         configuration.ConnectionString = connection;
         return configuration;
     }

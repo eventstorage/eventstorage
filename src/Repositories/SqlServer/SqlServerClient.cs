@@ -19,17 +19,21 @@ public class SqlServerClient<T>(string conn, IServiceProvider sp, EventStore sou
     {
         try
         {
-            logger.LogInformation($"Begin initializing {nameof(SqlServerClient<T>)}.");
             _semaphore.Wait();
+            logger.LogInformation($"Begin initializing {nameof(SqlServerClient<T>)}.");
             using SqlConnection sqlConnection = new(conn);
             sqlConnection.Open();
+            SqlTransaction sqlTransaction = sqlConnection.BeginTransaction();
             using SqlCommand command = new(CreateSchemaIfNotExists, sqlConnection);
+            command.Transaction = sqlTransaction;
+            command.CommandText = CreateSchemaIfNotExists;
             await command.ExecuteNonQueryAsync();
-            foreach (var item in ProjectionTypes)
+            foreach (var item in ProjectionTypes(DestinationStore.Selected))
             {
                 command.CommandText = CreateProjectionIfNotExists(item?.Name?? "");
                 await command.ExecuteNonQueryAsync();
             }
+            await sqlTransaction.CommitAsync();
             logger.LogInformation($"Finished initializing {nameof(SqlServerClient<T>)}.");
             _semaphore.Release();
         }

@@ -2,10 +2,10 @@ namespace EventStorage.Projections;
 
 public class DestinationConfiguration
 {
-    public string? ConnectionString { get; set; }
-    public Destination Destination { get; set; }
+    public string ConnectionString { get; set; } = string.Empty;
+    public DestinationStore Store { get; set; }
 }
-public enum Destination
+public enum DestinationStore
 {
     Selected,
     Redis

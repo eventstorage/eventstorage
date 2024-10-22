@@ -23,17 +23,20 @@ public class PostgreSqlClient<T>(string conn, IServiceProvider sp)
     {
         try
         {
-            logger.LogInformation($"Begin initializing {nameof(PostgreSqlClient<T>)}.");
             _semaphore.Wait();
+            logger.LogInformation($"Begin initializing {nameof(PostgreSqlClient<T>)}.");
             await using NpgsqlConnection sqlConnection = new(conn);
             await sqlConnection.OpenAsync();
+            NpgsqlTransaction sqlTransaction = sqlConnection.BeginTransaction();
             await using NpgsqlCommand sqlCommand = new(CreateSchemaIfNotExists, sqlConnection);
+            sqlCommand.Transaction = sqlTransaction;
             await sqlCommand.ExecuteNonQueryAsync();
-            foreach (var item in ProjectionTypes)
+            foreach (var item in ProjectionTypes(DestinationStore.Selected))
             {
                 sqlCommand.CommandText = CreateProjectionIfNotExists(item?.Name?? "");
                 await sqlCommand.ExecuteNonQueryAsync();
             }
+            await sqlTransaction.CommitAsync();
             logger.LogInformation($"Finished initializing {nameof(PostgreSqlClient<T>)}.");
             _semaphore.Release();
         }
@@ -51,7 +54,7 @@ public class PostgreSqlClient<T>(string conn, IServiceProvider sp)
 
             await using NpgsqlConnection sqlConnection = new(conn);
             await sqlConnection.OpenAsync();
-            await using NpgsqlCommand command = new("", sqlConnection);
+            await using NpgsqlCommand command = sqlConnection.CreateCommand();
 
             sourceId ??= await GenerateSourceId(command);
             var aggregate = typeof(T).CreateAggregate<T>(sourceId);
