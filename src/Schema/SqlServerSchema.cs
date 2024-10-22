@@ -34,8 +34,8 @@ public class SqlServerSchema(string schema) : EventSourceSchema(schema)
         [Id] [bigint] IDENTITY(1,1) NOT NULL,
         [LongSourceId] [bigint] NOT NULL,
         [GuidSourceId] [uniqueidentifier] NOT NULL,
-        [Data] [nvarchar][4000] NOT NULL,
-        [Type] [nvarchar][255] NOT NULL,
-        [UpdatedAt] [datetime] NT NULL,
-        CONSTRAINT [Pk_Id] PRIMARY KEY ([Id]))";
+        [Data] [nvarchar](4000) NOT NULL,
+        [Type] [nvarchar](255) NOT NULL,
+        [UpdatedAt] [datetime] NOT NULL,
+        CONSTRAINT [Pk_{projection}s_Id] PRIMARY KEY ([Id]))";
 }

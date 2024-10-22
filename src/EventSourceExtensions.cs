@@ -57,9 +57,7 @@ public static class EventSourceExtensions
         ProjectionMode mode) where TProjection : Projection, new()
     {
         var iprojection = typeof(TProjection).GetInterfaces().First();
-        var tprojection = new TProjection { Mode = mode };
-        configuration.ServiceCollection.AddSingleton(iprojection, sp => tprojection);
-        configuration.ServiceCollection.AddSingleton(typeof(IProjection), tprojection);
+        configuration.ServiceCollection.AddSingleton(iprojection, new TProjection { Mode = mode });
         configuration.ServiceCollection.AddSingleton<IProjectionEngine, ProjectionEngine>();
         return configuration;
     }

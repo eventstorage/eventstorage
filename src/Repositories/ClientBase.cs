@@ -18,6 +18,8 @@ public abstract class ClientBase<T>(IServiceProvider sp, EventStore source)
     protected string GetSourceCommand => _schema.GetSourceCommand(SourceTId.ToString());
     protected string InsertSourceCommand => _schema.InsertSourceCommand;
     protected string CreateSchemaIfNotExists => _schema.CreateSchemaIfNotExists;
+    protected string CreateProjectionIfNotExists(string projection) =>
+        _schema.CreateProjectionIfNotExists(projection);
     public string GetMaxSourceId => _schema.GetMaxSourceId;
     public static JsonSerializerOptions SerializerOptions => new() { IncludeFields = true };
 
@@ -34,6 +36,11 @@ public abstract class ClientBase<T>(IServiceProvider sp, EventStore source)
     private static IEventSourceSchema GetEventSourceSchema(IServiceProvider sp, EventStore source) =>
         sp.GetRequiredKeyedService<Dictionary<EventStore, IEventSourceSchema>>("Schema")
         .FirstOrDefault(x => x.Key == source).Value;
+
+    protected IEnumerable<IProjection> Projections => Sp.GetServices<IProjection>();
+    protected IEnumerable<Type?> ProjectionTypes =>
+        Projections.Where(p => p.Mode != ProjectionMode.Runtime)
+        .Select(p => p.GetType().BaseType?.GenericTypeArguments.First());
 
     // this needs optimistic locking
     protected async Task<string> GenerateSourceId(DbCommand command)

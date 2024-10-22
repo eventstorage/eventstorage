@@ -1,4 +1,5 @@
 using EventStorage.AggregateRoot;
+using EventStorage.Projections;
 using EventStorage.Repositories;
 using EventStorage.Workers;
 using Microsoft.Extensions.DependencyInjection;
