@@ -2,11 +2,11 @@ namespace EventStorage.Projections;
 
 public class DestinationConfiguration
 {
-    public string ConnectionString { get; set; } = string.Empty;
     public DestinationStore Store { get; set; }
+    public string RedisConnection { get; set; } = "redis://localhost:6379";
 }
 public enum DestinationStore
 {
     Selected,
-    Redis
+    Redis,
 }

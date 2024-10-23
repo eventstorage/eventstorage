@@ -4,9 +4,7 @@ using EventStorage.Configurations;
 using EventStorage.Projections;
 using EventStorage.Repositories;
 using EventStorage.Schema;
-using EventStorage.Workers;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Hosting;
 using TDiscover;
 
 namespace EventStorage;
@@ -54,21 +52,23 @@ public static class EventSourceExtensions
     }
     public static EventSourceConfiguration Project<TProjection>(
         this EventSourceConfiguration configuration,
-        ProjectionMode mode,
+        ProjectionMode mode = ProjectionMode.Async,
         Func<DestinationConfiguration,DestinationConfiguration> destination = default!)
         where TProjection : Projection, new()
     {
         var iprojection = typeof(TProjection).GetInterfaces().First();
         destination ??= (config) => new();
         var tprojection = new TProjection { Mode = mode, Destination = destination(new())};
+        configuration.Projections.Add(tprojection);
         configuration.ServiceCollection.AddSingleton(iprojection, tprojection);
         configuration.ServiceCollection.AddSingleton<IProjectionEngine, ProjectionEngine>();
         return configuration;
     }
-    public static DestinationConfiguration Redis(this DestinationConfiguration configuration, string connection)
+    public static DestinationConfiguration Redis(
+        this DestinationConfiguration configuration, string connection)
     {
         configuration.Store = DestinationStore.Redis;
-        configuration.ConnectionString = connection;
+        configuration.RedisConnection = connection;
         return configuration;
     }
 }

@@ -11,6 +11,8 @@
     <PackageReference Include="Microsoft.Extensions.Hosting" Version="8.0.0" />
     <PackageReference Include="Microsoft.Extensions.Logging" Version="8.0.0" />
     <PackageReference Include="Npgsql" Version="8.0.4" />
+    <PackageReference Include="Redis.OM" Version="0.7.5" />
+    <!-- <PackageReference Include="StackExchange.Redis" Version="2.8.16" /> -->
     <PackageReference Include="TDiscover" Version="0.0.0" />
   </ItemGroup>
 
