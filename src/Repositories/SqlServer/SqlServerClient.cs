@@ -1,13 +1,9 @@
 using System.Data;
-using System.Data.Common;
 using System.Runtime.Serialization;
-using System.Text.Json;
 using EventStorage.AggregateRoot;
 using EventStorage.Configurations;
-using EventStorage.Events;
 using EventStorage.Extensions;
 using EventStorage.Projections;
-using EventStorage.Schema;
 using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -21,14 +17,31 @@ public class SqlServerClient<T>(string conn, IServiceProvider sp, EventStore sou
     private readonly ILogger logger = sp.GetRequiredService<ILogger<SqlServerClient<T>>>();
     public async Task Init()
     {
-        logger.LogInformation($"Begin initializing {nameof(SqlServerClient<T>)}.");
-        _semaphore.Wait();
-        using SqlConnection sqlConnection = new(conn);
-        sqlConnection.Open();
-        using SqlCommand command = new(CreateSchemaIfNotExists, sqlConnection);
-        await command.ExecuteNonQueryAsync();
-        logger.LogInformation($"Finished initializing {nameof(SqlServerClient<T>)}.");
-        _semaphore.Release();
+        try
+        {
+            _semaphore.Wait();
+            logger.LogInformation($"Begin initializing {nameof(SqlServerClient<T>)}.");
+            using SqlConnection sqlConnection = new(conn);
+            sqlConnection.Open();
+            SqlTransaction sqlTransaction = sqlConnection.BeginTransaction();
+            using SqlCommand command = new(CreateSchemaIfNotExists, sqlConnection);
+            command.Transaction = sqlTransaction;
+            command.CommandText = CreateSchemaIfNotExists;
+            await command.ExecuteNonQueryAsync();
+            foreach (var item in ProjectionTypes(DestinationStore.Selected))
+            {
+                command.CommandText = CreateProjectionIfNotExists(item?.Name?? "");
+                await command.ExecuteNonQueryAsync();
+            }
+            await sqlTransaction.CommitAsync();
+            logger.LogInformation($"Finished initializing {nameof(SqlServerClient<T>)}.");
+            _semaphore.Release();
+        }
+        catch(SqlException e)
+        {
+            logger.LogInformation($"Failed initializing {nameof(SqlServerClient<T>)}. {e.Message}");
+            throw;
+        }
     }
     public async Task<T> CreateOrRestore(string? sourceId = null)
     {
@@ -118,6 +131,7 @@ public class SqlServerClient<T>(string conn, IServiceProvider sp, EventStore sou
         var projection = Sp.GetRequiredService<IProjectionEngine>();
         var events = await LoadEventSource(command, () => new SqlParameter("sourceId", sourceId));
         var model = projection.Project<M>(events);
+        // var projections = Projections;
         return model;
     }
 }

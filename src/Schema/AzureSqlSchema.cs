@@ -23,10 +23,19 @@ public class AzureSqlSchema(string schema) : EventSourceSchema(schema)
             [{CausationId}] [nvarchar](255) DEFAULT 'Default' NOT NULL,
             CONSTRAINT [PK_Sequence] PRIMARY KEY ([Sequence]),
             CONSTRAINT [AK_LongSourceId_Version] UNIQUE ([LongSourceId], [Version]),
-            CONSTRAINT [AK_GuidSourceId_Version] UNIQUE ([GuidSourceId], [Version]),
-        );";
+            CONSTRAINT [AK_GuidSourceId_Version] UNIQUE ([GuidSourceId], [Version]));";
     protected override object[] FieldTypes =>
         [SqlDbType.UniqueIdentifier, SqlDbType.BigInt, SqlDbType.UniqueIdentifier,
         SqlDbType.Int, SqlDbType.Text, SqlDbType.NVarChar, SqlDbType.DateTime,
         SqlDbType.Text, SqlDbType.Text, SqlDbType.Text, SqlDbType.Text];
+    public override string CreateProjectionIfNotExists(string projection) =>
+        @$"IF OBJECT_ID('{Schema}.{projection}s') IS NULL
+        CREATE TABLE [{Schema}].[{projection}s](
+        [Id] [bigint] IDENTITY(1,1) NOT NULL,
+        [LongSourceId] [bigint] NOT NULL,
+        [GuidSourceId] [uniqueidentifier] NOT NULL,
+        [Data] [json] NOT NULL,
+        [Type] [nvarchar](255) NOT NULL,
+        [UpdatedAt] [datetime] NT NULL,
+        CONSTRAINT [Pk_Id] PRIMARY KEY ([Id]))";
 }

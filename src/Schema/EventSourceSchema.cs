@@ -24,6 +24,7 @@ public abstract class EventSourceSchema(string schema) : IEventSourceSchema
         SchemaFields.Select((x, i) => (x, FieldTypes[i])).ToDictionary();
     protected abstract object[] FieldTypes { get; }
     public abstract string CreateSchemaIfNotExists { get; }
+    public abstract string CreateProjectionIfNotExists(string projection);
     public virtual string GetSourceCommand(string sourceTId) =>
         @$"SELECT {LongSourceId}, {GuidSourceId}, {Type}, {Data} FROM {schema}.EventSources
         WHERE {sourceTId} = @sourceId";

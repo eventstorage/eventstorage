@@ -1,19 +1,20 @@
-
-using EventStorage.Events;
-
 namespace EventStorage.Projections;
 
-public abstract class Projection<M> : IProjection<M>
+public interface IProjection
 {
-    public Projection(ProjectionMode mode)
-    {
-        _mode = mode;
-    }
-    public Projection()
-    {
-        
-    }
-    private ProjectionMode _mode;
-    public ProjectionMode Mode {  get; set; }
-    public abstract M Init(SourcedEvent e);
+    ProjectionMode Mode { get; }
+    DestinationConfiguration Destination {  get; }
+}
+public abstract class Projection : IProjection
+{
+    public abstract ProjectionMode Mode { get; set; }
+    public abstract DestinationConfiguration Destination { get; set; }
+}
+public interface IProjection<M>;
+public class Projection<M> : Projection, IProjection<M>
+{
+    // private ProjectionMode _mode;
+    // private DestinationConfiguration _destination = default!;
+    public override ProjectionMode Mode {  get; set; }
+    public override DestinationConfiguration Destination { get; set; } = default!;
 }

@@ -4,16 +4,14 @@ using EventStorage.Configurations;
 using EventStorage.Projections;
 using EventStorage.Repositories;
 using EventStorage.Schema;
-using EventStorage.Workers;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Hosting;
 using TDiscover;
 
 namespace EventStorage;
 
 public static class EventSourceExtensions
 {
-    public static EventSourceConfiguration SelectEventStorage(
+    public static EventSourceConfiguration Select(
         this EventSourceConfiguration configuration,
         EventStore source,
         string connectionString)
@@ -21,13 +19,8 @@ public static class EventSourceExtensions
         Type? aggregateType = Td.FindByCallingAsse<IEventSource>(Assembly.GetCallingAssembly());
         if (aggregateType == null)
             return configuration;
-        configuration.ServiceCollection.AddEventSourceSchema(configuration.Schema);
-        // initialize source while app spins up
-        configuration.ServiceCollection.AddSingleton<IHostedService>((sp) =>
-        {
-            var repository = new Repository<IEventSource>(connectionString, sp, source);
-            return new SourceInitializer(new EventStorage<IEventSource>(repository, source));
-        });
+        configuration.ServiceCollection.AddSchema(configuration.Schema);
+        
         #pragma warning disable CS8603
         // register repository
         var repositoryInterfaceType = typeof(IRepository<>).MakeGenericType(aggregateType);
@@ -44,23 +37,11 @@ public static class EventSourceExtensions
             var repository = sp.GetService(repositoryInterfaceType);
             return Activator.CreateInstance(eventSourceType, repository, source);
         });
+        configuration.ConnectionString = connectionString;
+        configuration.Source = source;
         return configuration;
     }
-    public static EventSourceConfiguration Project<TProjection>(
-        this EventSourceConfiguration configuration,
-        ProjectionMode mode) where TProjection : IProjection, new()
-    {
-        var iprojection = typeof(TProjection).GetInterfaces().First();
-        configuration.ServiceCollection.AddSingleton(iprojection, sp =>
-        {
-            dynamic tprojection = Activator.CreateInstance<TProjection>();
-            tprojection.Mode = mode;
-            return tprojection;
-        });
-        configuration.ServiceCollection.AddSingleton<IProjectionEngine,ProjectionEngine>();
-        return configuration;
-    }
-    private static IServiceCollection AddEventSourceSchema(this IServiceCollection services, string schema)
+    private static IServiceCollection AddSchema(this IServiceCollection services, string schema)
     {
         Dictionary<EventStore, IEventSourceSchema> schemas = [];
         schemas.Add(EventStore.AzureSql, new AzureSqlSchema(schema));
@@ -68,5 +49,26 @@ public static class EventSourceExtensions
         schemas.Add(EventStore.SqlServer, new SqlServerSchema(schema));
         services.AddKeyedSingleton("Schema", schemas);
         return services;
+    }
+    public static EventSourceConfiguration Project<TProjection>(
+        this EventSourceConfiguration configuration,
+        ProjectionMode mode = ProjectionMode.Async,
+        Func<DestinationConfiguration,DestinationConfiguration> destination = default!)
+        where TProjection : Projection, new()
+    {
+        var iprojection = typeof(TProjection).GetInterfaces().First();
+        destination ??= (config) => new();
+        var tprojection = new TProjection { Mode = mode, Destination = destination(new())};
+        configuration.Projections.Add(tprojection);
+        configuration.ServiceCollection.AddSingleton(iprojection, tprojection);
+        configuration.ServiceCollection.AddSingleton<IProjectionEngine, ProjectionEngine>();
+        return configuration;
+    }
+    public static DestinationConfiguration Redis(
+        this DestinationConfiguration configuration, string connection)
+    {
+        configuration.Store = DestinationStore.Redis;
+        configuration.RedisConnection = connection;
+        return configuration;
     }
 }
