@@ -48,12 +48,13 @@ builder.Services.AddEventStorage(eventstorage =>
     eventstorage.Schema = "es";
     eventstorage.AddEventSource(source =>
     {
-        source.SelectEventSource(EventStore.PostgresSql, connectionString);
+        source.Select(EventStore.PostgresSql, connectionString)
+        .Project<OrderProjection>(ProjectionMode.Consistent);
     });
 });
 ```
 
-Select your event source of choice from `SelectEventSource`.
+Select your event source of choice from `Select`.
 Make sure you have defined your connection string.
 
 #### Define your aggregate
