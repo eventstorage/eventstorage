@@ -27,11 +27,11 @@ public class PostgreSqlClient<T>(string conn, IServiceProvider sp)
             logger.LogInformation($"Begin initializing {nameof(PostgreSqlClient<T>)}.");
             await using NpgsqlConnection sqlConnection = new(conn);
             await sqlConnection.OpenAsync();
-            NpgsqlTransaction sqlTransaction = sqlConnection.BeginTransaction();
+            await using NpgsqlTransaction sqlTransaction = sqlConnection.BeginTransaction();
             await using NpgsqlCommand sqlCommand = new(CreateSchemaIfNotExists, sqlConnection);
             sqlCommand.Transaction = sqlTransaction;
             await sqlCommand.ExecuteNonQueryAsync();
-            foreach (var item in ProjectionTypes(DestinationStore.Selected))
+            foreach (var item in TProjections(x => true))
             {
                 sqlCommand.CommandText = CreateProjectionIfNotExists(item?.Name?? "");
                 await sqlCommand.ExecuteNonQueryAsync();

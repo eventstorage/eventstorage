@@ -16,12 +16,11 @@ internal class StoreInitializer(
     {
         await eventStorage.InitSource();
 
-        var redisTypes = projections
-            .Where(x => x.Destination.Store == DestinationStore.Redis)
+        var redisTypes = projections.Where(x => x.Destination.Store == DestinationStore.Redis)
             .Select(x => x.GetType().BaseType?.GenericTypeArguments.First());
         foreach (var item in redisTypes)
         {
-            _redis.Connection.CreateIndex(item?? default!);
+            await _redis.Connection.CreateIndexAsync(item?? default!);
         }
     }
 

@@ -31,6 +31,9 @@ public abstract class EventSourceSchema(string schema) : IEventSourceSchema
     public virtual string InsertSourceCommand => @$"INSERT INTO {schema}.EventSources
     ({Id}, {LongSourceId}, {GuidSourceId}, {Version}, {Type}, {Data}, {Timestamp}, {SourceType},
     {CorrelationId}, {TenantId}, {CausationId}) VALUES";
+    public virtual string ApplyProjectionCommand(string projection) => @$"INSERT INTO
+    {schema}.{projection}s (LongSourceId, GuidSourceId, Data, Type, UpdatedAt) VALUES
+    (@longSourceId, @guidSourceId, @data, @type, @updatedAt)";
     public virtual string GetMaxSourceId =>
         @$"SELECT T.LongSourceId FROM (SELECT MAX(LongSourceId) as LongSourceId
         FROM {schema}.EventSources) as T WHERE T.LongSourceId is not null;";
