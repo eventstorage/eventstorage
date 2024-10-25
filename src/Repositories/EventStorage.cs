@@ -20,7 +20,7 @@ public class EventStorage<T>(IRepository<T> repository, EventStore source) : IEv
         EventStore.PostgresSql => repository.PostgreSqlClient.Commit(t),
         _ => repository.SqlServerClient.Commit(t),
     };
-    public Task<M> Project<M>(string sourceId) => source switch
+    public Task<M?> Project<M>(string sourceId) => source switch
     {
         EventStore.PostgresSql => repository.PostgreSqlClient.Project<M>(sourceId),
         _ => repository.SqlServerClient.Project<M>(sourceId)

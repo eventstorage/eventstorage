@@ -25,7 +25,7 @@ public class SqlServerClient<T>(string conn, IServiceProvider sp, EventStore sou
             await using SqlConnection sqlConnection = new(conn);
             await sqlConnection.OpenAsync();
             await using SqlTransaction sqlTransaction = sqlConnection.BeginTransaction();
-            using SqlCommand command = new(CreateSchemaIfNotExists, sqlConnection);
+            await using SqlCommand command = new(CreateSchemaIfNotExists, sqlConnection);
             command.Transaction = sqlTransaction;
             await command.ExecuteNonQueryAsync();
             foreach (var item in TProjections(t => true))
@@ -139,7 +139,7 @@ public class SqlServerClient<T>(string conn, IServiceProvider sp, EventStore sou
         }
         logger.LogInformation($"Committed {events} pending event(s) for {aggregate.GetType().Name}");
     }
-    public async Task<M> Project<M>(string sourceId)
+    public async Task<M?> Project<M>(string sourceId)
     {
         await using SqlConnection sqlConnection = new(conn);
         await sqlConnection.OpenAsync();
@@ -148,7 +148,6 @@ public class SqlServerClient<T>(string conn, IServiceProvider sp, EventStore sou
         var projection = Sp.GetRequiredService<IProjectionEngine>();
         var events = await LoadEventSource(command, () => new SqlParameter("sourceId", sourceId));
         var model = projection.Project<M>(events);
-        // var projections = Projections;
         return model;
     }
 }

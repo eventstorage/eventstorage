@@ -126,28 +126,15 @@ public class PostgreSqlClient<T>(string conn, IServiceProvider sp)
             throw;
         }
     }
-    public async Task<M> Project<M>(string sourceId)
+    public async Task<M?> Project<M>(string sourceId)
     {
         await using NpgsqlConnection sqlConnection = new(conn);
         await sqlConnection.OpenAsync();
-        var command = "select * from es.eventsources where longsourceid=@sourceId";
-        await using NpgsqlCommand sqlCommand = new(command, sqlConnection);
-        object id = SourceTId == TId.LongSourceId ? long.Parse(sourceId) : Guid.Parse(sourceId);
-        sqlCommand.Parameters.AddWithValue("@sourceId", id);
-        await using NpgsqlDataReader reader = await sqlCommand.ExecuteReaderAsync();
-
-        List<SourcedEvent> events = [];
-        while(await reader.ReadAsync())
-        {
-            var typeName = reader.GetString(EventSourceSchema.Type);
-            var type = ResolveEventType(typeName);
-            var json = reader.GetString(EventSourceSchema.Data);
-            var sourcedEvent = JsonSerializer.Deserialize(json, type) as SourcedEvent??
-                throw new Exception("deserialization failure.");
-            events.Add(sourcedEvent);
-        }
+        await using NpgsqlCommand command = sqlConnection.CreateCommand();
 
         var projection = Sp.GetRequiredService<IProjectionEngine>();
+        object id = SourceTId == TId.LongSourceId ? long.Parse(sourceId) : Guid.Parse(sourceId);
+        var events = await LoadEventSource(command, () => new NpgsqlParameter("sourceId", id));
         var model = projection.Project<M>(events);
         return model;
     }

@@ -37,17 +37,31 @@ public class ProjectionEngine(IServiceProvider sp) : IProjectionEngine
             throw;
         }
     }
-    public M Project<M>(IEnumerable<SourcedEvent> events)
+    public M? Project<M>(IEnumerable<SourcedEvent> events)
     {
-        var projection = sp.GetRequiredService<IProjection<M>>();
-        M model = default;
-        foreach (var e in events)
+        try
         {
-            var project = projection.GetType().GetMethod("Project", [typeof(M), e.GetType()]);
-            if(project == null)
-                continue;
-            project.Invoke(projection, [model, e]);
+            var projection = sp.GetRequiredService<IProjection<M>>();
+            var initMethod = projection.GetType().GetMethod("Project", [events.First().GetType()])??
+                throw new Exception($"No suitable projection method found to initialize {typeof(M).Name}.");
+            var model = initMethod.Invoke(projection, [events.First()]);
+            foreach (var e in events.ToArray()[1..^0])
+            {
+                var project = projection.GetType().GetMethod("Project", [typeof(M), e.GetType()]);
+                if (project == null)
+                {
+                    logger.LogInformation($"No suitable projection method found {typeof(M).Name}, {e.GetType().Name}.");
+                    continue;
+                }
+                model = project.Invoke(projection, [model, e]);
+            }
+            return (M?)model;
         }
-        return model;
+        catch (TargetInvocationException e)
+        {
+            if(logger.IsEnabled(LogLevel.Error))
+                logger.LogError($"Projection failure for {typeof(M).Name}. {e.Message}");
+            throw;
+        }
     }
 }
