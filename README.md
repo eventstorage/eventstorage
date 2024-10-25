@@ -59,14 +59,16 @@ var connectionString = builder.Configuration["postgresqlsecret"]??
 builder.Services.AddEventStorage(eventstorage =>
 {
     eventstorage.Schema = "es";
-    eventstorage.AddEventSource(source =>
+    eventstorage.AddEventSource(eventsource =>
     {
-        source.SelectEventSource(EventStore.PostgresSql, connectionString);
+        eventsource.Select(EventStore.PostgresSql, connectionString)
+        .Project<OrderProjection>(ProjectionMode.Consistent)
+        .Project<OrderDocumentProjection>(ProjectionMode.Async, dest => dest.Redis("redis://localhost:6379"));
     });
 });
 ```
 
-Select your event source of choice from `SelectEventSource`.
+Select your event source of choice from `Select`.
 Make sure you have defined your connection string.
 
 #### Define your aggregate
@@ -121,14 +123,16 @@ async(IEventStorage<OrderBooking> eventStorage, string orderId, ConfirmOrder com
 });
 ```
 
-#### Add a runtime projection (work in progress)
+#### Add a runtime projection
 ```csharp
-public class OrderProjection : IProjection<Order>
+public record Order(string SourceId, OrderStatus Status, long Version);
+
+public class OrderProjection : Projection<Order>
 {
-    public static Order Project(Order order, OrderPlaced orderPlaced) =>
-        order with { SourceId = orderPlaced.SourceId, Status = OrderStatus.Placed };
+    public static Order Project(OrderPlaced orderPlaced) => 
+        new(orderPlaced.SourceId?.ToString()?? "", OrderStatus.Placed, orderPlaced.Version);
     public static Order Project(Order order, OrderConfirmed orderConfirmed) =>
-        order with { SourceId = orderConfirmed.SourceId, Status = OrderStatus.Confirmed };
+        order with { Status = OrderStatus.Confirmed, Version = orderConfirmed.Version };
 }
 ```
 
@@ -136,12 +140,12 @@ public class OrderProjection : IProjection<Order>
 ```csharp
 eventstorage.AddEventSource(eventsource =>
 {
-    eventsource.SelectEventStorage(EventStore.PostgresSql, conn)
-    .Project<OrderProjection>(ProjectionMode.Runtime);
+    eventsource.Select(EventStore.SqlServer, conn)
+    .Project<OrderProjection>();
 });
 ```
 
-##### Define an endpoint
+##### Define an endpoint to project
 ```csharp
 app.MapGet("api/getorder/{orderId}",
 async(IEventStorage<OrderBookingAggregate> eventStorage, string orderId) =>

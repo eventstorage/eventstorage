@@ -53,15 +53,18 @@ public static class EventSourceExtensions
     public static EventSourceConfiguration Project<TProjection>(
         this EventSourceConfiguration configuration,
         ProjectionMode mode = ProjectionMode.Async,
-        Func<DestinationConfiguration,DestinationConfiguration> destination = default!)
+        Func<DestinationConfiguration, DestinationConfiguration> destination = default!)
         where TProjection : Projection, new()
     {
-        var iprojection = typeof(TProjection).GetInterfaces().First();
+        if(mode != ProjectionMode.Async && destination != null)
+            throw new Exception($"Projection to destination not allowed with mode {mode}.");
+        var iprojection = typeof(TProjection).GetInterfaces().Last();
         destination ??= (config) => new();
         var tprojection = new TProjection { Mode = mode, Destination = destination(new())};
-        configuration.Projections.Add(tprojection);
         configuration.ServiceCollection.AddSingleton(iprojection, tprojection);
+        configuration.ServiceCollection.AddSingleton(typeof(IProjection), tprojection);
         configuration.ServiceCollection.AddSingleton<IProjectionEngine, ProjectionEngine>();
+        configuration.Projections.Add(tprojection);
         return configuration;
     }
     public static DestinationConfiguration Redis(

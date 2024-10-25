@@ -20,12 +20,13 @@ public abstract class ClientBase<T>(IServiceProvider sp, EventStore source)
     protected string CreateSchemaIfNotExists => _schema.CreateSchemaIfNotExists;
     protected string CreateProjectionIfNotExists(string projection) =>
         _schema.CreateProjectionIfNotExists(projection);
+    protected string ApplyProjectionCommand(string projection) => _schema.ApplyProjectionCommand(projection);
     public string GetMaxSourceId => _schema.GetMaxSourceId;
     public static JsonSerializerOptions SerializerOptions => new() { IncludeFields = true };
 
     protected long LongSourceId { get; set; } = 1;
     protected Guid GuidSourceId { get; set; } = Guid.NewGuid();
-    private static Type? _genericTypeArg => typeof(T).BaseType?.GenericTypeArguments[0];
+    private static readonly Type? _genericTypeArg = typeof(T).BaseType?.GenericTypeArguments[0];
     protected static TId SourceTId => _genericTypeArg != null &&
         _genericTypeArg.IsAssignableFrom(typeof(long)) ? TId.LongSourceId : TId.GuidSourceId;
 
@@ -38,10 +39,13 @@ public abstract class ClientBase<T>(IServiceProvider sp, EventStore source)
         .FirstOrDefault(x => x.Key == source).Value;
 
     protected IEnumerable<IProjection> Projections => Sp.GetServices<IProjection>();
-    protected IEnumerable<Type?> ProjectionTypes(DestinationStore destination) =>
-        Projections.Where(p => p.Mode != ProjectionMode.Runtime)
-        .Where(p => p.Destination.Store == destination)
+    #pragma warning disable CS8619
+    protected IEnumerable<Type> TProjections(Func<IProjection, bool> predicate) =>
+        Projections.Where(predicate)
+        .Where(p => p.Mode != ProjectionMode.Runtime)
+        .Where(p => p.Destination.Store == DestinationStore.Selected)
         .Select(p => p.GetType().BaseType?.GenericTypeArguments.First());
+    protected IProjectionEngine ProjectionEngine => Sp.GetRequiredService<IProjectionEngine>();
 
     // this needs optimistic locking
     protected async Task<string> GenerateSourceId(DbCommand command)

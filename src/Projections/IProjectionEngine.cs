@@ -4,5 +4,6 @@ namespace EventStorage.Projections;
 
 public interface IProjectionEngine
 {
-    M Project<M>(IEnumerable<SourcedEvent> events);
+    object? Project(Type type, IEnumerable<SourcedEvent> events);
+    M? Project<M>(IEnumerable<SourcedEvent> events);
 }

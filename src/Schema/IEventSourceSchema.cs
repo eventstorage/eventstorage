@@ -8,5 +8,6 @@ public interface IEventSourceSchema
     string CreateProjectionIfNotExists(string projection);
     string GetSourceCommand(string sourceTId);
     string InsertSourceCommand { get; }
+    string ApplyProjectionCommand(string projection);
     string GetMaxSourceId { get; }
 }
