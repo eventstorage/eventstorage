@@ -16,6 +16,7 @@ public class SqlServerClient<T>(string conn, IServiceProvider sp, EventStore sou
 {
     private readonly SemaphoreSlim _semaphore = new (1, 1);
     private readonly ILogger logger = sp.GetRequiredService<ILogger<SqlServerClient<T>>>();
+    private readonly IProjectionEngine _projection = sp.GetRequiredService<IProjectionEngine>();
     public async Task Init()
     {
         try
@@ -105,7 +106,7 @@ public class SqlServerClient<T>(string conn, IServiceProvider sp, EventStore sou
 
                 foreach (var type in TProjections(x => x.Mode == ProjectionMode.Consistent))
                 {
-                    var record = ProjectionEngine.Project(type, aggregate.EventStream);
+                    var record = _projection.Project(type, aggregate.EventStream);
                     command.Parameters.AddWithValue("@longSourceId", LongSourceId);
                     command.Parameters.AddWithValue("@guidSourceId", GuidSourceId);
                     var data = JsonSerializer.Serialize(record, type, SerializerOptions);
@@ -145,9 +146,8 @@ public class SqlServerClient<T>(string conn, IServiceProvider sp, EventStore sou
         await sqlConnection.OpenAsync();
         await using SqlCommand command = sqlConnection.CreateCommand();
 
-        var projection = Sp.GetRequiredService<IProjectionEngine>();
         var events = await LoadEventSource(command, () => new SqlParameter("sourceId", sourceId));
-        var model = projection.Project<M>(events);
+        var model = _projection.Project<M>(events);
         return model;
     }
 }
