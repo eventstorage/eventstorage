@@ -45,7 +45,6 @@ public abstract class ClientBase<T>(IServiceProvider sp, EventStore source)
         .Where(p => p.Mode != ProjectionMode.Runtime)
         .Where(p => p.Destination.Store == DestinationStore.Selected)
         .Select(p => p.GetType().BaseType?.GenericTypeArguments.First());
-    protected IProjectionEngine ProjectionEngine => Sp.GetRequiredService<IProjectionEngine>();
 
     // this needs optimistic locking
     protected async Task<string> GenerateSourceId(DbCommand command)
