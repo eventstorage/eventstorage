@@ -107,6 +107,7 @@ public class SqlServerClient<T>(string conn, IServiceProvider sp, EventStore sou
                 foreach (var type in TProjections(x => x.Mode == ProjectionMode.Consistent))
                 {
                     var record = _projection.Project(type, aggregate.EventStream);
+                    command.Parameters.Clear();
                     command.Parameters.AddWithValue("@longSourceId", LongSourceId);
                     command.Parameters.AddWithValue("@guidSourceId", GuidSourceId);
                     var data = JsonSerializer.Serialize(record, type, SerializerOptions);

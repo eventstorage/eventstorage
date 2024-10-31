@@ -21,7 +21,7 @@ public class EventSourceConfiguration(IServiceCollection services, string schema
         if(Projections.Any(x => x.Destination.Store == DestinationStore.Redis))
         {
             var p = Projections.First(x => x.Destination.Store == DestinationStore.Redis);
-            ServiceCollection.AddSingleton(new RedisConnectionProvider(p.Destination.RedisConnection));
+            ServiceCollection.AddSingleton(new RedisConnectionProvider(p.Destination.ConnectionString));
         }
         ServiceCollection.AddSingleton<IHostedService>((sp) =>
         {

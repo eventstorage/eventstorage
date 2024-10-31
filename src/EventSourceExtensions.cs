@@ -12,9 +12,7 @@ namespace EventStorage;
 public static class EventSourceExtensions
 {
     public static EventSourceConfiguration Select(
-        this EventSourceConfiguration configuration,
-        EventStore source,
-        string connectionString)
+        this EventSourceConfiguration configuration, EventStore source, string connectionString)
     {
         Type? aggregateType = Td.FindByCallingAsse<IEventSource>(Assembly.GetCallingAssembly());
         if (aggregateType == null)
@@ -51,12 +49,11 @@ public static class EventSourceExtensions
         return services;
     }
     public static EventSourceConfiguration Project<TProjection>(
-        this EventSourceConfiguration configuration,
-        ProjectionMode mode = ProjectionMode.Async,
+        this EventSourceConfiguration configuration, ProjectionMode mode = ProjectionMode.Async,
         Func<DestinationConfiguration, DestinationConfiguration> destination = default!)
         where TProjection : Projection, new()
     {
-        if(mode != ProjectionMode.Async && destination != null)
+        if(destination != null && mode != ProjectionMode.Async)
             throw new Exception($"Projection to destination not allowed with mode {mode}.");
         var iprojection = typeof(TProjection).GetInterfaces().Last();
         destination ??= (config) => new();
@@ -71,7 +68,7 @@ public static class EventSourceExtensions
         this DestinationConfiguration configuration, string connection)
     {
         configuration.Store = DestinationStore.Redis;
-        configuration.RedisConnection = connection;
+        configuration.ConnectionString = connection;
         return configuration;
     }
 }
