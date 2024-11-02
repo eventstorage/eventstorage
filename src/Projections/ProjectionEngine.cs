@@ -16,6 +16,9 @@ public class ProjectionEngine(IServiceProvider sp) : IProjectionEngine
     {
         try
         {
+            var methods = projection.GetType().GetMethods().Where(m => m.Name == "Project");
+            var matches = methods.Any(m => events.Any(e => e.GetType().IsAssignableFrom(m.GetParameters().First().GetType())));
+
             var initMethod = projection.GetType().GetMethod("Project", [events.First().GetType()])??
             throw new Exception($"No suitable projection method found to initialize {type.Name}.");
             var model = initMethod.Invoke(projection, [events.First()]);
