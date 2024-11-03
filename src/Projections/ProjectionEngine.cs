@@ -1,43 +1,47 @@
 using System.Reflection;
+using EventStorage.AggregateRoot;
 using EventStorage.Events;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
 namespace EventStorage.Projections;
 
-public class ProjectionEngine(IServiceProvider sp) : IProjectionEngine
+public class ProjectionEngine(
+    IServiceProvider sp, Dictionary<IProjection, List<MethodInfo>> projections) : IProjectionEngine
 {
     private readonly ILogger logger = new LoggerFactory().CreateLogger<ProjectionEngine>();
-    public object? Project(Type type, IEnumerable<SourcedEvent> events) =>
-        Project(events, sp.GetRequiredService(typeof(IProjection<>).MakeGenericType(type)), type);
+    public object? Project(Type model, IEnumerable<SourcedEvent> events) =>
+        Project(events, sp.GetRequiredService(typeof(IProjection<>).MakeGenericType(model)), model);
     public M? Project<M>(IEnumerable<SourcedEvent> events) =>
         (M?) Project(events, sp.GetRequiredService<IProjection<M>>(), typeof(M));
-    private object? Project(IEnumerable<SourcedEvent> events, object projection, Type type)
+    // public bool Subscribes(IEnumerable<SourcedEvent> events, object projection) =>
+    //     projection.GetType().GetMethods().Where(m => m.Name == "Project").Any(m => 
+    //         events.Any(e =>  e.GetType().IsAssignableFrom(m.GetParameters()
+    //         .FirstOrDefault(x => typeof(SourcedEvent).IsAssignableFrom(x.ParameterType))?.ParameterType)
+    //     ));
+    private object? Project(IEnumerable<SourcedEvent> events, object projection, Type model)
     {
         try
         {
-            var methods = projection.GetType().GetMethods().Where(m => m.Name == "Project");
-            var matches = methods.Any(m => events.Any(e => e.GetType().IsAssignableFrom(m.GetParameters().First().GetType())));
-
             var initMethod = projection.GetType().GetMethod("Project", [events.First().GetType()])??
-            throw new Exception($"No suitable projection method found to initialize {type.Name}.");
-            var model = initMethod.Invoke(projection, [events.First()]);
+                throw new Exception($"No suitable projection method found to initialize {model.Name}.");
+            var record = initMethod.Invoke(projection, [events.First()]);
             foreach (var e in events.ToArray()[1..^0])
             {
-                var project = projection.GetType().GetMethod("Project", [type, e.GetType()]);
+                var project = projection.GetType().GetMethod("Project", [model, e.GetType()]);
                 if (project == null)
                 {
-                    logger.LogInformation($"No suitable projection method found {type.Name}, {e.GetType().Name}.");
+                    logger.LogInformation($"No suitable projection method found {model.Name}, {e.GetType().Name}.");
                     continue;
                 }
-                model = project.Invoke(projection, [model, e]);
+                record = project.Invoke(projection, [record, e]);
             }
             return model;
         }
         catch (TargetInvocationException e)
         {
             if(logger.IsEnabled(LogLevel.Error))
-                logger.LogError($"Projection failure for {type.Name}. {e.Message}");
+                logger.LogError($"Projection failure for {model.Name}. {e.Message}");
             throw;
         }
     }

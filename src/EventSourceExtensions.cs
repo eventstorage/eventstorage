@@ -60,7 +60,6 @@ public static class EventSourceExtensions
         var tprojection = new TProjection { Mode = mode, Configuration = destination(new())};
         configuration.ServiceCollection.AddSingleton(iprojection, tprojection);
         configuration.ServiceCollection.AddSingleton(typeof(IProjection), tprojection);
-        configuration.ServiceCollection.AddSingleton<IProjectionEngine, ProjectionEngine>();
         configuration.Projections.Add(tprojection);
         return configuration;
     }

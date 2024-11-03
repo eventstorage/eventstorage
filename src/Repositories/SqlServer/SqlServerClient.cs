@@ -104,17 +104,17 @@ public class SqlServerClient<T>(string conn, IServiceProvider sp, EventStore sou
                 await command.ExecuteNonQueryAsync();
                 aggregate.CommitPendingEvents();
 
-                foreach (var type in TProjections(x => x.Mode == ProjectionMode.Consistent))
+                foreach (var t in TProjections(x => x.Mode == ProjectionMode.Consistent))
                 {
-                    var record = _projection.Project(type, aggregate.EventStream);
+                    var record = _projection.Project(t, aggregate.EventStream);
                     command.Parameters.Clear();
                     command.Parameters.AddWithValue("@longSourceId", LongSourceId);
                     command.Parameters.AddWithValue("@guidSourceId", GuidSourceId);
-                    var data = JsonSerializer.Serialize(record, type, SerializerOptions);
+                    var data = JsonSerializer.Serialize(record, t, SerializerOptions);
                     command.Parameters.AddWithValue("@data", data);
-                    command.Parameters.AddWithValue("@type", type.Name);
+                    command.Parameters.AddWithValue("@type", t.Name);
                     command.Parameters.AddWithValue("@updatedAt", DateTime.UtcNow);
-                    command.CommandText = ApplyProjectionCommand(type.Name);
+                    command.CommandText = ApplyProjectionCommand(t.Name);
                     await command.ExecuteNonQueryAsync();
                 }
                 await sqlTransaction.CommitAsync();

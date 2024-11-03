@@ -1,4 +1,7 @@
+using System.Reflection;
 using EventStorage.AggregateRoot;
+using EventStorage.Events;
+using EventStorage.Extensions;
 using EventStorage.Projections;
 using EventStorage.Repositories;
 using EventStorage.Workers;
@@ -16,7 +19,7 @@ public class EventSourceConfiguration(IServiceCollection services, string schema
     public List<IProjection> Projections = [];
 
     // initialize stores while app spins up
-    public void InitStore()
+    public void Init()
     {
         if(Projections.Any(x => x.Configuration.Store == ProjectionStore.Redis))
         {
@@ -28,6 +31,20 @@ public class EventSourceConfiguration(IServiceCollection services, string schema
             var repository = new Repository<IEventSource>(ConnectionString, sp, Source);
             var eventstorage = new EventStorage<IEventSource>(repository, Source);
             return new StoreInitializer(eventstorage, Projections, ServiceProvider);
+        });
+        AddProjectionEngine();
+    }
+    private void AddProjectionEngine()
+    {
+        Dictionary<IProjection, List<MethodInfo>> projections = [];
+        foreach (var projection in Projections)
+        {
+            var methods = projection.GetMethods();
+            projections.Add(projection, methods.ToList());
+        }
+        ServiceCollection.AddSingleton<IProjectionEngine>(sp =>
+        {
+            return new ProjectionEngine(sp, projections);
         });
     }
 }
