@@ -7,7 +7,7 @@ namespace EventStorage.Projections;
 
 public class ProjectionEngine(IServiceProvider sp) : IProjectionEngine
 {
-    private readonly ILogger logger = sp.GetRequiredService<ILogger<ProjectionEngine>>();
+    private readonly ILogger logger = new LoggerFactory().CreateLogger<ProjectionEngine>();
     public object? Project(Type type, IEnumerable<SourcedEvent> events) =>
         Project(events, sp.GetRequiredService(typeof(IProjection<>).MakeGenericType(type)), type);
     public M? Project<M>(IEnumerable<SourcedEvent> events) =>

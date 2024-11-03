@@ -1,6 +1,0 @@
-@EventStorage.Benchmarks.Projections_HostAddress = http://localhost:5268
-
-GET {{EventStorage.Benchmarks.Projections_HostAddress}}/weatherforecast/
-Accept: application/json
-
-###
