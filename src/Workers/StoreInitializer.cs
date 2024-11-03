@@ -15,10 +15,10 @@ internal class StoreInitializer(
     {
         await eventStorage.InitSource();
 
-        if(projections.Any(x => x.Destination.Store == DestinationStore.Redis))
+        if(projections.Any(x => x.Destination.Store == ProjectionStore.Redis))
         {
             RedisConnectionProvider _redis = sp.GetRequiredService<RedisConnectionProvider>();
-            projections.Where(x => x.Destination.Store == DestinationStore.Redis)
+            projections.Where(x => x.Destination.Store == ProjectionStore.Redis)
                 .Select(x => x.GetType().BaseType?.GenericTypeArguments.First()).ToList()
                 .ForEach(async x => await _redis.Connection.CreateIndexAsync(x?? default!));
         }

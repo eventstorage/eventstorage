@@ -18,10 +18,10 @@ public class EventSourceConfiguration(IServiceCollection services, string schema
     // initialize stores while app spins up
     public void InitStore()
     {
-        if(Projections.Any(x => x.Destination.Store == DestinationStore.Redis))
+        if(Projections.Any(x => x.Configuration.Store == ProjectionStore.Redis))
         {
-            var p = Projections.First(x => x.Destination.Store == DestinationStore.Redis);
-            ServiceCollection.AddSingleton(new RedisConnectionProvider(p.Destination.ConnectionString));
+            var p = Projections.First(x => x.Configuration.Store == ProjectionStore.Redis);
+            ServiceCollection.AddSingleton(new RedisConnectionProvider(p.Configuration.ConnectionString));
         }
         ServiceCollection.AddSingleton<IHostedService>((sp) =>
         {
