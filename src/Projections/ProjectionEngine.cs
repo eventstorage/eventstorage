@@ -7,7 +7,7 @@ namespace EventStorage.Projections;
 
 public class ProjectionEngine(IServiceProvider sp) : IProjectionEngine
 {
-    private readonly ILogger logger = sp.GetRequiredService<ILogger<ProjectionEngine>>();
+    private readonly ILogger logger = new LoggerFactory().CreateLogger<ProjectionEngine>();
     public object? Project(Type type, IEnumerable<SourcedEvent> events) =>
         Project(events, sp.GetRequiredService(typeof(IProjection<>).MakeGenericType(type)), type);
     public M? Project<M>(IEnumerable<SourcedEvent> events) =>
@@ -16,6 +16,9 @@ public class ProjectionEngine(IServiceProvider sp) : IProjectionEngine
     {
         try
         {
+            var methods = projection.GetType().GetMethods().Where(m => m.Name == "Project");
+            var matches = methods.Any(m => events.Any(e => e.GetType().IsAssignableFrom(m.GetParameters().First().GetType())));
+
             var initMethod = projection.GetType().GetMethod("Project", [events.First().GetType()])??
             throw new Exception($"No suitable projection method found to initialize {type.Name}.");
             var model = initMethod.Invoke(projection, [events.First()]);

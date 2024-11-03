@@ -11,16 +11,16 @@ internal class StoreInitializer(
     IEventStorage<IEventSource> eventStorage, IEnumerable<IProjection> projections,
     IServiceProvider sp) : IHostedService
 {
-    private readonly RedisConnectionProvider _redis = sp.GetRequiredService<RedisConnectionProvider>();
     public async Task StartAsync(CancellationToken cancellationToken)
     {
         await eventStorage.InitSource();
 
-        var redisTypes = projections.Where(x => x.Destination.Store == DestinationStore.Redis)
-            .Select(x => x.GetType().BaseType?.GenericTypeArguments.First());
-        foreach (var item in redisTypes)
+        if(projections.Any(x => x.Destination.Store == DestinationStore.Redis))
         {
-            await _redis.Connection.CreateIndexAsync(item?? default!);
+            RedisConnectionProvider _redis = sp.GetRequiredService<RedisConnectionProvider>();
+            projections.Where(x => x.Destination.Store == DestinationStore.Redis)
+                .Select(x => x.GetType().BaseType?.GenericTypeArguments.First()).ToList()
+                .ForEach(async x => await _redis.Connection.CreateIndexAsync(x?? default!));
         }
     }
 
