@@ -12,13 +12,18 @@ public class ProjectionEngine(
     private readonly ILogger logger = new LoggerFactory().CreateLogger<ProjectionEngine>();
     public object? Project(Type model, IEnumerable<SourcedEvent> events) =>
         Project(events, sp.GetRequiredService(typeof(IProjection<>).MakeGenericType(model)), model);
+    public object? ProjectOptimized(Type model, IEnumerable<SourcedEvent> events) =>
+        ProjectPreCompiled(events, sp.GetRequiredService(typeof(IProjection<>).MakeGenericType(model)), model);
     public M? Project<M>(IEnumerable<SourcedEvent> events) =>
         (M?) Project(events, sp.GetRequiredService<IProjection<M>>(), typeof(M));
-    // public bool Subscribes(IEnumerable<SourcedEvent> events, object projection) =>
-    //     projection.GetType().GetMethods().Where(m => m.Name == "Project").Any(m => 
-    //         events.Any(e =>  e.GetType().IsAssignableFrom(m.GetParameters()
-    //         .FirstOrDefault(x => typeof(SourcedEvent).IsAssignableFrom(x.ParameterType))?.ParameterType)
-    //     ));
+    public M? ProjectOptimized<M>(IEnumerable<SourcedEvent> events) =>
+        (M?) ProjectPreCompiled(events, sp.GetRequiredService<IProjection<M>>(), typeof(M));
+    public bool Subscribes(IEnumerable<SourcedEvent> events, Type model) =>
+        sp.GetRequiredService(typeof(IProjection<>).MakeGenericType(model))
+        .GetType().GetMethods().Where(m => m.Name == "Project").Any(m => 
+        events.Any(e =>  e.GetType().IsAssignableFrom(m.GetParameters()
+        .FirstOrDefault(x => typeof(SourcedEvent).IsAssignableFrom(x.ParameterType))?.ParameterType)
+        ));
     private object? Project(IEnumerable<SourcedEvent> events, object projection, Type model)
     {
         try
@@ -36,7 +41,31 @@ public class ProjectionEngine(
                 }
                 record = project.Invoke(projection, [record, e]);
             }
-            return model;
+            return record;
+        }
+        catch (TargetInvocationException e)
+        {
+            if(logger.IsEnabled(LogLevel.Error))
+                logger.LogError($"Projection failure for {model.Name}. {e.Message}");
+            throw;
+        }
+    }
+    private object? ProjectPreCompiled(IEnumerable<SourcedEvent> events, object projection, Type model)
+    {
+        try
+        {
+            var methods = projections[(IProjection)projection];
+            var record = methods.First().Invoke(projection, [events.First()]);
+            foreach (var e in events.Skip(1))
+            {
+                var method = methods.FirstOrDefault(m => 
+                    m.GetParameters().First().ParameterType.IsAssignableFrom(record?.GetType()) &&
+                    m.GetParameters().Last().ParameterType.IsAssignableFrom(e.GetType()));
+                if (method == null)
+                    continue;
+                record = method.Invoke(projection, [record, e]);
+            }
+            return record;
         }
         catch (TargetInvocationException e)
         {

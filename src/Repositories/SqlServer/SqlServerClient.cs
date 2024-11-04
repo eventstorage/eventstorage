@@ -106,7 +106,7 @@ public class SqlServerClient<T>(string conn, IServiceProvider sp, EventStore sou
 
                 foreach (var t in TProjections(x => x.Mode == ProjectionMode.Consistent))
                 {
-                    var record = _projection.Project(t, aggregate.EventStream);
+                    var record = _projection.ProjectOptimized(t, aggregate.EventStream);
                     command.Parameters.Clear();
                     command.Parameters.AddWithValue("@longSourceId", LongSourceId);
                     command.Parameters.AddWithValue("@guidSourceId", GuidSourceId);
