@@ -38,6 +38,7 @@ public abstract class ClientBase<T>(IServiceProvider sp, EventStore source)
         sp.GetRequiredKeyedService<Dictionary<EventStore, IEventSourceSchema>>("Schema")
         .FirstOrDefault(x => x.Key == source).Value;
 
+    protected readonly IProjectionEngine Projection = sp.GetRequiredService<IProjectionEngine>();
     protected IEnumerable<IProjection> Projections => Sp.GetServices<IProjection>();
     #pragma warning disable CS8619
     protected IEnumerable<Type> TProjections(Func<IProjection, bool> predicate) =>

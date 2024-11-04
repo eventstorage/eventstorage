@@ -4,8 +4,8 @@ namespace EventStorage.AggregateRoot;
 
 public abstract class EventSource<TId> : Entity<TId>, IEventSource where TId : IComparable
 {
-    private readonly List<SourcedEvent> _pendingEvents = [];
-    private readonly List<SourcedEvent> _eventStream = [];
+    private List<SourcedEvent> _pendingEvents = [];
+    private List<SourcedEvent> _eventStream = [];
     public long Version { get; private set; }
     public IEnumerable<SourcedEvent> EventStream => _eventStream;
     public IEnumerable<SourcedEvent> PendingEvents => _pendingEvents;
@@ -46,7 +46,7 @@ public abstract class EventSource<TId> : Entity<TId>, IEventSource where TId : I
     {
         _eventStream.AddRange(_pendingEvents);
         var pendingEvents = _pendingEvents;
-        _pendingEvents.Clear();
+        _pendingEvents = [];
         return pendingEvents;
     }
 }

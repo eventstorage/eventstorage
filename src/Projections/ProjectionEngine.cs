@@ -10,18 +10,17 @@ public class ProjectionEngine(
     IServiceProvider sp, Dictionary<IProjection, List<MethodInfo>> projections) : IProjectionEngine
 {
     private readonly ILogger logger = new LoggerFactory().CreateLogger<ProjectionEngine>();
-    public object? Project(Type model, IEnumerable<SourcedEvent> events) =>
-        Project(events, sp.GetRequiredService(typeof(IProjection<>).MakeGenericType(model)), model);
-    public object? ProjectOptimized(Type model, IEnumerable<SourcedEvent> events) =>
-        ProjectPreCompiled(events, sp.GetRequiredService(typeof(IProjection<>).MakeGenericType(model)), model);
+    public object? Project(IProjection projection, IEnumerable<SourcedEvent> events, Type model) =>
+        Project(events, projection, model);
+    public object? ProjectOptimized(IProjection projection, IEnumerable<SourcedEvent> events, Type model) =>
+        ProjectPreCompiled(events, projection, model);
     public M? Project<M>(IEnumerable<SourcedEvent> events) =>
         (M?) Project(events, sp.GetRequiredService<IProjection<M>>(), typeof(M));
     public M? ProjectOptimized<M>(IEnumerable<SourcedEvent> events) =>
         (M?) ProjectPreCompiled(events, sp.GetRequiredService<IProjection<M>>(), typeof(M));
-    public bool Subscribes(IEnumerable<SourcedEvent> events, Type model) =>
-        sp.GetRequiredService(typeof(IProjection<>).MakeGenericType(model))
-        .GetType().GetMethods().Where(m => m.Name == "Project").Any(m => 
-        events.Any(e =>  e.GetType().IsAssignableFrom(m.GetParameters()
+    public bool Subscribes(IEnumerable<SourcedEvent> events, IProjection projection) =>
+        projection.GetType().GetMethods().Where(m => m.Name == "Project")
+        .Any(m => events.Any(e =>  e.GetType().IsAssignableFrom(m.GetParameters()
         .FirstOrDefault(x => typeof(SourcedEvent).IsAssignableFrom(x.ParameterType))?.ParameterType)
         ));
     private object? Project(IEnumerable<SourcedEvent> events, object projection, Type model)

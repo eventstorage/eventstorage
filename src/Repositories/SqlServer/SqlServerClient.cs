@@ -8,6 +8,7 @@ using EventStorage.Projections;
 using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using Microsoft.IdentityModel.Tokens;
 
 namespace EventStorage.Repositories.SqlServer;
 
@@ -16,7 +17,6 @@ public class SqlServerClient<T>(string conn, IServiceProvider sp, EventStore sou
 {
     private readonly SemaphoreSlim _semaphore = new (1, 1);
     private readonly ILogger logger = sp.GetRequiredService<ILogger<SqlServerClient<T>>>();
-    private readonly IProjectionEngine _projection = sp.GetRequiredService<IProjectionEngine>();
     public async Task Init()
     {
         try
@@ -84,17 +84,19 @@ public class SqlServerClient<T>(string conn, IServiceProvider sp, EventStore sou
     }
     public async Task Commit(T aggregate)
     {
-        var events = aggregate.PendingEvents.Count();
-        logger.LogInformation($"Preparing to commit {events} pending event(s) for {aggregate.GetType().Name}");
-        if(aggregate.PendingEvents.Any())
+        var x = aggregate.PendingEvents.Count();
+        logger.LogInformation($"Preparing to commit {x} pending event(s) for {typeof(T).Name}");
+        
+        await using SqlConnection sqlConnection = new(conn);
+        await sqlConnection.OpenAsync();
+        await using SqlTransaction sqlTransaction = sqlConnection.BeginTransaction();
+        await using SqlCommand command = sqlConnection.CreateCommand();
+        command.Transaction = sqlTransaction;
+        try
         {
-            await using SqlConnection sqlConnection = new(conn);
-            await sqlConnection.OpenAsync();
-            await using SqlTransaction sqlTransaction = sqlConnection.BeginTransaction();
-            try
+            // add event source to event storage
+            if(aggregate.PendingEvents.Any())
             {
-                await using SqlCommand command = sqlConnection.CreateCommand();
-                command.Transaction = sqlTransaction;
                 PrepareCommand((names, values, count) => values.Select((x, i) => new SqlParameter
                 {
                     ParameterName = names.Keys.ElementAt(i) + count,
@@ -102,44 +104,49 @@ public class SqlServerClient<T>(string conn, IServiceProvider sp, EventStore sou
                     SqlValue = x
                 }).ToArray(), command, aggregate.PendingEvents.ToArray());
                 await command.ExecuteNonQueryAsync();
-                aggregate.CommitPendingEvents();
+            }
 
-                foreach (var t in TProjections(x => x.Mode == ProjectionMode.Consistent))
-                {
-                    var record = _projection.ProjectOptimized(t, aggregate.EventStream);
-                    command.Parameters.Clear();
-                    command.Parameters.AddWithValue("@longSourceId", LongSourceId);
-                    command.Parameters.AddWithValue("@guidSourceId", GuidSourceId);
-                    var data = JsonSerializer.Serialize(record, t, SerializerOptions);
-                    command.Parameters.AddWithValue("@data", data);
-                    command.Parameters.AddWithValue("@type", t.Name);
-                    command.Parameters.AddWithValue("@updatedAt", DateTime.UtcNow);
-                    command.CommandText = ApplyProjectionCommand(t.Name);
-                    await command.ExecuteNonQueryAsync();
-                }
-                await sqlTransaction.CommitAsync();
-            }
-            catch(SqlException e)
+            // apply consistent projections if any
+            var pending = aggregate.CommitPendingEvents();
+            foreach (var projection in Projections.Where(x => x.Mode == ProjectionMode.Consistent))
             {
-                await sqlTransaction.RollbackAsync();
-                if(logger.IsEnabled(LogLevel.Error))
-                    logger.LogError($"Commit failure for {aggregate.GetType().Name}. {e.Message}");
-                throw;
+                if(pending.Any() && !Projection.Subscribes(pending, projection))
+                    continue;
+                var model = projection.GetType().BaseType?.GenericTypeArguments.First()?? default!;
+                var record = Projection.Project(projection, aggregate.EventStream, model);
+                command.Parameters.Clear();
+                command.Parameters.AddWithValue("@longSourceId", LongSourceId);
+                command.Parameters.AddWithValue("@guidSourceId", GuidSourceId);
+                var data = JsonSerializer.Serialize(record, model, SerializerOptions);
+                command.Parameters.AddWithValue("@data", data);
+                command.Parameters.AddWithValue("@type", model?.Name);
+                command.Parameters.AddWithValue("@updatedAt", DateTime.UtcNow);
+                command.CommandText = ApplyProjectionCommand(model?.Name?? "");
+                await command.ExecuteNonQueryAsync();
             }
-            catch(SerializationException e)
-            {
-                if(logger.IsEnabled(LogLevel.Error))
-                    logger.LogError($"Commit failure for {aggregate.GetType().Name}. {e.Message}");
-                throw;
-            }
-            catch (Exception e)
-            {
-                if(logger.IsEnabled(LogLevel.Error))
-                    logger.LogError($"Commit failure for {aggregate.GetType().Name}. {e.Message}");
-                throw;
-            }
+
+            await sqlTransaction.CommitAsync();
+            logger.LogInformation($"Committed {x} pending event(s) for {typeof(T).Name}");
         }
-        logger.LogInformation($"Committed {events} pending event(s) for {aggregate.GetType().Name}");
+        catch(SqlException e)
+        {
+            await sqlTransaction.RollbackAsync();
+            if(logger.IsEnabled(LogLevel.Error))
+                logger.LogError($"Commit failure for {aggregate.GetType().Name}. {e.Message}");
+            throw;
+        }
+        catch(SerializationException e)
+        {
+            if(logger.IsEnabled(LogLevel.Error))
+                logger.LogError($"Commit failure for {aggregate.GetType().Name}. {e.Message}");
+            throw;
+        }
+        catch (Exception e)
+        {
+            if(logger.IsEnabled(LogLevel.Error))
+                logger.LogError($"Commit failure for {aggregate.GetType().Name}. {e.Message}");
+            throw;
+        }
     }
     public async Task<M?> Project<M>(string sourceId)
     {
@@ -148,7 +155,7 @@ public class SqlServerClient<T>(string conn, IServiceProvider sp, EventStore sou
         await using SqlCommand command = sqlConnection.CreateCommand();
 
         var events = await LoadEventSource(command, () => new SqlParameter("sourceId", sourceId));
-        var model = _projection.Project<M>(events);
+        var model = Projection.Project<M>(events);
         return model;
     }
 }
