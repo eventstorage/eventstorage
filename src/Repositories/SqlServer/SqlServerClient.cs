@@ -8,6 +8,7 @@ using EventStorage.Projections;
 using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using Microsoft.IdentityModel.Tokens;
 
 namespace EventStorage.Repositories.SqlServer;
 
@@ -102,19 +103,23 @@ public class SqlServerClient<T>(string conn, IServiceProvider sp, EventStore sou
                     SqlValue = x
                 }).ToArray(), command, aggregate.PendingEvents.ToArray());
                 await command.ExecuteNonQueryAsync();
-                aggregate.CommitPendingEvents();
 
-                foreach (var t in TProjections(x => x.Mode == ProjectionMode.Consistent))
+                var es = aggregate.PendingEvents.Any() ? aggregate.PendingEvents : aggregate.EventStream;
+                aggregate.CommitPendingEvents();
+                foreach (var projection in Projections.Where(x => x.Mode == ProjectionMode.Consistent))
                 {
-                    var record = _projection.ProjectOptimized(t, aggregate.EventStream);
+                    if(!_projection.Subscribes(es, projection))
+                        continue;
+                    var model = projection.GetType().BaseType?.GenericTypeArguments.First()?? default!;
+                    var record = _projection.Project(projection, aggregate.EventStream, model);
                     command.Parameters.Clear();
                     command.Parameters.AddWithValue("@longSourceId", LongSourceId);
                     command.Parameters.AddWithValue("@guidSourceId", GuidSourceId);
-                    var data = JsonSerializer.Serialize(record, t, SerializerOptions);
+                    var data = JsonSerializer.Serialize(record, model, SerializerOptions);
                     command.Parameters.AddWithValue("@data", data);
-                    command.Parameters.AddWithValue("@type", t.Name);
+                    command.Parameters.AddWithValue("@type", model?.Name);
                     command.Parameters.AddWithValue("@updatedAt", DateTime.UtcNow);
-                    command.CommandText = ApplyProjectionCommand(t.Name);
+                    command.CommandText = ApplyProjectionCommand(model?.Name?? "");
                     await command.ExecuteNonQueryAsync();
                 }
                 await sqlTransaction.CommitAsync();
