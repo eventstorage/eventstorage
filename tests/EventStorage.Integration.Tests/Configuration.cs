@@ -1,9 +1,13 @@
+using System.Reflection;
 using EventStorage.Configurations;
+using EventStorage.Extensions;
+using EventStorage.Projections;
 using EventStorage.Repositories;
 using EventStorage.Repositories.PostgreSql;
 using EventStorage.Repositories.SqlServer;
 using EventStorage.Schema;
 using EventStorage.Unit.Tests.AggregateRoot;
+using EventStorage.Unit.Tests.Projections;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -39,6 +43,15 @@ public class Configuration<T> where T : OrderAggregate
             services.AddKeyedSingleton<IEventStorage<T>>(source, (sp, o) =>
                 new EventStorage<T>(sp.GetRequiredKeyedService<IRepository<T>>(source), source));
         }
+
+        OrderProjection projection = new(){ Mode = ProjectionMode.Async, Configuration = new() };
+        services.AddSingleton<IProjection>(projection);
+        services.AddSingleton<IProjectionEngine>(sp =>
+        {
+            Dictionary<IProjection, List<MethodInfo>> projections = [];
+            projections.Add(projection, projection.GetMethods().ToList());
+            return new ProjectionEngine(sp, projections);
+        });
         return services.BuildServiceProvider();
     }
     private static string GetConnection(EventStore source) => source switch

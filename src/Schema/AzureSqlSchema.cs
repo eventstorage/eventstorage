@@ -36,6 +36,6 @@ public class AzureSqlSchema(string schema) : EventSourceSchema(schema)
         [GuidSourceId] [uniqueidentifier] NOT NULL,
         [Data] [json] NOT NULL,
         [Type] [nvarchar](255) NOT NULL,
-        [UpdatedAt] [datetime] NT NULL,
-        CONSTRAINT [Pk_Id] PRIMARY KEY ([Id]))";
+        [UpdatedAt] [datetime] NOT NULL,
+        CONSTRAINT [Pk_{projection}s_Id] PRIMARY KEY ([Id]))";
 }

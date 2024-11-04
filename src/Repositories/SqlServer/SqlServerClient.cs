@@ -155,6 +155,8 @@ public class SqlServerClient<T>(string conn, IServiceProvider sp, EventStore sou
         await using SqlCommand command = sqlConnection.CreateCommand();
 
         var events = await LoadEventSource(command, () => new SqlParameter("sourceId", sourceId));
+        if(!events.Any())
+            return default;
         var model = Projection.Project<M>(events);
         return model;
     }
