@@ -43,7 +43,7 @@ public abstract class ClientBase<T>(IServiceProvider sp, EventStore source)
     protected IEnumerable<Type> TProjections(Func<IProjection, bool> predicate) =>
         Projections.Where(predicate)
         .Where(p => p.Mode != ProjectionMode.Runtime)
-        .Where(p => p.Destination.Store == DestinationStore.Selected)
+        .Where(p => p.Configuration.Store == ProjectionStore.Selected)
         .Select(p => p.GetType().BaseType?.GenericTypeArguments.First());
 
     // this needs optimistic locking

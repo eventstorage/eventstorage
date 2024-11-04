@@ -7,8 +7,8 @@ using Microsoft.Extensions.DependencyInjection;
 namespace EventStorage.Benchmarks.Projections;
 
 // [MemoryDiagnoser]
-[SimpleJob(RuntimeMoniker.Net60)]
-[SimpleJob(RuntimeMoniker.Net80)]
+// [SimpleJob(RuntimeMoniker.Net60)]
+// [SimpleJob(RuntimeMoniker.Net80)]
 public class ProjectionBenchmarks
 {
     private static readonly IServiceProvider _sp = Container.Build();
@@ -23,5 +23,7 @@ public class ProjectionBenchmarks
         _events.Add(orderConfirmed with { SourceId = 1, Version = 2 });
     }
     [Benchmark]
-    public void ProjectMethod() => _projection.Project<Order>(_events);
+    public void Project() => _projection.Project<Order>(_events);
+    [Benchmark]
+    public void ProjectOptimized() => _projection.ProjectOptimized<Order>(_events);
 }

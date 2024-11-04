@@ -42,9 +42,11 @@ public abstract class EventSource<TId> : Entity<TId>, IEventSource where TId : I
             _tenantId = e.TenantId;
         }
     }
-    public void CommitPendingEvents()
+    public IEnumerable<SourcedEvent> CommitPendingEvents()
     {
         _eventStream.AddRange(_pendingEvents);
+        var pendingEvents = _pendingEvents;
         _pendingEvents.Clear();
+        return pendingEvents;
     }
 }
