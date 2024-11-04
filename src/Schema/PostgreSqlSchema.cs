@@ -36,5 +36,5 @@ public class PostgreSqlSchema(string schema) : EventSourceSchema(schema)
         Data jsonb NOT NULL,
         Type text NOT NULL,
         UpdatedAt timestamptz NOT NULL DEFAULT now(),
-        CONSTRAINT Pk_Id PRIMARY KEY (Id));";
+        CONSTRAINT Pk_{projection}s_Id PRIMARY KEY (Id));";
 }
