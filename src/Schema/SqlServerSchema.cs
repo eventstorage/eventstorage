@@ -38,4 +38,6 @@ public class SqlServerSchema(string schema) : EventSourceSchema(schema)
         [Type] [nvarchar](255) NOT NULL,
         [UpdatedAt] [datetime] NOT NULL,
         CONSTRAINT [Pk_{projection}s_Id] PRIMARY KEY ([Id]))";
+    public override string GetDocumentCommand<Td>(string sourceTId) => @$"SELECT TOP 1 * FROM
+        {schema}.{typeof(Td).Name}s WHERE {sourceTId} = @sourceId ORDER BY Id DESC";
 }

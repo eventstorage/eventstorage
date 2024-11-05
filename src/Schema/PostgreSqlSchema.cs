@@ -37,4 +37,6 @@ public class PostgreSqlSchema(string schema) : EventSourceSchema(schema)
         Type text NOT NULL,
         UpdatedAt timestamptz NOT NULL DEFAULT now(),
         CONSTRAINT Pk_{projection}s_Id PRIMARY KEY (Id));";
+    public override string GetDocumentCommand<Td>(string sourceTId) => @$"SELECT * FROM
+        {schema}.{typeof(Td).Name}s WHERE {sourceTId} = @sourceId ORDER BY Id DESC LIMIT 1";
 }
