@@ -5,10 +5,14 @@ using EventStorage.AggregateRoot;
 using EventStorage.Configurations;
 using EventStorage.Extensions;
 using EventStorage.Projections;
+using EventStorage.Repositories.Redis;
+using EventStorage.Schema;
 using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.IdentityModel.Tokens;
+using StackExchange.Redis;
+using TDiscover;
 
 namespace EventStorage.Repositories.SqlServer;
 
@@ -57,8 +61,8 @@ public class SqlServerClient<T>(string conn, IServiceProvider sp, EventStore sou
             sourceId ??= await GenerateSourceId(command);
             var aggregate = typeof(T).CreateAggregate<T>(sourceId);
 
-            var sourcedEvents = await LoadEventSource(command, () => new SqlParameter("sourceId", sourceId));
-            aggregate.RestoreAggregate(RestoreType.Stream, sourcedEvents.ToArray());
+            var events = await LoadEventSource(command, () => new SqlParameter("sourceId", sourceId));
+            aggregate.RestoreAggregate(RestoreType.Stream, events.ToArray());
             logger.LogInformation($"Finished restoring aggregate {typeof(T).Name}.");
 
             return aggregate;
@@ -148,16 +152,62 @@ public class SqlServerClient<T>(string conn, IServiceProvider sp, EventStore sou
             throw;
         }
     }
-    public async Task<M?> Project<M>(string sourceId)
+    public async Task<M?> Project<M>(string sourceId) where M : class
     {
-        await using SqlConnection sqlConnection = new(conn);
-        await sqlConnection.OpenAsync();
-        await using SqlCommand command = sqlConnection.CreateCommand();
-
-        var events = await LoadEventSource(command, () => new SqlParameter("sourceId", sourceId));
-        if(!events.Any())
+        var projection = Sp.GetService<IProjection<M>>();
+        if(projection == null)
             return default;
-        var model = Projection.Project<M>(events);
-        return model;
+        try
+        {
+            if(projection.Configuration.Store != ProjectionStore.Selected)
+                return await Redis.GetDocument<M>(sourceId);
+
+            logger.LogInformation($"Starting {typeof(M).Name} projection.");
+            await using SqlConnection sqlConnection = new(conn);
+            await sqlConnection.OpenAsync();
+            await using SqlCommand command = sqlConnection.CreateCommand();
+
+            if(projection.Mode != ProjectionMode.Runtime)
+            {
+                command.CommandText = GetDocumentCommand<M>();
+                command.Parameters.AddWithValue("@sourceId", sourceId);
+                await using SqlDataReader reader = await command.ExecuteReaderAsync();
+                if(!await reader.ReadAsync())
+                    return default;
+                var json = reader.GetString(EventSourceSchema.Data);
+                var m = JsonSerializer.Deserialize<M>(json);
+                logger.LogInformation($"{typeof(M).Name} projection completed.");
+                return m;
+            }
+
+            var events = await LoadEventSource(command, () => new SqlParameter("sourceId", sourceId));
+            var model = Projection.Project<M>(events);
+            logger.LogInformation($"{typeof(M).Name} projection completed.");
+            return model;
+        }
+        catch(RedisException e)
+        {
+            if(logger.IsEnabled(LogLevel.Error))
+                logger.LogError($"Projection failure for {typeof(M).Name}. {e.Message}");
+            throw;
+        }
+        catch(SqlException e)
+        {
+            if(logger.IsEnabled(LogLevel.Error))
+                logger.LogError($"Projection failure for {typeof(M).Name}. {e.Message}");
+            throw;
+        }
+        catch(SerializationException e)
+        {
+            if(logger.IsEnabled(LogLevel.Error))
+                logger.LogError($"Projection failure for {typeof(M).Name}. {e.Message}");
+            throw;
+        }
+        catch (Exception e)
+        {
+            if(logger.IsEnabled(LogLevel.Error))
+                logger.LogError($"Projection failure for {typeof(M).Name}. {e.Message}");
+            throw;
+        }
     }
 }

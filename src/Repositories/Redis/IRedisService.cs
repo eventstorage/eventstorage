@@ -1,7 +1,6 @@
 namespace EventStorage.Repositories.Redis;
 
-public interface IRedisService<T>
+public interface IRedisService
 {
-    Task CreateIndex();
-
+    Task<T> GetDocument<T>(string sourceId);
 }

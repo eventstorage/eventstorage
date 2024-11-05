@@ -5,6 +5,7 @@ using System.Text.Json;
 using EventStorage.Configurations;
 using EventStorage.Events;
 using EventStorage.Projections;
+using EventStorage.Repositories.Redis;
 using EventStorage.Schema;
 using Microsoft.Extensions.DependencyInjection;
 using TDiscover;
@@ -16,6 +17,7 @@ public abstract class ClientBase<T>(IServiceProvider sp, EventStore source)
     public IServiceProvider Sp => sp;
     private readonly IEventSourceSchema _schema = GetEventSourceSchema(sp, source);
     protected string GetSourceCommand => _schema.GetSourceCommand(SourceTId.ToString());
+    protected string GetDocumentCommand<Td>() => _schema.GetDocumentCommand<Td>(SourceTId.ToString());
     protected string InsertSourceCommand => _schema.InsertSourceCommand;
     protected string CreateSchemaIfNotExists => _schema.CreateSchemaIfNotExists;
     protected string CreateProjectionIfNotExists(string projection) =>
@@ -38,6 +40,7 @@ public abstract class ClientBase<T>(IServiceProvider sp, EventStore source)
         sp.GetRequiredKeyedService<Dictionary<EventStore, IEventSourceSchema>>("Schema")
         .FirstOrDefault(x => x.Key == source).Value;
 
+    protected IRedisService Redis => Sp.GetRequiredService<IRedisService>();
     protected readonly IProjectionEngine Projection = sp.GetRequiredService<IProjectionEngine>();
     protected IEnumerable<IProjection> Projections => Sp.GetServices<IProjection>();
     #pragma warning disable CS8619
@@ -46,6 +49,7 @@ public abstract class ClientBase<T>(IServiceProvider sp, EventStore source)
         .Where(p => p.Mode != ProjectionMode.Runtime)
         .Where(p => p.Configuration.Store == ProjectionStore.Selected)
         .Select(p => p.GetType().BaseType?.GenericTypeArguments.First());
+
 
     // this needs optimistic locking
     protected async Task<string> GenerateSourceId(DbCommand command)
@@ -76,8 +80,7 @@ public abstract class ClientBase<T>(IServiceProvider sp, EventStore source)
             var typeName = reader.GetString(EventSourceSchema.Type);
             var type = ResolveEventType(typeName);
             var json = reader.GetString(EventSourceSchema.Data);
-            var sourcedEvent = JsonSerializer.Deserialize(json, type) as SourcedEvent??
-                throw new SerializationException($"Deserialize failure for event type {type}");
+            var sourcedEvent = JsonSerializer.Deserialize(json, type) as SourcedEvent?? default!;
             events.Add(sourcedEvent);
         }
         return events;

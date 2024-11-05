@@ -27,20 +27,24 @@ public class ProjectionEngine(
     {
         try
         {
-            var initMethod = projection.GetType().GetMethod("Project", [events.First().GetType()])??
-                throw new Exception($"No suitable projection method found to initialize {model.Name}.");
-            var record = initMethod.Invoke(projection, [events.First()]);
-            foreach (var e in events.ToArray()[1..^0])
+            if(events.Any())
             {
-                var project = projection.GetType().GetMethod("Project", [model, e.GetType()]);
-                if (project == null)
+                var initMethod = projection.GetType().GetMethod("Project", [events.First().GetType()])??
+                throw new Exception($"No suitable projection method found to initialize {model.Name}.");
+                var record = initMethod.Invoke(projection, [events.First()]);
+                foreach (var e in events.ToArray()[1..^0])
                 {
-                    logger.LogInformation($"No suitable projection method found {model.Name}, {e.GetType().Name}.");
-                    continue;
+                    var project = projection.GetType().GetMethod("Project", [model, e.GetType()]);
+                    if (project == null)
+                    {
+                        logger.LogInformation($"No suitable projection method found {model.Name}, {e.GetType().Name}.");
+                        continue;
+                    }
+                    record = project.Invoke(projection, [record, e]);
                 }
-                record = project.Invoke(projection, [record, e]);
+                return record;
             }
-            return record;
+            return null;
         }
         catch (TargetInvocationException e)
         {
