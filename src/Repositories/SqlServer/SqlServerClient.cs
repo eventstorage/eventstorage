@@ -172,7 +172,8 @@ public class SqlServerClient<T>(string conn, IServiceProvider sp, EventStore sou
                 command.CommandText = GetDocumentCommand<M>();
                 command.Parameters.AddWithValue("@sourceId", sourceId);
                 await using SqlDataReader reader = await command.ExecuteReaderAsync();
-                await reader.ReadAsync();
+                if(!await reader.ReadAsync())
+                    return default;
                 var json = reader.GetString(EventSourceSchema.Data);
                 var m = JsonSerializer.Deserialize<M>(json);
                 logger.LogInformation($"{typeof(M).Name} projection completed.");
@@ -184,7 +185,6 @@ public class SqlServerClient<T>(string conn, IServiceProvider sp, EventStore sou
             logger.LogInformation($"{typeof(M).Name} projection completed.");
             return model;
         }
-        
         catch(RedisException e)
         {
             if(logger.IsEnabled(LogLevel.Error))

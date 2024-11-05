@@ -11,6 +11,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Npgsql;
 using NpgsqlTypes;
+using StackExchange.Redis;
 
 namespace EventStorage.Repositories.PostgreSql;
 
@@ -131,7 +132,7 @@ public class PostgreSqlClient<T>(string conn, IServiceProvider sp)
             await sqlTransaction.CommitAsync();
             logger.LogInformation($"Committed {x} pending event(s) for {typeof(T).Name}");
         }
-        catch(PostgresException e)
+        catch(NpgsqlException e)
         {
             await sqlTransaction.RollbackAsync();
             if(logger.IsEnabled(LogLevel.Error))
@@ -153,15 +154,61 @@ public class PostgreSqlClient<T>(string conn, IServiceProvider sp)
     }
     public async Task<M?> Project<M>(string sourceId)
     {
-        await using NpgsqlConnection sqlConnection = new(conn);
-        await sqlConnection.OpenAsync();
-        await using NpgsqlCommand command = sqlConnection.CreateCommand();
-
-        object id = SourceTId == TId.LongSourceId ? long.Parse(sourceId) : Guid.Parse(sourceId);
-        var events = await LoadEventSource(command, () => new NpgsqlParameter("sourceId", id));
-        if(!events.Any())
+        var projection = Sp.GetService<IProjection<M>>();
+        if(projection == null)
             return default;
-        var model = Projection.Project<M>(events);
-        return model;
+        try
+        {
+            if(projection.Configuration.Store != ProjectionStore.Selected)
+                return await Redis.GetDocument<M>(sourceId);
+            
+            logger.LogInformation($"Starting {typeof(M).Name} projection.");
+            await using NpgsqlConnection sqlConnection = new(conn);
+            await sqlConnection.OpenAsync();
+            await using NpgsqlCommand command = sqlConnection.CreateCommand();
+
+            object id = SourceTId == TId.LongSourceId ? long.Parse(sourceId) : Guid.Parse(sourceId);
+            if(projection.Mode != ProjectionMode.Runtime)
+            {
+                command.CommandText = GetDocumentCommand<M>();
+                command.Parameters.AddWithValue("@sourceId", id);
+                await using NpgsqlDataReader reader = await command.ExecuteReaderAsync();
+                if(!await reader.ReadAsync())
+                    return default;
+                var json = reader.GetString(EventSourceSchema.Data);
+                var m = JsonSerializer.Deserialize<M>(json);
+                logger.LogInformation($"{typeof(M).Name} projection completed.");
+                return m;
+            }
+
+            var events = await LoadEventSource(command, () => new NpgsqlParameter("sourceId", id));
+            var model = Projection.Project<M>(events);
+            logger.LogInformation($"{typeof(M).Name} projection completed.");
+            return model;
+        }
+        catch(RedisException e)
+        {
+            if(logger.IsEnabled(LogLevel.Error))
+                logger.LogError($"Projection failure for {typeof(M).Name}. {e.Message}");
+            throw;
+        }
+        catch(NpgsqlException e)
+        {
+            if(logger.IsEnabled(LogLevel.Error))
+                logger.LogError($"Projection failure for {typeof(M).Name}. {e.Message}");
+            throw;
+        }
+        catch(SerializationException e)
+        {
+            if(logger.IsEnabled(LogLevel.Error))
+                logger.LogError($"Projection failure for {typeof(M).Name}. {e.Message}");
+            throw;
+        }
+        catch (Exception e)
+        {
+            if(logger.IsEnabled(LogLevel.Error))
+                logger.LogError($"Projection failure for {typeof(M).Name}. {e.Message}");
+            throw;
+        }
     }
 }
