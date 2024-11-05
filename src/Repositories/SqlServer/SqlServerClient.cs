@@ -5,6 +5,7 @@ using EventStorage.AggregateRoot;
 using EventStorage.Configurations;
 using EventStorage.Extensions;
 using EventStorage.Projections;
+using EventStorage.Repositories.Redis;
 using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -150,6 +151,15 @@ public class SqlServerClient<T>(string conn, IServiceProvider sp, EventStore sou
     }
     public async Task<M?> Project<M>(string sourceId)
     {
+        var projection = Sp.GetService<IProjection<M>>();
+        if(projection == null)
+            return default;
+
+        if(projection.Mode == ProjectionMode.Async && projection.Configuration.Store == ProjectionStore.Redis)
+        {
+            var redis = Sp.GetRequiredService<IRedisService>();
+            return await redis.GetDocument<M>(sourceId);
+        }
         await using SqlConnection sqlConnection = new(conn);
         await sqlConnection.OpenAsync();
         await using SqlCommand command = sqlConnection.CreateCommand();
