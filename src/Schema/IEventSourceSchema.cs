@@ -10,4 +10,5 @@ public interface IEventSourceSchema
     string InsertSourceCommand { get; }
     string ApplyProjectionCommand(string projection);
     string GetMaxSourceId { get; }
+    string GetDocumentCommand<Td>(string sourceTId);
 }

@@ -60,8 +60,8 @@ public class PostgreSqlClient<T>(string conn, IServiceProvider sp)
             var aggregate = typeof(T).CreateAggregate<T>(sourceId);
             
             object param = SourceTId == TId.LongSourceId ? long.Parse(sourceId) : Guid.Parse(sourceId);
-            var sourcedEvents = await LoadEventSource(command, () => new NpgsqlParameter("sourceId", param));
-            aggregate.RestoreAggregate(RestoreType.Stream, sourcedEvents.ToArray());
+            var events = await LoadEventSource(command, () => new NpgsqlParameter("sourceId", param));
+            aggregate.RestoreAggregate(RestoreType.Stream, events.ToArray());
             logger.LogInformation($"Finished restoring aggregate {typeof(T).Name}.");
 
             return aggregate;

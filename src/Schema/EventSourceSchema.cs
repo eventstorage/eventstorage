@@ -37,4 +37,7 @@ public abstract class EventSourceSchema(string schema) : IEventSourceSchema
     public virtual string GetMaxSourceId =>
         @$"SELECT T.LongSourceId FROM (SELECT MAX(LongSourceId) as LongSourceId
         FROM {schema}.EventSources) as T WHERE T.LongSourceId is not null;";
+    public virtual string GetDocumentCommand<Td>(string sourceTId) =>
+        @$"SELECT LongSourceId, GuidSourceId, Data, Type FROM {schema}.{typeof(Td).Name}s
+        WHERE {sourceTId} = @sourceId";
 }
