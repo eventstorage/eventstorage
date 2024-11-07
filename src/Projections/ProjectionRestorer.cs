@@ -6,10 +6,10 @@ using Microsoft.Extensions.Logging;
 
 namespace EventStorage.Projections;
 
-public class ProjectionEngine(
-    IServiceProvider sp, Dictionary<IProjection, List<MethodInfo>> projections) : IProjectionEngine
+public class ProjectionRestorer(
+    IServiceProvider sp, Dictionary<IProjection, List<MethodInfo>> projections) : IProjectionRestorer
 {
-    private readonly ILogger logger = new LoggerFactory().CreateLogger<ProjectionEngine>();
+    private readonly ILogger logger = new LoggerFactory().CreateLogger<ProjectionRestorer>();
     public object? Project(IProjection projection, IEnumerable<SourcedEvent> events, Type model) =>
         Project(events, projection, model);
     public object? ProjectOptimized(IProjection projection, IEnumerable<SourcedEvent> events, Type model) =>

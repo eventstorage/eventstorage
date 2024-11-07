@@ -23,10 +23,10 @@ public class SqlServerClient<T>(string conn, IServiceProvider sp, EventStore sou
     private readonly ILogger logger = sp.GetRequiredService<ILogger<SqlServerClient<T>>>();
     public async Task Init()
     {
+        logger.LogInformation($"Begin initializing {nameof(SqlServerClient<T>)}.");
+        _semaphore.Wait();
         try
         {
-            _semaphore.Wait();
-            logger.LogInformation($"Begin initializing {nameof(SqlServerClient<T>)}.");
             await using SqlConnection sqlConnection = new(conn);
             await sqlConnection.OpenAsync();
             await using SqlTransaction sqlTransaction = sqlConnection.BeginTransaction();
@@ -154,11 +154,13 @@ public class SqlServerClient<T>(string conn, IServiceProvider sp, EventStore sou
     }
     public async Task<M?> Project<M>(string sourceId) where M : class
     {
-        var projection = Sp.GetService<IProjection<M>>();
-        if(projection == null)
-            return default;
         try
         {
+            logger.LogInformation($"Starting {typeof(M).Name} projection.");
+            var projection = Sp.GetService<IProjection<M>>();
+            if(projection == null)
+                return default;
+                
             if(projection.Configuration.Store != ProjectionStore.Selected)
                 return await Redis.GetDocument<M>(sourceId);
 

@@ -22,10 +22,10 @@ public class PostgreSqlClient<T>(string conn, IServiceProvider sp)
     private readonly ILogger logger = sp.GetRequiredService<ILogger<PostgreSqlClient<T>>>();
     public async Task Init()
     {
+        logger.LogInformation($"Begin initializing {nameof(PostgreSqlClient<T>)}.");
+        _semaphore.Wait();
         try
         {
-            _semaphore.Wait();
-            logger.LogInformation($"Begin initializing {nameof(PostgreSqlClient<T>)}.");
             await using NpgsqlConnection sqlConnection = new(conn);
             await sqlConnection.OpenAsync();
             await using NpgsqlTransaction sqlTransaction = sqlConnection.BeginTransaction();
@@ -67,7 +67,7 @@ public class PostgreSqlClient<T>(string conn, IServiceProvider sp)
 
             return aggregate;
         }
-        catch(PostgresException e)
+        catch(NpgsqlException e)
         {
             if(logger.IsEnabled(LogLevel.Error))
                 logger.LogError($"Failed restoring aggregate {typeof(T).Name}. {e.Message}");
@@ -154,15 +154,16 @@ public class PostgreSqlClient<T>(string conn, IServiceProvider sp)
     }
     public async Task<M?> Project<M>(string sourceId)
     {
-        var projection = Sp.GetService<IProjection<M>>();
-        if(projection == null)
-            return default;
         try
         {
+            logger.LogInformation($"Starting {typeof(M).Name} projection.");
+            var projection = Sp.GetService<IProjection<M>>();
+            if(projection == null)
+                return default;
+
             if(projection.Configuration.Store != ProjectionStore.Selected)
                 return await Redis.GetDocument<M>(sourceId);
             
-            logger.LogInformation($"Starting {typeof(M).Name} projection.");
             await using NpgsqlConnection sqlConnection = new(conn);
             await sqlConnection.OpenAsync();
             await using NpgsqlCommand command = sqlConnection.CreateCommand();

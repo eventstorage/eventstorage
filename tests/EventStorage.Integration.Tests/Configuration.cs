@@ -46,11 +46,11 @@ public class Configuration<T> where T : OrderAggregate
 
         OrderProjection projection = new(){ Mode = ProjectionMode.Async, Configuration = new() };
         services.AddSingleton<IProjection>(projection);
-        services.AddSingleton<IProjectionEngine>(sp =>
+        services.AddSingleton<IProjectionRestorer>(sp =>
         {
             Dictionary<IProjection, List<MethodInfo>> projections = [];
             projections.Add(projection, projection.GetMethods().ToList());
-            return new ProjectionEngine(sp, projections);
+            return new ProjectionRestorer(sp, projections);
         });
         return services.BuildServiceProvider();
     }

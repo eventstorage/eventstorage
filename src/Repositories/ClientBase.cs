@@ -41,7 +41,7 @@ public abstract class ClientBase<T>(IServiceProvider sp, EventStore source)
         .FirstOrDefault(x => x.Key == source).Value;
 
     protected IRedisService Redis => Sp.GetRequiredService<IRedisService>();
-    protected readonly IProjectionEngine Projection = sp.GetRequiredService<IProjectionEngine>();
+    protected readonly IProjectionRestorer Projection = sp.GetRequiredService<IProjectionRestorer>();
     protected IEnumerable<IProjection> Projections => Sp.GetServices<IProjection>();
     #pragma warning disable CS8619
     protected IEnumerable<Type> TProjections(Func<IProjection, bool> predicate) =>

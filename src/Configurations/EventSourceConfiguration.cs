@@ -42,9 +42,9 @@ public class EventSourceConfiguration(IServiceCollection services, string schema
             var methods = projection.GetMethods();
             projections.Add(projection, methods.ToList());
         }
-        ServiceCollection.AddSingleton<IProjectionEngine>(sp =>
+        ServiceCollection.AddSingleton<IProjectionRestorer>(sp =>
         {
-            return new ProjectionEngine(sp, projections);
+            return new ProjectionRestorer(sp, projections);
         });
     }
 }
