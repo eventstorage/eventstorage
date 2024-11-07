@@ -32,9 +32,10 @@ public class EventSourceConfiguration(IServiceCollection services, string schema
             var eventstorage = new EventStorage<IEventSource>(repository, Source);
             return new StoreInitializer(eventstorage, Projections, ServiceProvider);
         });
-        AddProjectionEngine();
+        AddProjectionRestorer();
     }
-    private void AddProjectionEngine()
+    // pre-compiling projections for future use if more perf needed
+    private void AddProjectionRestorer()
     {
         Dictionary<IProjection, List<MethodInfo>> projections = [];
         foreach (var projection in Projections)
@@ -42,9 +43,6 @@ public class EventSourceConfiguration(IServiceCollection services, string schema
             var methods = projection.GetMethods();
             projections.Add(projection, methods.ToList());
         }
-        ServiceCollection.AddSingleton<IProjectionRestorer>(sp =>
-        {
-            return new ProjectionRestorer(sp, projections);
-        });
+        ServiceCollection.AddSingleton<IProjectionRestorer>(sp => new ProjectionRestorer(sp, projections));
     }
 }
