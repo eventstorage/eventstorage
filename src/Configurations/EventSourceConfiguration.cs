@@ -19,7 +19,7 @@ public class EventSourceConfiguration(IServiceCollection services, string schema
     public List<IProjection> Projections = [];
 
     // initialize stores while app spins up
-    public void Init()
+    public EventSourceConfiguration Initialize()
     {
         if(Projections.Any(x => x.Configuration.Store == ProjectionStore.Redis))
         {
@@ -32,10 +32,10 @@ public class EventSourceConfiguration(IServiceCollection services, string schema
             var eventstorage = new EventStorage<IEventSource>(repository, Source);
             return new StoreInitializer(eventstorage, Projections, ServiceProvider);
         });
-        AddProjectionRestorer();
+        return this;
     }
     // pre-compiling projections for future use if more perf needed
-    private void AddProjectionRestorer()
+    public EventSourceConfiguration ConfigureProjectionRestorer()
     {
         Dictionary<IProjection, List<MethodInfo>> projections = [];
         foreach (var projection in Projections)
@@ -44,5 +44,12 @@ public class EventSourceConfiguration(IServiceCollection services, string schema
             projections.Add(projection, methods.ToList());
         }
         ServiceCollection.AddSingleton<IProjectionRestorer>(sp => new ProjectionRestorer(sp, projections));
+        return this;
+    }
+    public EventSourceConfiguration RunAsyncProjectionEngine()
+    {
+        ServiceCollection.AddSingleton<IAsyncProjectionWaiter, AsyncProjectionWaiter>();
+        ServiceCollection.AddHostedService<AsyncProjectionEngine>();
+        return this;
     }
 }

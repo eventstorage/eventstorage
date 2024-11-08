@@ -11,4 +11,5 @@ public interface IEventSourceSchema
     string ApplyProjectionCommand(string projection);
     string GetMaxSourceId { get; }
     string GetDocumentCommand<Td>(string sourceTId);
+    string CreateCheckpointIfNotExists { get; }
 }

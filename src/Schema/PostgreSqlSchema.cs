@@ -39,4 +39,10 @@ public class PostgreSqlSchema(string schema) : EventSourceSchema(schema)
         CONSTRAINT Pk_{projection}s_Id PRIMARY KEY (Id));";
     public override string GetDocumentCommand<Td>(string sourceTId) => @$"SELECT * FROM
         {Schema}.{typeof(Td).Name}s WHERE {sourceTId} = @sourceId ORDER BY Id DESC LIMIT 1";
+    public override string CreateCheckpointIfNotExists =>
+        @$"IF OBJECT_ID('{Schema}.Checkpoints') IS NULL
+        CREATE TABLE [{Schema}].[Checkpoints](
+        [Sequence] [bigint] NOT NULL,
+        [Type] [tinyint] NOT NULL,
+        CONSTRAINT [Pk_Checkpoints_Sequence] PRIMARY KEY ([Sequence]))";
 }

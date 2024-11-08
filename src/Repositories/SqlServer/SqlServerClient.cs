@@ -38,6 +38,8 @@ public class SqlServerClient<T>(string conn, IServiceProvider sp, EventStore sou
                 command.CommandText = CreateProjectionIfNotExists(item?.Name?? "");
                 await command.ExecuteNonQueryAsync();
             }
+            command.CommandText = CreateCheckpointIfNotExists;
+            await command.ExecuteNonQueryAsync();
             await sqlTransaction.CommitAsync();
             logger.LogInformation($"Finished initializing {nameof(SqlServerClient<T>)}.");
             _semaphore.Release();

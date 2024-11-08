@@ -38,4 +38,5 @@ public abstract class EventSourceSchema(string schema) : IEventSourceSchema
         @$"SELECT T.LongSourceId FROM (SELECT MAX(LongSourceId) as LongSourceId
         FROM {schema}.EventSources) as T WHERE T.LongSourceId is not null;";
     public abstract string GetDocumentCommand<Td>(string sourceTId);
+    public abstract string CreateCheckpointIfNotExists { get; }
 }
