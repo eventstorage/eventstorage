@@ -12,4 +12,5 @@ public interface IEventSourceSchema
     string GetMaxSourceId { get; }
     string GetDocumentCommand<Td>(string sourceTId);
     string CreateCheckpointIfNotExists { get; }
+    string LoadCheckpointCommand { get; }
 }

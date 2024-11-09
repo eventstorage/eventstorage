@@ -214,4 +214,27 @@ public class SqlServerClient<T>(string conn, IServiceProvider sp, EventStore sou
             throw;
         }
     }
+    public async Task<Checkpoint> LoadCheckpoint()
+    {
+        try
+        {
+            await using SqlConnection sqlConnection = new(conn);
+            await sqlConnection.OpenAsync();
+            await using SqlCommand sqlCommand = new (LoadCheckpointCommand, sqlConnection);
+            sqlCommand.Parameters.AddWithValue("@type", CheckpointType.Projection);
+            sqlCommand.Parameters.AddWithValue("@sourceType", typeof(T).Name);
+            await using SqlDataReader reader = await sqlCommand.ExecuteReaderAsync();
+            await reader.ReadAsync();
+            var sequence = reader.GetInt64("sequence");
+            var type = reader.GetString("type");
+            var sourceType = reader.GetString("sourceType");
+            return new Checkpoint(sequence, Enum.Parse<CheckpointType>(type), sourceType);
+        }
+        catch(SqlException e)
+        {
+            if(logger.IsEnabled(LogLevel.Error))
+                logger.LogError($"Checkpoint load failure for {typeof(T).Name}. {e.Message}");
+            throw;
+        }
+    }
 }

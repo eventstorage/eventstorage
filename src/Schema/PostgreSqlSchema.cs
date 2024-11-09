@@ -44,5 +44,6 @@ public class PostgreSqlSchema(string schema) : EventSourceSchema(schema)
         CREATE TABLE [{Schema}].[Checkpoints](
         [Sequence] [bigint] NOT NULL,
         [Type] [tinyint] NOT NULL,
+        [SourceType] [nvarchar](25) NOT NULL,
         CONSTRAINT [Pk_Checkpoints_Sequence] PRIMARY KEY ([Sequence]))";
 }

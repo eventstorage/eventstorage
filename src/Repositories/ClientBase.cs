@@ -25,6 +25,7 @@ public abstract class ClientBase<T>(IServiceProvider sp, EventStore source)
     protected string ApplyProjectionCommand(string projection) => _schema.ApplyProjectionCommand(projection);
     public string GetMaxSourceId => _schema.GetMaxSourceId;
     public string CreateCheckpointIfNotExists => _schema.CreateCheckpointIfNotExists;
+    public string LoadCheckpointCommand => _schema.LoadCheckpointCommand;
     public static JsonSerializerOptions SerializerOptions => new() { IncludeFields = true };
 
     protected long LongSourceId { get; set; } = 1;

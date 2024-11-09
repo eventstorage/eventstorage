@@ -39,4 +39,6 @@ public abstract class EventSourceSchema(string schema) : IEventSourceSchema
         FROM {schema}.EventSources) as T WHERE T.LongSourceId is not null;";
     public abstract string GetDocumentCommand<Td>(string sourceTId);
     public abstract string CreateCheckpointIfNotExists { get; }
+    public virtual string LoadCheckpointCommand => @$"SELECT * FROM {Schema}.Checkpoints
+        WHERE Type=@type, SourceType=@sourceType";
 }
