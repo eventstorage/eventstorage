@@ -7,6 +7,7 @@ using EventStorage.Events;
 using EventStorage.Projections;
 using EventStorage.Repositories.Redis;
 using EventStorage.Schema;
+using EventStorage.Workers;
 using Microsoft.Extensions.DependencyInjection;
 using TDiscover;
 
@@ -44,7 +45,8 @@ public abstract class ClientBase<T>(IServiceProvider sp, EventStore source)
         .FirstOrDefault(x => x.Key == source).Value;
 
     protected IRedisService Redis => Sp.GetRequiredService<IRedisService>();
-    protected readonly IProjectionRestorer Projection = sp.GetRequiredService<IProjectionRestorer>();
+    protected IProjectionRestorer ProjectionRestorer = sp.GetRequiredService<IProjectionRestorer>();
+    protected IAsyncProjectionPoll ProjectionPoll = sp.GetRequiredService<IAsyncProjectionPoll>();
     protected IEnumerable<IProjection> Projections => Sp.GetServices<IProjection>();
     #pragma warning disable CS8619
     protected IEnumerable<Type> TProjections(Func<IProjection, bool> predicate) =>
@@ -52,7 +54,6 @@ public abstract class ClientBase<T>(IServiceProvider sp, EventStore source)
         .Where(p => p.Mode != ProjectionMode.Runtime)
         .Where(p => p.Configuration.Store == ProjectionStore.Selected)
         .Select(p => p.GetType().BaseType?.GenericTypeArguments.First());
-
 
     // this needs optimistic locking
     protected async Task<string> GenerateSourceId(DbCommand command)

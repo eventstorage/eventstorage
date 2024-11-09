@@ -115,10 +115,10 @@ public class PostgreSqlClient<T>(string conn, IServiceProvider sp)
             var pending = aggregate.CommitPendingEvents();
             foreach (var projection in Projections.Where(x => x.Mode == ProjectionMode.Consistent))
             {
-                if(pending.Any() && !Projection.Subscribes(pending, projection))
+                if(pending.Any() && !ProjectionRestorer.Subscribes(pending, projection))
                     continue;
                 var model = projection.GetType().BaseType?.GenericTypeArguments.First()?? default!;
-                var record = Projection.Project(projection, aggregate.EventStream, model);
+                var record = ProjectionRestorer.Project(projection, aggregate.EventStream, model);
                 command.Parameters.Clear();
                 command.Parameters.AddWithValue("@longSourceId", LongSourceId);
                 command.Parameters.AddWithValue("@guidSourceId", GuidSourceId);
@@ -184,7 +184,7 @@ public class PostgreSqlClient<T>(string conn, IServiceProvider sp)
             }
 
             var events = await LoadEventSource(command, () => new NpgsqlParameter("sourceId", id));
-            var model = Projection.Project<M>(events);
+            var model = ProjectionRestorer.Project<M>(events);
             logger.LogInformation($"{typeof(M).Name} projection completed.");
             return model;
         }

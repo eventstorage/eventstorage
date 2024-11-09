@@ -48,8 +48,8 @@ public class EventSourceConfiguration(IServiceCollection services, string schema
     }
     public EventSourceConfiguration RunAsyncProjectionEngine()
     {
-        ServiceCollection.AddSingleton<IAsyncProjectionWaiter, AsyncProjectionWaiter>();
-        ServiceCollection.AddHostedService<AsyncProjectionEngine>();
+        ServiceCollection.AddSingleton<IAsyncProjectionPoll, AsyncProjectionPoll>();
+        ServiceCollection.AddSingleton<IHostedService>(sp => new AsyncProjectionEngine(sp));
         return this;
     }
 }

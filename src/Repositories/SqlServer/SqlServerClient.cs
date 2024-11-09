@@ -5,14 +5,11 @@ using EventStorage.AggregateRoot;
 using EventStorage.Configurations;
 using EventStorage.Extensions;
 using EventStorage.Projections;
-using EventStorage.Repositories.Redis;
 using EventStorage.Schema;
 using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
-using Microsoft.IdentityModel.Tokens;
 using StackExchange.Redis;
-using TDiscover;
 
 namespace EventStorage.Repositories.SqlServer;
 
@@ -116,10 +113,10 @@ public class SqlServerClient<T>(string conn, IServiceProvider sp, EventStore sou
             var pending = aggregate.CommitPendingEvents();
             foreach (var projection in Projections.Where(x => x.Mode == ProjectionMode.Consistent))
             {
-                if(pending.Any() && !Projection.Subscribes(pending, projection))
+                if(pending.Any() && !ProjectionRestorer.Subscribes(pending, projection))
                     continue;
                 var model = projection.GetType().BaseType?.GenericTypeArguments.First()?? default!;
-                var record = Projection.Project(projection, aggregate.EventStream, model);
+                var record = ProjectionRestorer.Project(projection, aggregate.EventStream, model);
                 command.Parameters.Clear();
                 command.Parameters.AddWithValue("@longSourceId", LongSourceId);
                 command.Parameters.AddWithValue("@guidSourceId", GuidSourceId);
@@ -132,6 +129,7 @@ public class SqlServerClient<T>(string conn, IServiceProvider sp, EventStore sou
             }
 
             await sqlTransaction.CommitAsync();
+            ProjectionPoll.Release();
             logger.LogInformation($"Committed {x} pending event(s) for {typeof(T).Name}");
         }
         catch(SqlException e)
@@ -185,7 +183,7 @@ public class SqlServerClient<T>(string conn, IServiceProvider sp, EventStore sou
             }
 
             var events = await LoadEventSource(command, () => new SqlParameter("sourceId", sourceId));
-            var model = Projection.Project<M>(events);
+            var model = ProjectionRestorer.Project<M>(events);
             logger.LogInformation($"{typeof(M).Name} projection completed.");
             return model;
         }

@@ -46,6 +46,6 @@ public class SqlServerSchema(string schema) : EventSourceSchema(schema)
         [Sequence] [bigint] NOT NULL,
         [Type] [nvarchar](25) NOT NULL,
         [SourceType] [nvarchar](50) NOT NULL,
-        CONSTRAINT [Pk_Checkpoints_Sequence] PRIMARY KEY ([Sequence]));
-        CREATE INDEX IX_Checkpoints_Type on {Schema}.Checkpoints (Type)";
+        CONSTRAINT [Pk_Checkpoints_Sequence] PRIMARY KEY ([Sequence]),
+        INDEX [IX_Checkpoints_Type] NONCLUSTERED (Type))";
 }
