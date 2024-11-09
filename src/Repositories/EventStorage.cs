@@ -25,4 +25,14 @@ public class EventStorage<T>(IRepository<T> repository, EventStore source) : IEv
         EventStore.PostgresSql => repository.PostgreSqlClient.Project<M>(sourceId),
         _ => repository.SqlServerClient.Project<M>(sourceId)
     };
+    public Task<long> LoadCheckpoint() => source switch
+    {
+        EventStore.PostgresSql => repository.PostgreSqlClient.LoadCheckpoint(),
+        _ => repository.SqlServerClient.LoadCheckpoint()
+    };
+    public Task<bool> SaveCheckpoint() => source switch
+    {
+        EventStore.PostgresSql => repository.PostgreSqlClient.SaveCheckpoint(),
+        _ => repository.SqlServerClient.SaveCheckpoint()
+    };
 }
