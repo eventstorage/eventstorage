@@ -237,4 +237,15 @@ public class SqlServerClient<T>(string conn, IServiceProvider sp, EventStore sou
             throw;
         }
     }
+    public async Task SaveCheckpoint(Checkpoint checkpoint)
+    {
+        
+        await using SqlConnection sqlConnection = new(conn);
+        await sqlConnection.OpenAsync();
+        await using SqlCommand sqlCommand = new (SaveCheckpointCommand, sqlConnection);
+        sqlCommand.Parameters.AddWithValue("@sequence", checkpoint.Sequence);
+        sqlCommand.Parameters.AddWithValue("@type", checkpoint.Type);
+        sqlCommand.Parameters.AddWithValue("@sourceType", checkpoint.SourceType);
+        await sqlCommand.ExecuteNonQueryAsync();
+    }
 }

@@ -1,3 +1,5 @@
+using EventStorage.Projections;
+
 namespace EventStorage.Repositories.PostgreSql;
 
 public interface IPostgreSqlClient<T>
@@ -6,6 +8,6 @@ public interface IPostgreSqlClient<T>
     Task<T> CreateOrRestore(string? sourceId = null);
     Task Commit(T aggregate);
     Task<M?> Project<M>(string sourceId);
-    Task<long> LoadCheckpoint();
-    Task<bool> SaveCheckpoint();
+    Task<Checkpoint> LoadCheckpoint();
+    Task SaveCheckpoint(Checkpoint checkpoint);
 }

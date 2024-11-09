@@ -7,6 +7,7 @@ using EventStorage.Events;
 using EventStorage.Extensions;
 using EventStorage.Projections;
 using EventStorage.Schema;
+using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Npgsql;
@@ -211,5 +212,39 @@ public class PostgreSqlClient<T>(string conn, IServiceProvider sp)
                 logger.LogError($"Projection failure for {typeof(M).Name}. {e.Message}");
             throw;
         }
+    }
+    public async Task<Checkpoint> LoadCheckpoint()
+    {
+        try
+        {
+            await using SqlConnection sqlConnection = new(conn);
+            await sqlConnection.OpenAsync();
+            await using SqlCommand sqlCommand = new (LoadCheckpointCommand, sqlConnection);
+            sqlCommand.Parameters.AddWithValue("@type", CheckpointType.Projection);
+            sqlCommand.Parameters.AddWithValue("@sourceType", typeof(T).Name);
+            await using SqlDataReader reader = await sqlCommand.ExecuteReaderAsync();
+            await reader.ReadAsync();
+            var sequence = reader.GetInt64("sequence");
+            var type = reader.GetString("type");
+            var sourceType = reader.GetString("sourceType");
+            return new Checkpoint(sequence, Enum.Parse<CheckpointType>(type), sourceType);
+        }
+        catch(SqlException e)
+        {
+            if(logger.IsEnabled(LogLevel.Error))
+                logger.LogError($"Checkpoint load failure for {typeof(T).Name}. {e.Message}");
+            throw;
+        }
+    }
+    public async Task SaveCheckpoint(Checkpoint checkpoint)
+    {
+        
+        await using SqlConnection sqlConnection = new(conn);
+        await sqlConnection.OpenAsync();
+        await using SqlCommand sqlCommand = new (SaveCheckpointCommand, sqlConnection);
+        sqlCommand.Parameters.AddWithValue("@sequence", checkpoint.Sequence);
+        sqlCommand.Parameters.AddWithValue("@type", checkpoint.Type);
+        sqlCommand.Parameters.AddWithValue("@sourceType", checkpoint.SourceType);
+        await sqlCommand.ExecuteNonQueryAsync();
     }
 }

@@ -13,4 +13,5 @@ public interface IEventSourceSchema
     string GetDocumentCommand<Td>(string sourceTId);
     string CreateCheckpointIfNotExists { get; }
     string LoadCheckpointCommand { get; }
+    string SaveCheckpointCommand { get; }
 }
