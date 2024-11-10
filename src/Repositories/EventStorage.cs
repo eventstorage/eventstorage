@@ -1,4 +1,5 @@
 using EventStorage.Configurations;
+using EventStorage.Events;
 using EventStorage.Projections;
 
 namespace EventStorage.Repositories;
@@ -35,5 +36,10 @@ public class EventStorage<T>(IRepository<T> repository, EventStore source) : IEv
     {
         EventStore.PostgresSql => repository.PostgreSqlClient.SaveCheckpoint(checkpoint),
         _ => repository.SqlServerClient.SaveCheckpoint(checkpoint)
+    };
+    public Task<IEnumerable<SourcedEvent>> LoadEventsPastSeq(long seq) => source switch
+    {
+        EventStore.PostgresSql => repository.PostgreSqlClient.LoadEventsPastSeq(seq),
+        _ => repository.SqlServerClient.LoadEventsPastSeq(seq)
     };
 }
