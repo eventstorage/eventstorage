@@ -24,11 +24,12 @@ public abstract class ClientBase<T>(IServiceProvider sp, EventStore source)
     protected string CreateProjectionIfNotExists(string projection) =>
         _schema.CreateProjectionIfNotExists(projection);
     protected string ApplyProjectionCommand(string projection) => _schema.ApplyProjectionCommand(projection);
-    public string GetMaxSourceId => _schema.GetMaxSourceId;
-    public string CreateCheckpointIfNotExists => _schema.CreateCheckpointIfNotExists;
-    public string LoadCheckpointCommand => _schema.LoadCheckpointCommand;
-    public string SaveCheckpointCommand => _schema.SaveCheckpointCommand;
-    public static JsonSerializerOptions SerializerOptions => new() { IncludeFields = true };
+    protected string GetMaxSourceId => _schema.GetMaxSourceId;
+    protected string CreateCheckpointIfNotExists => _schema.CreateCheckpointIfNotExists;
+    protected string LoadCheckpointCommand => _schema.LoadCheckpointCommand;
+    protected string SaveCheckpointCommand => _schema.SaveCheckpointCommand;
+    protected string LoadEventsPastSeqCommand => _schema.LoadEventsPastSeq;
+    protected static JsonSerializerOptions SerializerOptions => new() { IncludeFields = true };
 
     protected long LongSourceId { get; set; } = 1;
     protected Guid GuidSourceId { get; set; } = Guid.NewGuid();
