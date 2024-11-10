@@ -272,4 +272,33 @@ public class SqlServerClient<T>(string conn, IServiceProvider sp, EventStore sou
             throw;
         }
     }
+    public async Task<IEnumerable<SourcedEvent>> LoadEventsPastCheckpoint(Checkpoint c)
+    {
+        try
+        {
+            await using SqlConnection sqlConnection = new(conn);
+            await using SqlCommand sqlCommand = new(LoadEventsPastSeqCommand, sqlConnection);
+            sqlCommand.Parameters.Add(new SqlParameter("sequence", c.Sequence));
+            var events = await LoadEvents(() => sqlCommand);
+            return events;
+        }
+        catch(SqlException e)
+        {
+            if(logger.IsEnabled(LogLevel.Error))
+                logger.LogError($"Loading events failure for {typeof(T).Name}. {e.Message}");
+            throw;
+        }
+        catch(SerializationException e)
+        {
+            if(logger.IsEnabled(LogLevel.Error))
+                logger.LogError($"Loading events failure for {typeof(T).Name}. {e.Message}");
+            throw;
+        }
+        catch(Exception e)
+        {
+            if(logger.IsEnabled(LogLevel.Error))
+                logger.LogError($"Loading events failure for {typeof(T).Name}. {e.Message}");
+            throw;
+        }
+    }
 }

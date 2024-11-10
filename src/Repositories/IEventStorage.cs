@@ -11,5 +11,5 @@ public interface IEventStorage<T>
     Task<M?> Project<M>(string sourceId) where M : class;
     internal Task<Checkpoint> LoadCheckpoint();
     internal Task SaveCheckpoint(Checkpoint checkpoint);
-    internal Task<IEnumerable<SourcedEvent>> LoadEventsPastSeq(long seq);
+    internal Task<IEnumerable<SourcedEvent>> LoadEventsPastCheckpoint(Checkpoint c);
 }

@@ -265,4 +265,33 @@ public class PostgreSqlClient<T>(string conn, IServiceProvider sp)
             throw;
         }
     }
+    public async Task<IEnumerable<SourcedEvent>> LoadEventsPastCheckpoint(Checkpoint c)
+    {
+        try
+        {
+            await using NpgsqlConnection sqlConnection = new(conn);
+            await using NpgsqlCommand sqlCommand = new(LoadEventsPastSeqCommand, sqlConnection);
+            sqlCommand.Parameters.Add(new NpgsqlParameter("sequence", c.Sequence));
+            var events = await LoadEvents(() => sqlCommand);
+            return events;
+        }
+        catch(NpgsqlException e)
+        {
+            if(logger.IsEnabled(LogLevel.Error))
+                logger.LogError($"Loading events failure for {typeof(T).Name}. {e.Message}");
+            throw;
+        }
+        catch(SerializationException e)
+        {
+            if(logger.IsEnabled(LogLevel.Error))
+                logger.LogError($"Loading events failure for {typeof(T).Name}. {e.Message}");
+            throw;
+        }
+        catch(Exception e)
+        {
+            if(logger.IsEnabled(LogLevel.Error))
+                logger.LogError($"Loading events failure for {typeof(T).Name}. {e.Message}");
+            throw;
+        }
+    }
 }
