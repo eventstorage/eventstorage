@@ -56,13 +56,15 @@ public class PostgreSqlClient<T>(string conn, IServiceProvider sp)
 
             await using NpgsqlConnection sqlConnection = new(conn);
             await sqlConnection.OpenAsync();
-            await using NpgsqlCommand command = sqlConnection.CreateCommand();
+            await using NpgsqlCommand sqlCommand = sqlConnection.CreateCommand();
 
-            sourceId ??= await GenerateSourceId(command);
+            sourceId ??= await GenerateSourceId(sqlCommand);
             var aggregate = typeof(T).CreateAggregate<T>(sourceId);
             
+            sqlCommand.CommandText = GetSourceCommand;
             object param = SourceTId == TId.LongSourceId ? long.Parse(sourceId) : Guid.Parse(sourceId);
-            var events = await LoadEventSource(command, () => new NpgsqlParameter("sourceId", param));
+            sqlCommand.Parameters.Add(new NpgsqlParameter("sourceId", param));
+            var events = await LoadEvents(() => sqlCommand);
             aggregate.RestoreAggregate(RestoreType.Stream, events.ToArray());
             logger.LogInformation($"Finished restoring aggregate {typeof(T).Name}.");
 
@@ -167,14 +169,14 @@ public class PostgreSqlClient<T>(string conn, IServiceProvider sp)
             
             await using NpgsqlConnection sqlConnection = new(conn);
             await sqlConnection.OpenAsync();
-            await using NpgsqlCommand command = sqlConnection.CreateCommand();
+            await using NpgsqlCommand sqlCommand = sqlConnection.CreateCommand();
 
             object id = SourceTId == TId.LongSourceId ? long.Parse(sourceId) : Guid.Parse(sourceId);
             if(projection.Mode != ProjectionMode.Runtime)
             {
-                command.CommandText = GetDocumentCommand<M>();
-                command.Parameters.AddWithValue("@sourceId", id);
-                await using NpgsqlDataReader reader = await command.ExecuteReaderAsync();
+                sqlCommand.CommandText = GetDocumentCommand<M>();
+                sqlCommand.Parameters.AddWithValue("@sourceId", id);
+                await using NpgsqlDataReader reader = await sqlCommand.ExecuteReaderAsync();
                 if(!await reader.ReadAsync())
                     return default;
                 var json = reader.GetString(EventSourceSchema.Data);
@@ -183,7 +185,9 @@ public class PostgreSqlClient<T>(string conn, IServiceProvider sp)
                 return m;
             }
 
-            var events = await LoadEventSource(command, () => new NpgsqlParameter("sourceId", id));
+            sqlCommand.CommandText = GetSourceCommand;
+            sqlCommand.Parameters.Add(new NpgsqlParameter("sourceId", id));
+            var events = await LoadEvents(() => sqlCommand);
             var model = ProjectionRestorer.Project<M>(events);
             logger.LogInformation($"{typeof(M).Name} projection completed.");
             return model;
@@ -238,13 +242,27 @@ public class PostgreSqlClient<T>(string conn, IServiceProvider sp)
     }
     public async Task SaveCheckpoint(Checkpoint checkpoint)
     {
-        
-        await using SqlConnection sqlConnection = new(conn);
-        await sqlConnection.OpenAsync();
-        await using SqlCommand sqlCommand = new (SaveCheckpointCommand, sqlConnection);
-        sqlCommand.Parameters.AddWithValue("@sequence", checkpoint.Sequence);
-        sqlCommand.Parameters.AddWithValue("@type", checkpoint.Type);
-        sqlCommand.Parameters.AddWithValue("@sourceType", checkpoint.SourceType);
-        await sqlCommand.ExecuteNonQueryAsync();
+        try
+        {
+            await using SqlConnection sqlConnection = new(conn);
+            await sqlConnection.OpenAsync();
+            await using SqlCommand sqlCommand = new (SaveCheckpointCommand, sqlConnection);
+            sqlCommand.Parameters.AddWithValue("@sequence", checkpoint.Sequence);
+            sqlCommand.Parameters.AddWithValue("@type", checkpoint.Type);
+            sqlCommand.Parameters.AddWithValue("@sourceType", checkpoint.SourceType);
+            await sqlCommand.ExecuteNonQueryAsync();
+        }
+        catch(NpgsqlException e)
+        {
+            if(logger.IsEnabled(LogLevel.Error))
+                logger.LogError($"Saving checkpoint failure for {typeof(T).Name}. {e.Message}");
+            throw;
+        }
+        catch(Exception e)
+        {
+            if(logger.IsEnabled(LogLevel.Error))
+                logger.LogError($"Saving checkpoint failure for {typeof(T).Name}. {e.Message}");
+            throw;
+        }
     }
 }

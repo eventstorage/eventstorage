@@ -3,6 +3,7 @@ using System.Runtime.Serialization;
 using System.Text.Json;
 using EventStorage.AggregateRoot;
 using EventStorage.Configurations;
+using EventStorage.Events;
 using EventStorage.Extensions;
 using EventStorage.Projections;
 using EventStorage.Schema;
@@ -55,12 +56,14 @@ public class SqlServerClient<T>(string conn, IServiceProvider sp, EventStore sou
 
             await using SqlConnection sqlConnection = new(conn);
             await sqlConnection.OpenAsync();
-            await using SqlCommand command = sqlConnection.CreateCommand();
+            await using SqlCommand sqlCommand = sqlConnection.CreateCommand();
 
-            sourceId ??= await GenerateSourceId(command);
+            sourceId ??= await GenerateSourceId(sqlCommand);
             var aggregate = typeof(T).CreateAggregate<T>(sourceId);
 
-            var events = await LoadEventSource(command, () => new SqlParameter("sourceId", sourceId));
+            sqlCommand.CommandText = GetSourceCommand;
+            sqlCommand.Parameters.Add(new SqlParameter("sourceId", sourceId));
+            var events = await LoadEvents(() => sqlCommand);
             aggregate.RestoreAggregate(RestoreType.Stream, events.ToArray());
             logger.LogInformation($"Finished restoring aggregate {typeof(T).Name}.");
 
@@ -182,7 +185,9 @@ public class SqlServerClient<T>(string conn, IServiceProvider sp, EventStore sou
                 return m;
             }
 
-            var events = await LoadEventSource(command, () => new SqlParameter("sourceId", sourceId));
+            command.CommandText = GetSourceCommand;
+            command.Parameters.Add(new SqlParameter("sourceId", sourceId));
+            var events = await LoadEvents(() => command);
             var model = ProjectionRestorer.Project<M>(events);
             logger.LogInformation($"{typeof(M).Name} projection completed.");
             return model;
@@ -234,16 +239,37 @@ public class SqlServerClient<T>(string conn, IServiceProvider sp, EventStore sou
                 logger.LogError($"Checkpoint load failure for {typeof(T).Name}. {e.Message}");
             throw;
         }
+        catch(Exception e)
+        {
+            if(logger.IsEnabled(LogLevel.Error))
+                logger.LogError($"Checkpoint load failure for {typeof(T).Name}. {e.Message}");
+            throw;
+        }
     }
     public async Task SaveCheckpoint(Checkpoint checkpoint)
     {
         
-        await using SqlConnection sqlConnection = new(conn);
-        await sqlConnection.OpenAsync();
-        await using SqlCommand sqlCommand = new (SaveCheckpointCommand, sqlConnection);
-        sqlCommand.Parameters.AddWithValue("@sequence", checkpoint.Sequence);
-        sqlCommand.Parameters.AddWithValue("@type", checkpoint.Type);
-        sqlCommand.Parameters.AddWithValue("@sourceType", checkpoint.SourceType);
-        await sqlCommand.ExecuteNonQueryAsync();
+        try
+        {
+            await using SqlConnection sqlConnection = new(conn);
+            await sqlConnection.OpenAsync();
+            await using SqlCommand sqlCommand = new (SaveCheckpointCommand, sqlConnection);
+            sqlCommand.Parameters.AddWithValue("@sequence", checkpoint.Sequence);
+            sqlCommand.Parameters.AddWithValue("@type", checkpoint.Type);
+            sqlCommand.Parameters.AddWithValue("@sourceType", checkpoint.SourceType);
+            await sqlCommand.ExecuteNonQueryAsync();
+        }
+        catch(SqlException e)
+        {
+            if(logger.IsEnabled(LogLevel.Error))
+                logger.LogError($"Save checkpoint failure for {typeof(T).Name}. {e.Message}");
+            throw;
+        }
+        catch(Exception e)
+        {
+            if(logger.IsEnabled(LogLevel.Error))
+                logger.LogError($"Save checkpoint failure for {typeof(T).Name}. {e.Message}");
+            throw;
+        }
     }
 }

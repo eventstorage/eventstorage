@@ -70,11 +70,9 @@ public abstract class ClientBase<T>(IServiceProvider sp, EventStore source)
         return SourceTId == TId.LongSourceId ? LongSourceId.ToString() : GuidSourceId.ToString();
     }
     
-    protected async Task<IEnumerable<SourcedEvent>> LoadEventSource(DbCommand command, Func<DbParameter> p)
+    protected async Task<IEnumerable<SourcedEvent>> LoadEvents(Func<DbCommand> command)
     {
-        command.CommandText = GetSourceCommand;
-        command.Parameters.Add(p());
-        await using DbDataReader reader = await command.ExecuteReaderAsync();
+        await using DbDataReader reader = await command().ExecuteReaderAsync();
 
         List<SourcedEvent> events = [];
         while(await reader.ReadAsync())

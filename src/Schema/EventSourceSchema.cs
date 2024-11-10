@@ -43,6 +43,6 @@ public abstract class EventSourceSchema(string schema) : IEventSourceSchema
         WHERE Type=@type, SourceType=@sourceType";
     public virtual string SaveCheckpointCommand => @"UPDATE {Schema}.Checkpoints
         SET Sequence=@sequence WHERE Type=@type, SourceType=@sourceType";
-    public virtual string LoadEventsPastSeq => @$"SELECT Data FROM {Schema}.EventSources
+    public virtual string LoadEventsPastSeq => @$"SELECT Data, Type FROM {Schema}.EventSources
         WHERE Sequence > @sequence";
 }

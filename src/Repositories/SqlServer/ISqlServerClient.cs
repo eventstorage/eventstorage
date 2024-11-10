@@ -11,5 +11,5 @@ public interface ISqlServerClient<T>
     Task<M?> Project<M>(string sourceId) where M : class;
     Task<Checkpoint> LoadCheckpoint();
     Task SaveCheckpoint(Checkpoint checkpoint);
-    Task<IEnumerable<SourcedEvent>> LoadEventsPastSeq(long seq);
+    Task<IEnumerable<SourcedEvent>> LoadEventsPastCheckpoint(Checkpoint c);
 }
