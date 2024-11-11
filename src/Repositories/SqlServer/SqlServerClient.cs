@@ -227,11 +227,13 @@ public class SqlServerClient<T>(string conn, IServiceProvider sp, EventStore sou
             sqlCommand.Parameters.AddWithValue("@type", CheckpointType.Projection);
             sqlCommand.Parameters.AddWithValue("@sourceType", typeof(T).Name);
             await using SqlDataReader reader = await sqlCommand.ExecuteReaderAsync();
-            await reader.ReadAsync();
-            var sequence = reader.GetInt64("sequence");
-            var type = reader.GetString("type");
+            Checkpoint checkpoint = new(0, CheckpointType.Projection, typeof(T).Name);
+            if(!await reader.ReadAsync())
+                return checkpoint;
+            var seq = reader.GetInt64("sequence");
+            var type = Enum.Parse<CheckpointType>(reader.GetString("type"));
             var sourceType = reader.GetString("sourceType");
-            return new Checkpoint(sequence, Enum.Parse<CheckpointType>(type), sourceType);
+            return checkpoint with { Sequence = seq, Type = type, SourceType = sourceType };
         }
         catch(SqlException e)
         {
@@ -248,7 +250,6 @@ public class SqlServerClient<T>(string conn, IServiceProvider sp, EventStore sou
     }
     public async Task SaveCheckpoint(Checkpoint checkpoint)
     {
-        
         try
         {
             await using SqlConnection sqlConnection = new(conn);

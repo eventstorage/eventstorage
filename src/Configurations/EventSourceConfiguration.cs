@@ -8,6 +8,7 @@ using EventStorage.Workers;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Redis.OM;
+using TDiscover;
 
 namespace EventStorage.Configurations;
 
@@ -49,7 +50,15 @@ public class EventSourceConfiguration(IServiceCollection services, string schema
     public EventSourceConfiguration RunAsyncProjectionEngine()
     {
         ServiceCollection.AddSingleton<IAsyncProjectionPoll, AsyncProjectionPoll>();
-        ServiceCollection.AddSingleton<IHostedService>(sp => new AsyncProjectionEngine(sp));
+        // var sourceType = Td.FindByType<IEventSource>()?? typeof(IEventSource);
+        // var engineType = typeof(AsyncProjectionEngine<>).MakeGenericType(sourceType);
+        // var engine = Activator.CreateInstance(typeof(AsyncProjectionEngine), ServiceProvider);
+        ServiceCollection.AddSingleton<IHostedService>(sp =>
+        {
+            var repository = new Repository<IEventSource>(ConnectionString, sp, Source);
+            var eventstorage = new EventStorage<IEventSource>(repository, Source);
+            return new AsyncProjectionEngine(eventstorage, sp);
+        });
         return this;
     }
 }

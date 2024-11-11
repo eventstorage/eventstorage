@@ -1,32 +1,40 @@
+using System.Security.Cryptography.X509Certificates;
 using EventStorage.AggregateRoot;
+using EventStorage.Events;
+using EventStorage.Projections;
 using EventStorage.Repositories;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using TDiscover;
 
 namespace EventStorage.Workers;
 
-public class AsyncProjectionEngine(IServiceProvider sp) : BackgroundService
+public class AsyncProjectionEngine : BackgroundService
 {
-    private readonly ILogger _logger = sp.GetRequiredService<ILogger<AsyncProjectionEngine>>();
-    private readonly IAsyncProjectionPoll _poll = sp.GetRequiredService<IAsyncProjectionPoll>();
-    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
+    private readonly IServiceProvider _sp;
+    private readonly ILogger _logger;
+    private readonly IAsyncProjectionPoll _poll;
+    private readonly IEnumerable<IProjection> _projections;
+    private readonly EventStorage<IEventSource> _storage;
+    public AsyncProjectionEngine(EventStorage<IEventSource> storage, IServiceProvider scope)
     {
-        _logger.LogInformation($"Starting async projection engine.");
-        _logger.LogInformation($"Synchronizing projections has started.");
-        _logger.LogInformation($"Synchronizing projections has ended");
-        await StartPolling(stoppingToken);
+        _sp = scope;
+        _logger = _sp.GetRequiredService<ILogger<AsyncProjectionEngine>>();
+        _poll = _sp.GetRequiredService<IAsyncProjectionPoll>();
+        _projections = _sp.GetServices<IProjection>().Where(x => x.Mode == ProjectionMode.Async);
+        _storage = storage;
     }
-    public async Task StartPolling(CancellationToken stoppingToken)
+    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         try
         {
             while(!stoppingToken.IsCancellationRequested)
             {
                 _logger.LogInformation("Polling for async projections.");
-                await _poll.Poll(stoppingToken);
-                _logger.LogInformation("Received async projections.");
-                await Task.CompletedTask;
+                await _poll.PollAsync(stoppingToken);
+                _logger.LogInformation("Received projections, running projection engine.");
+                // await StartProjection(stoppingToken);
             }
         }
         catch (Exception e)
@@ -36,4 +44,25 @@ public class AsyncProjectionEngine(IServiceProvider sp) : BackgroundService
             throw;
         }
     }
+    public async Task StartProjection(CancellationToken stoppingToken)
+    {
+        var aggregate = Td.FindByType<IEventSource>()?? default!;
+        var storage = _sp.GetRequiredService(typeof(IEventStorage<>).MakeGenericType(aggregate));
+        
+        // var checkpoint = await storage.LoadCheckpoint();
+        // var events = await _eventStorage.LoadEventsPastCheckpoint(checkpoint);
+        // if(!events.Any())
+        //     return;
+
+        // // var groupById = events.GroupBy(x => x.SourceId);
+        // foreach (var eventSource in groupById)
+        // {
+            
+        // }
+    }
+    // private IEnumerable<SourcedEvent> PullPendingEvents()
+    // {
+    //     var aggregate = Td.
+    //     var eventStorage = typeof(IEventStorage<>).MakeGenericType();
+    // }
 }

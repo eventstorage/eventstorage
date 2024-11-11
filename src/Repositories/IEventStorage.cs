@@ -5,7 +5,7 @@ namespace EventStorage.Repositories;
 
 public interface IEventStorage<T>
 {
-    internal Task InitSource();
+    Task InitSource();
     Task<T> CreateOrRestore(string? sourceId = null);
     Task Commit(T t);
     Task<M?> Project<M>(string sourceId) where M : class;
