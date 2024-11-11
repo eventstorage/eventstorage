@@ -10,21 +10,12 @@ using TDiscover;
 
 namespace EventStorage.Workers;
 
-public class AsyncProjectionEngine : BackgroundService
+public class AsyncProjectionEngine(
+    EventStorage<IEventSource> storage, IServiceProvider sp) : BackgroundService
 {
-    private readonly IServiceProvider _sp;
-    private readonly ILogger _logger;
-    private readonly IAsyncProjectionPoll _poll;
-    private readonly IEnumerable<IProjection> _projections;
-    private readonly EventStorage<IEventSource> _storage;
-    public AsyncProjectionEngine(EventStorage<IEventSource> storage, IServiceProvider scope)
-    {
-        _sp = scope;
-        _logger = _sp.GetRequiredService<ILogger<AsyncProjectionEngine>>();
-        _poll = _sp.GetRequiredService<IAsyncProjectionPoll>();
-        _projections = _sp.GetServices<IProjection>().Where(x => x.Mode == ProjectionMode.Async);
-        _storage = storage;
-    }
+    private readonly ILogger _logger = sp.GetRequiredService<ILogger<AsyncProjectionEngine>>();
+    private readonly IAsyncProjectionPoll _poll = sp.GetRequiredService<IAsyncProjectionPoll>();
+    private readonly IEnumerable<IProjection> _projections = sp.GetServices<IProjection>();
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         try
@@ -34,7 +25,7 @@ public class AsyncProjectionEngine : BackgroundService
                 _logger.LogInformation("Polling for async projections.");
                 await _poll.PollAsync(stoppingToken);
                 _logger.LogInformation("Received projections, running projection engine.");
-                // await StartProjection(stoppingToken);
+                await StartProjection(stoppingToken);
             }
         }
         catch (Exception e)
@@ -46,19 +37,16 @@ public class AsyncProjectionEngine : BackgroundService
     }
     public async Task StartProjection(CancellationToken stoppingToken)
     {
-        var aggregate = Td.FindByType<IEventSource>()?? default!;
-        var storage = _sp.GetRequiredService(typeof(IEventStorage<>).MakeGenericType(aggregate));
-        
-        // var checkpoint = await storage.LoadCheckpoint();
-        // var events = await _eventStorage.LoadEventsPastCheckpoint(checkpoint);
-        // if(!events.Any())
-        //     return;
+        var checkpoint = await storage.LoadCheckpoint();
+        var events = await storage.LoadEventsPastCheckpoint(checkpoint);
+        if(!events.Any())
+            return;
 
-        // // var groupById = events.GroupBy(x => x.SourceId);
-        // foreach (var eventSource in groupById)
-        // {
+        var groupById = events.ToDictionary(x => x.SourceId);
+        foreach (var eventSource in groupById)
+        {
             
-        // }
+        }
     }
     // private IEnumerable<SourcedEvent> PullPendingEvents()
     // {

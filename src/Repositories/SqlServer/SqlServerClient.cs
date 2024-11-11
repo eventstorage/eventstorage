@@ -278,7 +278,8 @@ public class SqlServerClient<T>(string conn, IServiceProvider sp, EventStore sou
         try
         {
             await using SqlConnection sqlConnection = new(conn);
-            await using SqlCommand sqlCommand = new(LoadEventsPastSeqCommand, sqlConnection);
+            await sqlConnection.OpenAsync();
+            await using SqlCommand sqlCommand = new(LoadEventsPastCheckpointCommand, sqlConnection);
             sqlCommand.Parameters.Add(new SqlParameter("sequence", c.Sequence));
             var events = await LoadEvents(() => sqlCommand);
             return events;

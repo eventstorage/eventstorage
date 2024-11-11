@@ -270,7 +270,7 @@ public class PostgreSqlClient<T>(string conn, IServiceProvider sp)
         try
         {
             await using NpgsqlConnection sqlConnection = new(conn);
-            await using NpgsqlCommand sqlCommand = new(LoadEventsPastSeqCommand, sqlConnection);
+            await using NpgsqlCommand sqlCommand = new(LoadEventsPastCheckpointCommand, sqlConnection);
             sqlCommand.Parameters.Add(new NpgsqlParameter("sequence", c.Sequence));
             var events = await LoadEvents(() => sqlCommand);
             return events;
