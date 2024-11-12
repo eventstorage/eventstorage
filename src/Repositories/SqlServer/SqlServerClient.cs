@@ -1,4 +1,5 @@
 using System.Data;
+using System.Data.Common;
 using System.Runtime.Serialization;
 using System.Text.Json;
 using EventStorage.AggregateRoot;
@@ -64,7 +65,7 @@ public class SqlServerClient<T>(string conn, IServiceProvider sp, EventStore sou
             sqlCommand.CommandText = GetSourceCommand;
             sqlCommand.Parameters.Add(new SqlParameter("sourceId", sourceId));
             var events = await LoadEvents(() => sqlCommand);
-            aggregate.RestoreAggregate(RestoreType.Stream, events.ToArray());
+            aggregate.RestoreAggregate(RestoreType.Stream, events.Select(x => x.SourcedEvent).ToArray());
             logger.LogInformation($"Finished restoring aggregate {typeof(T).Name}.");
 
             return aggregate;
@@ -155,6 +156,10 @@ public class SqlServerClient<T>(string conn, IServiceProvider sp, EventStore sou
             throw;
         }
     }
+    public async Task PersistProjection(DbCommand command, object record, long lid, Guid gid, ProjectionStore store)
+    {
+
+    }
     public async Task<M?> Project<M>(string sourceId) where M : class
     {
         try
@@ -188,7 +193,7 @@ public class SqlServerClient<T>(string conn, IServiceProvider sp, EventStore sou
             command.CommandText = GetSourceCommand;
             command.Parameters.Add(new SqlParameter("sourceId", sourceId));
             var events = await LoadEvents(() => command);
-            var model = ProjectionRestorer.Project<M>(events);
+            var model = ProjectionRestorer.Project<M>(events.Select(x => x.SourcedEvent));
             logger.LogInformation($"{typeof(M).Name} projection completed.");
             return model;
         }
@@ -273,7 +278,7 @@ public class SqlServerClient<T>(string conn, IServiceProvider sp, EventStore sou
             throw;
         }
     }
-    public async Task<IEnumerable<SourcedEvent>> LoadEventsPastCheckpoint(Checkpoint c)
+    public async Task<IEnumerable<EventEnvelop>> LoadEventsPastCheckpoint(Checkpoint c)
     {
         try
         {

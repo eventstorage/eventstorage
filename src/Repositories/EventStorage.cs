@@ -37,7 +37,7 @@ public class EventStorage<T>(IRepository<T> repository, EventStore source) : IEv
         EventStore.PostgresSql => repository.PostgreSqlClient.SaveCheckpoint(checkpoint),
         _ => repository.SqlServerClient.SaveCheckpoint(checkpoint)
     };
-    public Task<IEnumerable<SourcedEvent>> LoadEventsPastCheckpoint(Checkpoint c) => source switch
+    public Task<IEnumerable<EventEnvelop>> LoadEventsPastCheckpoint(Checkpoint c) => source switch
     {
         EventStore.PostgresSql => repository.PostgreSqlClient.LoadEventsPastCheckpoint(c),
         _ => repository.SqlServerClient.LoadEventsPastCheckpoint(c)

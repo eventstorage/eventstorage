@@ -46,8 +46,8 @@ public abstract class ClientBase<T>(IServiceProvider sp, EventStore source)
         .FirstOrDefault(x => x.Key == source).Value;
 
     protected IRedisService Redis => Sp.GetRequiredService<IRedisService>();
-    protected IProjectionRestorer ProjectionRestorer = sp.GetRequiredService<IProjectionRestorer>();
-    protected IAsyncProjectionPoll ProjectionPoll = sp.GetRequiredService<IAsyncProjectionPoll>();
+    protected IProjectionRestorer ProjectionRestorer => sp.GetRequiredService<IProjectionRestorer>();
+    protected IAsyncProjectionPoll ProjectionPoll => sp.GetRequiredService<IAsyncProjectionPoll>();
     protected IEnumerable<IProjection> Projections => Sp.GetServices<IProjection>();
     #pragma warning disable CS8619
     protected IEnumerable<Type> TProjections(Func<IProjection, bool> predicate) =>
@@ -70,11 +70,11 @@ public abstract class ClientBase<T>(IServiceProvider sp, EventStore source)
         return SourceTId == TId.LongSourceId ? LongSourceId.ToString() : GuidSourceId.ToString();
     }
     
-    protected async Task<IEnumerable<SourcedEvent>> LoadEvents(Func<DbCommand> command)
+    protected async Task<IEnumerable<EventEnvelop>> LoadEvents(Func<DbCommand> command)
     {
         await using DbDataReader reader = await command().ExecuteReaderAsync();
 
-        List<SourcedEvent> events = [];
+        List<EventEnvelop> events = [];
         while(await reader.ReadAsync())
         {
             LongSourceId = reader.GetInt64(EventSourceSchema.LongSourceId);
@@ -84,7 +84,7 @@ public abstract class ClientBase<T>(IServiceProvider sp, EventStore source)
             var type = ResolveEventType(typeName);
             var json = reader.GetString(EventSourceSchema.Data);
             var sourcedEvent = JsonSerializer.Deserialize(json, type) as SourcedEvent?? default!;
-            events.Add(sourcedEvent);
+            events.Add(new EventEnvelop(LongSourceId, GuidSourceId, sourcedEvent));
         }
         return events;
     }

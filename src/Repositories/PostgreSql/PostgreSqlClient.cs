@@ -65,7 +65,7 @@ public class PostgreSqlClient<T>(string conn, IServiceProvider sp)
             object param = SourceTId == TId.LongSourceId ? long.Parse(sourceId) : Guid.Parse(sourceId);
             sqlCommand.Parameters.Add(new NpgsqlParameter("sourceId", param));
             var events = await LoadEvents(() => sqlCommand);
-            aggregate.RestoreAggregate(RestoreType.Stream, events.ToArray());
+            aggregate.RestoreAggregate(RestoreType.Stream, events.Select(x => x.SourcedEvent).ToArray());
             logger.LogInformation($"Finished restoring aggregate {typeof(T).Name}.");
 
             return aggregate;
@@ -188,7 +188,7 @@ public class PostgreSqlClient<T>(string conn, IServiceProvider sp)
             sqlCommand.CommandText = GetSourceCommand;
             sqlCommand.Parameters.Add(new NpgsqlParameter("sourceId", id));
             var events = await LoadEvents(() => sqlCommand);
-            var model = ProjectionRestorer.Project<M>(events);
+            var model = ProjectionRestorer.Project<M>(events.Select(x => x.SourcedEvent));
             logger.LogInformation($"{typeof(M).Name} projection completed.");
             return model;
         }
@@ -265,7 +265,7 @@ public class PostgreSqlClient<T>(string conn, IServiceProvider sp)
             throw;
         }
     }
-    public async Task<IEnumerable<SourcedEvent>> LoadEventsPastCheckpoint(Checkpoint c)
+    public async Task<IEnumerable<EventEnvelop>> LoadEventsPastCheckpoint(Checkpoint c)
     {
         try
         {
