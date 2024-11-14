@@ -110,10 +110,10 @@ public abstract class ClientBase<T>(IServiceProvider sp, EventStore source)
         command.CommandText = sqlCommand[0..^1];
     }
     protected async Task PrepareProjectionCommand(
-    Func<IProjection, bool> subscribes, Func<string[], object[], SqlParameter[]> getparams,
-    DbCommand command, EventSourceEnvelop source, ProjectionMode mode)
+    Func<IProjection, bool> subscribes, Func<string[], object[], DbParameter[]> getparams,
+    DbCommand command, EventSourceEnvelop source, IEnumerable<IProjection> projections)
     {
-        foreach (var projection in Projections.Where(x => x.Mode == mode))
+        foreach (var projection in projections)
         {
             if(!subscribes(projection))
                 continue;

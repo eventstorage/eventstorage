@@ -97,40 +97,37 @@ public class PostgreSqlClient<T>(string conn, IServiceProvider sp)
         await using NpgsqlConnection sqlConnection = new(conn);
         await sqlConnection.OpenAsync();
         await using NpgsqlTransaction sqlTransaction = sqlConnection.BeginTransaction();
-        await using NpgsqlCommand command = sqlConnection.CreateCommand();
-        command.Transaction = sqlTransaction;
+        await using NpgsqlCommand sqlCommand = sqlConnection.CreateCommand();
+        sqlCommand.Transaction = sqlTransaction;
         try
         {
             // add event source to event storage
             if(aggregate.PendingEvents.Any())
             {
-                PrepareCommand((names, values, count) => values.Select((x, i) => new NpgsqlParameter
+                PrepareSourceCommand((names, values, count) => values.Select((x, i) => new NpgsqlParameter
                 {
                     ParameterName = names.Keys.ElementAt(i) + count,
                     NpgsqlDbType = (NpgsqlDbType)names.Values.ElementAt(i),
                     NpgsqlValue = x
-                }).ToArray(), command, aggregate.PendingEvents.ToArray());
-                await command.ExecuteNonQueryAsync();
+                }).ToArray(), sqlCommand, aggregate.PendingEvents.ToArray());
+                await sqlCommand.ExecuteNonQueryAsync();
             }
             
             // apply consistent projections if any
             var pending = aggregate.CommitPendingEvents();
-            foreach (var projection in Projections.Where(x => x.Mode == ProjectionMode.Consistent))
-            {
-                if(pending.Any() && !ProjectionRestorer.Subscribes(pending, projection))
-                    continue;
-                var model = projection.GetType().BaseType?.GenericTypeArguments.First()?? default!;
-                var record = ProjectionRestorer.Project(projection, aggregate.EventStream, model);
-                command.Parameters.Clear();
-                command.Parameters.AddWithValue("@longSourceId", LongSourceId);
-                command.Parameters.AddWithValue("@guidSourceId", GuidSourceId);
-                var data = JsonSerializer.Serialize(record, model, SerializerOptions);
-                command.Parameters.AddWithValue("@data", NpgsqlDbType.Jsonb, data);
-                command.Parameters.AddWithValue("@type", model?.Name?? "");
-                command.Parameters.AddWithValue("@updatedAt", DateTime.UtcNow);
-                command.CommandText = ApplyProjectionCommand(model?.Name?? "");
-                await command.ExecuteNonQueryAsync();
-            }
+            await PrepareProjectionCommand((p) => ProjectionRestorer.Subscribes(pending, p),
+                (names, values) => {
+                    NpgsqlDbType[] types = [NpgsqlDbType.Bigint, NpgsqlDbType.Uuid, NpgsqlDbType.Jsonb,
+                    NpgsqlDbType.Text, NpgsqlDbType.TimestampTz];
+                    return names.Select((x, i) => new NpgsqlParameter
+                    {
+                        ParameterName = names[i],
+                        NpgsqlDbType = types[i],
+                        NpgsqlValue = values[i]
+                    }).ToArray();
+                }, sqlCommand, new(LongSourceId, GuidSourceId, aggregate.EventStream),
+                Projections.Where(x => x.Mode == ProjectionMode.Consistent)
+            );
 
             await sqlTransaction.CommitAsync();
             logger.LogInformation($"Committed {x} pending event(s) for {typeof(T).Name}");
