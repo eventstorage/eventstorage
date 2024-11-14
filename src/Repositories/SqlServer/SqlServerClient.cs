@@ -104,7 +104,7 @@ public class SqlServerClient<T>(string conn, IServiceProvider sp, EventStore sou
             // add event source to event storage
             if(aggregate.PendingEvents.Any())
             {
-                PrepareCommand((names, values, count) => values.Select((x, i) => new SqlParameter
+                PrepareSourceCommand((names, values, count) => values.Select((x, i) => new SqlParameter
                 {
                     ParameterName = names.Keys.ElementAt(i) + count,
                     SqlDbType = (SqlDbType)names.Values.ElementAt(i),
@@ -114,23 +114,36 @@ public class SqlServerClient<T>(string conn, IServiceProvider sp, EventStore sou
             }
 
             // apply consistent projections if any
+            SqlDbType[] types = [SqlDbType.BigInt, SqlDbType.UniqueIdentifier, SqlDbType.NVarChar,
+            SqlDbType.NVarChar, SqlDbType.DateTime];
             var pending = aggregate.CommitPendingEvents();
-            foreach (var projection in Projections.Where(x => x.Mode == ProjectionMode.Consistent))
-            {
-                if(pending.Any() && !ProjectionRestorer.Subscribes(pending, projection))
-                    continue;
-                var model = projection.GetType().BaseType?.GenericTypeArguments.First()?? default!;
-                var record = ProjectionRestorer.Project(projection, aggregate.EventStream, model);
-                command.Parameters.Clear();
-                command.Parameters.AddWithValue("@longSourceId", LongSourceId);
-                command.Parameters.AddWithValue("@guidSourceId", GuidSourceId);
-                var data = JsonSerializer.Serialize(record, model, SerializerOptions);
-                command.Parameters.AddWithValue("@data", data);
-                command.Parameters.AddWithValue("@type", model?.Name);
-                command.Parameters.AddWithValue("@updatedAt", DateTime.UtcNow);
-                command.CommandText = ApplyProjectionCommand(model?.Name?? "");
-                await command.ExecuteNonQueryAsync();
-            }
+            await PrepareProjectionCommand((p) => ProjectionRestorer.Subscribes(pending, p),
+                (names, values) => names.Select((x, i) => new SqlParameter
+                {
+                    ParameterName = names[i],
+                    SqlDbType = types[i],
+                    SqlValue = values[i]
+                }).ToArray(),
+                command,
+                new(LongSourceId, GuidSourceId, aggregate.EventStream),
+                ProjectionMode.Consistent
+            );
+            // foreach (var projection in Projections.Where(x => x.Mode == ProjectionMode.Consistent))
+            // {
+            //     if(pending.Any() && !ProjectionRestorer.Subscribes(pending, projection))
+            //         continue;
+            //     var model = projection.GetType().BaseType?.GenericTypeArguments.First()?? default!;
+            //     var record = ProjectionRestorer.Project(projection, aggregate.EventStream, model);
+            //     command.Parameters.Clear();
+            //     command.Parameters.AddWithValue("@longSourceId", LongSourceId);
+            //     command.Parameters.AddWithValue("@guidSourceId", GuidSourceId);
+            //     var data = JsonSerializer.Serialize(record, model, SerializerOptions);
+            //     command.Parameters.AddWithValue("@data", data);
+            //     command.Parameters.AddWithValue("@type", model?.Name);
+            //     command.Parameters.AddWithValue("@updatedAt", DateTime.UtcNow);
+            //     command.CommandText = ApplyProjectionCommand(model?.Name?? "");
+            //     await command.ExecuteNonQueryAsync();
+            // }
 
             await sqlTransaction.CommitAsync();
             ProjectionPoll.Release();
@@ -155,10 +168,6 @@ public class SqlServerClient<T>(string conn, IServiceProvider sp, EventStore sou
                 logger.LogError($"Commit failure for {aggregate.GetType().Name}. {e.Message}");
             throw;
         }
-    }
-    public async Task PersistProjection(DbCommand command, object record, long lid, Guid gid, ProjectionStore store)
-    {
-
     }
     public async Task<M?> Project<M>(string sourceId) where M : class
     {

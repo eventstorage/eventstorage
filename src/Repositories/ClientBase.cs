@@ -8,6 +8,7 @@ using EventStorage.Projections;
 using EventStorage.Repositories.Redis;
 using EventStorage.Schema;
 using EventStorage.Workers;
+using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.DependencyInjection;
 using TDiscover;
 
@@ -88,7 +89,7 @@ public abstract class ClientBase<T>(IServiceProvider sp, EventStore source)
         }
         return events;
     }
-    protected void PrepareCommand(
+    protected void PrepareSourceCommand(
         Func<Dictionary<string, object>, object[], int, DbParameter[]> parameters,
         DbCommand command, SourcedEvent[] events)
     {
@@ -108,7 +109,27 @@ public abstract class ClientBase<T>(IServiceProvider sp, EventStore source)
         }
         command.CommandText = sqlCommand[0..^1];
     }
+    protected async Task PrepareProjectionCommand(
+    Func<IProjection, bool> subscribes, Func<string[], object[], SqlParameter[]> getparams,
+    DbCommand command, EventSourceEnvelop source, ProjectionMode mode)
+    {
+        foreach (var projection in Projections.Where(x => x.Mode == mode))
+        {
+            if(!subscribes(projection))
+                continue;
+            var type = projection.GetType().BaseType?.GenericTypeArguments.First()?? default!;
+            var record = ProjectionRestorer.Project(projection, source.SourcedEvents, type);
+            string[] names = ["@longSourceId", "@guidSourceId", "@data", "@type", "@updatedAt"];
+            var data = JsonSerializer.Serialize(record, type, SerializerOptions);
+            object[] values = [source.LongSourceId, source.GuidSourceId, data, type.Name, DateTime.UtcNow];
+            command.Parameters.Clear();
+            command.Parameters.AddRange(getparams(names, values));
+            command.CommandText = ApplyProjectionCommand(type.Name);
+            await command.ExecuteNonQueryAsync();
+        }
+    }
 }
+
 public enum TId
 {
     LongSourceId,
