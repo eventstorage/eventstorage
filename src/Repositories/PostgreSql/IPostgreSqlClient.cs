@@ -12,4 +12,5 @@ public interface IPostgreSqlClient<T>
     Task<Checkpoint> LoadCheckpoint();
     Task SaveCheckpoint(Checkpoint checkpoint);
     Task<IEnumerable<EventEnvelop>> LoadEventsPastCheckpoint(Checkpoint c);
+    Task RestoreProjections(EventSourceEnvelop source);
 }

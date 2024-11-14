@@ -152,6 +152,51 @@ public class PostgreSqlClient<T>(string conn, IServiceProvider sp)
             throw;
         }
     }
+    public async Task RestoreProjections(EventSourceEnvelop source)
+    {
+        logger.LogInformation($"Restoring projections for source {source.LongSourceId}, {typeof(T).Name}");
+        await using NpgsqlConnection sqlConnection = new(conn);
+        await sqlConnection.OpenAsync();
+        await using NpgsqlTransaction sqlTransaction = sqlConnection.BeginTransaction();
+        await using NpgsqlCommand sqlCommand = sqlConnection.CreateCommand();
+        sqlCommand.Transaction = sqlTransaction;
+        try
+        {
+            await PrepareProjectionCommand((p) => ProjectionRestorer.Subscribes(source.SourcedEvents, p),
+                (names, values) => {
+                    NpgsqlDbType[] types = [NpgsqlDbType.Bigint, NpgsqlDbType.Uuid, NpgsqlDbType.Jsonb,
+                    NpgsqlDbType.Text, NpgsqlDbType.TimestampTz];
+                    return names.Select((x, i) => new NpgsqlParameter
+                    {
+                        ParameterName = names[i],
+                        NpgsqlDbType = types[i],
+                        NpgsqlValue = values[i]
+                    }).ToArray();
+                }, sqlCommand, new(LongSourceId, GuidSourceId, source.SourcedEvents),
+                Projections.Where(x => x.Mode == ProjectionMode.Consistent)
+            );
+            await sqlTransaction.CommitAsync();
+        }
+        catch(SqlException e)
+        {
+            await sqlTransaction.RollbackAsync();
+            if(logger.IsEnabled(LogLevel.Error))
+                logger.LogError($"Commit failure for {typeof(T).Name}. {e.Message}");
+            throw;
+        }
+        catch(SerializationException e)
+        {
+            if(logger.IsEnabled(LogLevel.Error))
+                logger.LogError($"Commit failure for {typeof(T).Name}. {e.Message}");
+            throw;
+        }
+        catch (Exception e)
+        {
+            if(logger.IsEnabled(LogLevel.Error))
+                logger.LogError($"Commit failure for {typeof(T).Name}. {e.Message}");
+            throw;
+        }
+    }
     public async Task<M?> Project<M>(string sourceId)
     {
         try

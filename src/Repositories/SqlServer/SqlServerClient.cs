@@ -97,8 +97,8 @@ public class SqlServerClient<T>(string conn, IServiceProvider sp, EventStore sou
         await using SqlConnection sqlConnection = new(conn);
         await sqlConnection.OpenAsync();
         await using SqlTransaction sqlTransaction = sqlConnection.BeginTransaction();
-        await using SqlCommand command = sqlConnection.CreateCommand();
-        command.Transaction = sqlTransaction;
+        await using SqlCommand sqlCommand = sqlConnection.CreateCommand();
+        sqlCommand.Transaction = sqlTransaction;
         try
         {
             // add event source to event storage
@@ -109,41 +109,25 @@ public class SqlServerClient<T>(string conn, IServiceProvider sp, EventStore sou
                     ParameterName = names.Keys.ElementAt(i) + count,
                     SqlDbType = (SqlDbType)names.Values.ElementAt(i),
                     SqlValue = x
-                }).ToArray(), command, aggregate.PendingEvents.ToArray());
-                await command.ExecuteNonQueryAsync();
+                }).ToArray(), sqlCommand, aggregate.PendingEvents.ToArray());
+                await sqlCommand.ExecuteNonQueryAsync();
             }
 
             // apply consistent projections if any
-            SqlDbType[] types = [SqlDbType.BigInt, SqlDbType.UniqueIdentifier, SqlDbType.NVarChar,
-            SqlDbType.NVarChar, SqlDbType.DateTime];
             var pending = aggregate.CommitPendingEvents();
             await PrepareProjectionCommand((p) => ProjectionRestorer.Subscribes(pending, p),
-                (names, values) => names.Select((x, i) => new SqlParameter
-                {
-                    ParameterName = names[i],
-                    SqlDbType = types[i],
-                    SqlValue = values[i]
-                }).ToArray(),
-                command,
-                new(LongSourceId, GuidSourceId, aggregate.EventStream),
-                ProjectionMode.Consistent
+                (names, values) => {
+                    SqlDbType[] types = [SqlDbType.BigInt, SqlDbType.UniqueIdentifier, SqlDbType.NVarChar,
+                    SqlDbType.NVarChar, SqlDbType.DateTime];
+                    return names.Select((x, i) => new SqlParameter
+                    {
+                        ParameterName = names[i],
+                        SqlDbType = types[i],
+                        SqlValue = values[i]
+                    }).ToArray();
+                }, sqlCommand, new(LongSourceId, GuidSourceId, aggregate.EventStream),
+                Projections.Where(x => x.Mode == ProjectionMode.Consistent)
             );
-            // foreach (var projection in Projections.Where(x => x.Mode == ProjectionMode.Consistent))
-            // {
-            //     if(pending.Any() && !ProjectionRestorer.Subscribes(pending, projection))
-            //         continue;
-            //     var model = projection.GetType().BaseType?.GenericTypeArguments.First()?? default!;
-            //     var record = ProjectionRestorer.Project(projection, aggregate.EventStream, model);
-            //     command.Parameters.Clear();
-            //     command.Parameters.AddWithValue("@longSourceId", LongSourceId);
-            //     command.Parameters.AddWithValue("@guidSourceId", GuidSourceId);
-            //     var data = JsonSerializer.Serialize(record, model, SerializerOptions);
-            //     command.Parameters.AddWithValue("@data", data);
-            //     command.Parameters.AddWithValue("@type", model?.Name);
-            //     command.Parameters.AddWithValue("@updatedAt", DateTime.UtcNow);
-            //     command.CommandText = ApplyProjectionCommand(model?.Name?? "");
-            //     await command.ExecuteNonQueryAsync();
-            // }
 
             await sqlTransaction.CommitAsync();
             ProjectionPoll.Release();
@@ -153,19 +137,64 @@ public class SqlServerClient<T>(string conn, IServiceProvider sp, EventStore sou
         {
             await sqlTransaction.RollbackAsync();
             if(logger.IsEnabled(LogLevel.Error))
-                logger.LogError($"Commit failure for {aggregate.GetType().Name}. {e.Message}");
+                logger.LogError($"Commit failure for {typeof(T).Name}. {e.Message}");
             throw;
         }
         catch(SerializationException e)
         {
             if(logger.IsEnabled(LogLevel.Error))
-                logger.LogError($"Commit failure for {aggregate.GetType().Name}. {e.Message}");
+                logger.LogError($"Commit failure for {typeof(T).Name}. {e.Message}");
             throw;
         }
         catch (Exception e)
         {
             if(logger.IsEnabled(LogLevel.Error))
-                logger.LogError($"Commit failure for {aggregate.GetType().Name}. {e.Message}");
+                logger.LogError($"Commit failure for {typeof(T).Name}. {e.Message}");
+            throw;
+        }
+    }
+    public async Task RestoreProjections(EventSourceEnvelop source)
+    {
+        logger.LogInformation($"Restoring projections for source {source.LongSourceId}, {typeof(T).Name}");
+        await using SqlConnection sqlConnection = new(conn);
+        await sqlConnection.OpenAsync();
+        await using SqlTransaction sqlTransaction = sqlConnection.BeginTransaction();
+        await using SqlCommand sqlCommand = sqlConnection.CreateCommand();
+        sqlCommand.Transaction = sqlTransaction;
+        try
+        {
+            await PrepareProjectionCommand((p) => ProjectionRestorer.Subscribes(source.SourcedEvents, p),
+                (names, values) => {
+                    SqlDbType[] types = [SqlDbType.BigInt, SqlDbType.UniqueIdentifier, SqlDbType.NVarChar,
+                    SqlDbType.NVarChar, SqlDbType.DateTime];
+                    return names.Select((x, i) => new SqlParameter
+                    {
+                        ParameterName = names[i],
+                        SqlDbType = types[i],
+                        SqlValue = values[i]
+                    }).ToArray();
+                }, sqlCommand, new(LongSourceId, GuidSourceId, source.SourcedEvents),
+                Projections.Where(x => x.Configuration.Store == ProjectionStore.Selected)
+            );
+            await sqlTransaction.CommitAsync();
+        }
+        catch(SqlException e)
+        {
+            await sqlTransaction.RollbackAsync();
+            if(logger.IsEnabled(LogLevel.Error))
+                logger.LogError($"Commit failure for {typeof(T).Name}. {e.Message}");
+            throw;
+        }
+        catch(SerializationException e)
+        {
+            if(logger.IsEnabled(LogLevel.Error))
+                logger.LogError($"Commit failure for {typeof(T).Name}. {e.Message}");
+            throw;
+        }
+        catch (Exception e)
+        {
+            if(logger.IsEnabled(LogLevel.Error))
+                logger.LogError($"Commit failure for {typeof(T).Name}. {e.Message}");
             throw;
         }
     }

@@ -12,4 +12,5 @@ public interface IEventStorage<T>
     internal Task<Checkpoint> LoadCheckpoint();
     internal Task SaveCheckpoint(Checkpoint checkpoint);
     internal Task<IEnumerable<EventEnvelop>> LoadEventsPastCheckpoint(Checkpoint c);
+    Task RestoreProjections(EventSourceEnvelop source);
 }

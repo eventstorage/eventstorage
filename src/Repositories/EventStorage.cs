@@ -42,4 +42,10 @@ public class EventStorage<T>(IRepository<T> repository, EventStore source) : IEv
         EventStore.PostgresSql => repository.PostgreSqlClient.LoadEventsPastCheckpoint(c),
         _ => repository.SqlServerClient.LoadEventsPastCheckpoint(c)
     };
+
+    public Task RestoreProjections(EventSourceEnvelop eventSource) => source switch
+    {
+        EventStore.PostgresSql => repository.PostgreSqlClient.RestoreProjections(eventSource),
+        _ => repository.SqlServerClient.RestoreProjections(eventSource)
+    };
 }
