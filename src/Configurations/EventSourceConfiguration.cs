@@ -4,6 +4,7 @@ using EventStorage.Events;
 using EventStorage.Extensions;
 using EventStorage.Projections;
 using EventStorage.Repositories;
+using EventStorage.Repositories.Redis;
 using EventStorage.Workers;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -26,6 +27,7 @@ public class EventSourceConfiguration(IServiceCollection services, string schema
         {
             var p = Projections.First(x => x.Configuration.Store == ProjectionStore.Redis);
             ServiceCollection.AddSingleton(new RedisConnectionProvider(p.Configuration.ConnectionString));
+            ServiceCollection.AddSingleton<IRedisService, RedisService>();
         }
         ServiceCollection.AddSingleton<IHostedService>((sp) =>
         {
