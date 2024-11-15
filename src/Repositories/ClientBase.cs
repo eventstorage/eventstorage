@@ -110,12 +110,12 @@ public abstract class ClientBase<T>(IServiceProvider sp, EventStore source)
         command.CommandText = sqlCommand[0..^1];
     }
     protected async Task PrepareProjectionCommand(
-    Func<IProjection, bool> subscribes, Func<string[], object[], DbParameter[]> getparams,
+    Func<IProjection, bool> subscriptionCheck, Func<string[], object[], DbParameter[]> getparams,
     DbCommand command, EventSourceEnvelop source, IEnumerable<IProjection> projections)
     {
         foreach (var projection in projections)
         {
-            if(!subscribes(projection))
+            if(subscriptionCheck(projection))
                 continue;
             var type = projection.GetType().BaseType?.GenericTypeArguments.First()?? default!;
             var record = ProjectionRestorer.Project(projection, source.SourcedEvents, type);

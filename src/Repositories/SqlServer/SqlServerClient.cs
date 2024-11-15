@@ -115,10 +115,12 @@ public class SqlServerClient<T>(string conn, IServiceProvider sp, EventStore sou
 
             // apply consistent projections if any
             var pending = aggregate.CommitPendingEvents();
-            await PrepareProjectionCommand((p) => ProjectionRestorer.Subscribes(pending, p),
+            SqlDbType[] types = [SqlDbType.BigInt, SqlDbType.UniqueIdentifier, SqlDbType.NVarChar,
+            SqlDbType.NVarChar, SqlDbType.DateTime];
+            await PrepareProjectionCommand(projection =>
+                // does projection subscribes or reprojection wanted
+                !ProjectionRestorer.Subscribes(pending, projection) && pending.Any(),
                 (names, values) => {
-                    SqlDbType[] types = [SqlDbType.BigInt, SqlDbType.UniqueIdentifier, SqlDbType.NVarChar,
-                    SqlDbType.NVarChar, SqlDbType.DateTime];
                     return names.Select((x, i) => new SqlParameter
                     {
                         ParameterName = names[i],
@@ -163,17 +165,17 @@ public class SqlServerClient<T>(string conn, IServiceProvider sp, EventStore sou
         sqlCommand.Transaction = sqlTransaction;
         try
         {
-            await PrepareProjectionCommand((p) => ProjectionRestorer.Subscribes(source.SourcedEvents, p),
+            SqlDbType[] types = [SqlDbType.BigInt, SqlDbType.UniqueIdentifier, SqlDbType.NVarChar,
+            SqlDbType.NVarChar, SqlDbType.DateTime];
+            await PrepareProjectionCommand((p) => !ProjectionRestorer.Subscribes(source.SourcedEvents, p),
                 (names, values) => {
-                    SqlDbType[] types = [SqlDbType.BigInt, SqlDbType.UniqueIdentifier, SqlDbType.NVarChar,
-                    SqlDbType.NVarChar, SqlDbType.DateTime];
                     return names.Select((x, i) => new SqlParameter
                     {
                         ParameterName = names[i],
                         SqlDbType = types[i],
                         SqlValue = values[i]
                     }).ToArray();
-                }, sqlCommand, new(LongSourceId, GuidSourceId, source.SourcedEvents),
+                }, sqlCommand, source,
                 Projections.Where(x => x.Configuration.Store == ProjectionStore.Selected)
             );
             await sqlTransaction.CommitAsync();
@@ -298,7 +300,7 @@ public class SqlServerClient<T>(string conn, IServiceProvider sp, EventStore sou
             await using SqlConnection sqlConnection = new(conn);
             await sqlConnection.OpenAsync();
             await using SqlCommand sqlCommand = new (SaveCheckpointCommand, sqlConnection);
-            sqlCommand.Parameters.AddWithValue("@sequence", checkpoint.Sequence);
+            sqlCommand.Parameters.AddWithValue("@sequence", checkpoint.Sequence + 3);
             sqlCommand.Parameters.AddWithValue("@type", checkpoint.Type);
             sqlCommand.Parameters.AddWithValue("@sourceType", checkpoint.SourceType);
             await sqlCommand.ExecuteNonQueryAsync();
