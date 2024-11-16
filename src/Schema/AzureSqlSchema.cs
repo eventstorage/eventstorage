@@ -39,5 +39,15 @@ public class AzureSqlSchema(string schema) : EventSourceSchema(schema)
         [UpdatedAt] [datetime] NOT NULL,
         CONSTRAINT [Pk_{projection}s_Id] PRIMARY KEY ([Id]))";
     public override string GetDocumentCommand<Td>(string sourceTId) => @$"SELECT TOP 1 * FROM
-        {schema}.{typeof(Td).Name}s WHERE {sourceTId} = @sourceId ORDER BY Id DESC";
+        {Schema}.{typeof(Td).Name}s WHERE {sourceTId} = @sourceId ORDER BY Id DESC";
+    public override string CreateCheckpointIfNotExists =>
+        @$"IF OBJECT_ID('{Schema}.Checkpoints') IS NULL
+        CREATE TABLE [{Schema}].[Checkpoints](
+        [Sequence] [bigint] NOT NULL,
+        [Type] [tinyint] NOT NULL,
+        [SourceType] [nvarchar](25) NOT NULL,
+        CONSTRAINT [Pk_Checkpoints_Sequence] PRIMARY KEY ([Sequence]),
+        INDEX [IX_Checkpoints_Type] NONCLUSTERED (Type))";
+    public override string LoadEventsPastCheckpoint => @$"SELECT TOP 3 LongSourceId, GuidSourceId,
+        Data, Type FROM {Schema}.EventSources WHERE Sequence > @sequence";
 }

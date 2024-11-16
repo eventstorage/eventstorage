@@ -2,7 +2,7 @@ using EventStorage.Events;
 
 namespace EventStorage.Projections;
 
-public interface IProjectionEngine
+public interface IProjectionRestorer
 {
     object? Project(IProjection projection, IEnumerable<SourcedEvent> events, Type model);
     object? ProjectOptimized(IProjection projection, IEnumerable<SourcedEvent> events, Type model);

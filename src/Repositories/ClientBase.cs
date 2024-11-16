@@ -7,6 +7,8 @@ using EventStorage.Events;
 using EventStorage.Projections;
 using EventStorage.Repositories.Redis;
 using EventStorage.Schema;
+using EventStorage.Workers;
+using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.DependencyInjection;
 using TDiscover;
 
@@ -23,8 +25,12 @@ public abstract class ClientBase<T>(IServiceProvider sp, EventStore source)
     protected string CreateProjectionIfNotExists(string projection) =>
         _schema.CreateProjectionIfNotExists(projection);
     protected string ApplyProjectionCommand(string projection) => _schema.ApplyProjectionCommand(projection);
-    public string GetMaxSourceId => _schema.GetMaxSourceId;
-    public static JsonSerializerOptions SerializerOptions => new() { IncludeFields = true };
+    protected string GetMaxSourceId => _schema.GetMaxSourceId;
+    protected string CreateCheckpointIfNotExists => _schema.CreateCheckpointIfNotExists;
+    protected string LoadCheckpointCommand => _schema.LoadCheckpointCommand;
+    protected string SaveCheckpointCommand => _schema.SaveCheckpointCommand;
+    protected string LoadEventsPastCheckpointCommand => _schema.LoadEventsPastCheckpoint;
+    protected static JsonSerializerOptions SerializerOptions => new() { IncludeFields = true };
 
     protected long LongSourceId { get; set; } = 1;
     protected Guid GuidSourceId { get; set; } = Guid.NewGuid();
@@ -41,7 +47,8 @@ public abstract class ClientBase<T>(IServiceProvider sp, EventStore source)
         .FirstOrDefault(x => x.Key == source).Value;
 
     protected IRedisService Redis => Sp.GetRequiredService<IRedisService>();
-    protected readonly IProjectionEngine Projection = sp.GetRequiredService<IProjectionEngine>();
+    protected IProjectionRestorer ProjectionRestorer => sp.GetRequiredService<IProjectionRestorer>();
+    protected IAsyncProjectionPoll ProjectionPoll => sp.GetRequiredService<IAsyncProjectionPoll>();
     protected IEnumerable<IProjection> Projections => Sp.GetServices<IProjection>();
     #pragma warning disable CS8619
     protected IEnumerable<Type> TProjections(Func<IProjection, bool> predicate) =>
@@ -49,7 +56,6 @@ public abstract class ClientBase<T>(IServiceProvider sp, EventStore source)
         .Where(p => p.Mode != ProjectionMode.Runtime)
         .Where(p => p.Configuration.Store == ProjectionStore.Selected)
         .Select(p => p.GetType().BaseType?.GenericTypeArguments.First());
-
 
     // this needs optimistic locking
     protected async Task<string> GenerateSourceId(DbCommand command)
@@ -65,13 +71,11 @@ public abstract class ClientBase<T>(IServiceProvider sp, EventStore source)
         return SourceTId == TId.LongSourceId ? LongSourceId.ToString() : GuidSourceId.ToString();
     }
     
-    protected async Task<IEnumerable<SourcedEvent>> LoadEventSource(DbCommand command, Func<DbParameter> p)
+    protected async Task<IEnumerable<EventEnvelop>> LoadEvents(Func<DbCommand> command)
     {
-        command.CommandText = GetSourceCommand;
-        command.Parameters.Add(p());
-        await using DbDataReader reader = await command.ExecuteReaderAsync();
+        await using DbDataReader reader = await command().ExecuteReaderAsync();
 
-        List<SourcedEvent> events = [];
+        List<EventEnvelop> events = [];
         while(await reader.ReadAsync())
         {
             LongSourceId = reader.GetInt64(EventSourceSchema.LongSourceId);
@@ -81,11 +85,11 @@ public abstract class ClientBase<T>(IServiceProvider sp, EventStore source)
             var type = ResolveEventType(typeName);
             var json = reader.GetString(EventSourceSchema.Data);
             var sourcedEvent = JsonSerializer.Deserialize(json, type) as SourcedEvent?? default!;
-            events.Add(sourcedEvent);
+            events.Add(new EventEnvelop(LongSourceId, GuidSourceId, sourcedEvent));
         }
         return events;
     }
-    protected void PrepareCommand(
+    protected void PrepareSourceCommand(
         Func<Dictionary<string, object>, object[], int, DbParameter[]> parameters,
         DbCommand command, SourcedEvent[] events)
     {
@@ -105,7 +109,27 @@ public abstract class ClientBase<T>(IServiceProvider sp, EventStore source)
         }
         command.CommandText = sqlCommand[0..^1];
     }
+    protected async Task PrepareProjectionCommand(
+    Func<IProjection, bool> subscriptionCheck, Func<string[], object[], DbParameter[]> getparams,
+    DbCommand command, EventSourceEnvelop source, IEnumerable<IProjection> projections)
+    {
+        foreach (var projection in projections)
+        {
+            if(subscriptionCheck(projection))
+                continue;
+            var type = projection.GetType().BaseType?.GenericTypeArguments.First()?? default!;
+            var record = ProjectionRestorer.Project(projection, source.SourcedEvents, type);
+            string[] names = ["@longSourceId", "@guidSourceId", "@data", "@type", "@updatedAt"];
+            var data = JsonSerializer.Serialize(record, type, SerializerOptions);
+            object[] values = [source.LongSourceId, source.GuidSourceId, data, type.Name, DateTime.UtcNow];
+            command.Parameters.Clear();
+            command.Parameters.AddRange(getparams(names, values));
+            command.CommandText = ApplyProjectionCommand(type.Name);
+            await command.ExecuteNonQueryAsync();
+        }
+    }
 }
+
 public enum TId
 {
     LongSourceId,

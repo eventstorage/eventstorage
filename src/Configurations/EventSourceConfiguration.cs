@@ -4,10 +4,12 @@ using EventStorage.Events;
 using EventStorage.Extensions;
 using EventStorage.Projections;
 using EventStorage.Repositories;
+using EventStorage.Repositories.Redis;
 using EventStorage.Workers;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Redis.OM;
+using TDiscover;
 
 namespace EventStorage.Configurations;
 
@@ -19,22 +21,24 @@ public class EventSourceConfiguration(IServiceCollection services, string schema
     public List<IProjection> Projections = [];
 
     // initialize stores while app spins up
-    public void Init()
+    public EventSourceConfiguration Initialize()
     {
         if(Projections.Any(x => x.Configuration.Store == ProjectionStore.Redis))
         {
             var p = Projections.First(x => x.Configuration.Store == ProjectionStore.Redis);
             ServiceCollection.AddSingleton(new RedisConnectionProvider(p.Configuration.ConnectionString));
         }
+        ServiceCollection.AddSingleton<IRedisService, RedisService>();
         ServiceCollection.AddSingleton<IHostedService>((sp) =>
         {
             var repository = new Repository<IEventSource>(ConnectionString, sp, Source);
             var eventstorage = new EventStorage<IEventSource>(repository, Source);
             return new StoreInitializer(eventstorage, Projections, ServiceProvider);
         });
-        AddProjectionEngine();
+        return this;
     }
-    private void AddProjectionEngine()
+    // pre-compiling projections for future use if more perf needed
+    public EventSourceConfiguration ConfigureProjectionRestorer()
     {
         Dictionary<IProjection, List<MethodInfo>> projections = [];
         foreach (var projection in Projections)
@@ -42,9 +46,21 @@ public class EventSourceConfiguration(IServiceCollection services, string schema
             var methods = projection.GetMethods();
             projections.Add(projection, methods.ToList());
         }
-        ServiceCollection.AddSingleton<IProjectionEngine>(sp =>
+        ServiceCollection.AddSingleton<IProjectionRestorer>(sp => new ProjectionRestorer(sp, projections));
+        return this;
+    }
+    public EventSourceConfiguration RunAsyncProjectionEngine()
+    {
+        ServiceCollection.AddSingleton<IAsyncProjectionPoll, AsyncProjectionPoll>();
+        // var sourceType = Td.FindByType<IEventSource>()?? typeof(IEventSource);
+        // var engineType = typeof(AsyncProjectionEngine<>).MakeGenericType(sourceType);
+        // var engine = Activator.CreateInstance(typeof(AsyncProjectionEngine), ServiceProvider);
+        ServiceCollection.AddSingleton<IHostedService>(sp =>
         {
-            return new ProjectionEngine(sp, projections);
+            var repository = new Repository<IEventSource>(ConnectionString, sp, Source);
+            var eventstorage = new EventStorage<IEventSource>(repository, Source);
+            return new AsyncProjectionEngine(eventstorage, sp);
         });
+        return this;
     }
 }

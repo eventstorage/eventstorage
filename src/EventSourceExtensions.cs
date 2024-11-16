@@ -49,25 +49,19 @@ public static class EventSourceExtensions
         return services;
     }
     public static EventSourceConfiguration Project<TProjection>(
-        this EventSourceConfiguration configuration, ProjectionMode mode = ProjectionMode.Async,
-        Func<ProjectionConfiguration, ProjectionConfiguration> destination = default!)
+        this EventSourceConfiguration configuration,
+        ProjectionMode mode = ProjectionMode.Async,
+        Func<ProjectionConfiguration, ProjectionConfiguration> source = default!)
         where TProjection : Projection, new()
     {
-        if(destination != null && mode != ProjectionMode.Async)
-            throw new Exception($"Projection to destination not allowed with mode {mode}.");
+        if(source != null && mode != ProjectionMode.Async)
+            throw new Exception($"Projection to source not allowed with async mode.");
         var iprojection = typeof(TProjection).GetInterfaces().Last();
-        destination ??= (config) => new();
-        var tprojection = new TProjection { Mode = mode, Configuration = destination(new())};
+        source ??= (config) => new();
+        var tprojection = new TProjection { Mode = mode, Configuration = source(new())};
         configuration.ServiceCollection.AddSingleton(iprojection, tprojection);
         configuration.ServiceCollection.AddSingleton(typeof(IProjection), tprojection);
         configuration.Projections.Add(tprojection);
-        return configuration;
-    }
-    public static ProjectionConfiguration Redis(
-        this ProjectionConfiguration configuration, string connection)
-    {
-        configuration.Store = ProjectionStore.Redis;
-        configuration.ConnectionString = connection;
         return configuration;
     }
 }

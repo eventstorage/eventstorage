@@ -1,18 +1,17 @@
 using System.Data;
+using System.Data.Common;
 using System.Runtime.Serialization;
 using System.Text.Json;
 using EventStorage.AggregateRoot;
 using EventStorage.Configurations;
+using EventStorage.Events;
 using EventStorage.Extensions;
 using EventStorage.Projections;
-using EventStorage.Repositories.Redis;
 using EventStorage.Schema;
 using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
-using Microsoft.IdentityModel.Tokens;
 using StackExchange.Redis;
-using TDiscover;
 
 namespace EventStorage.Repositories.SqlServer;
 
@@ -23,10 +22,10 @@ public class SqlServerClient<T>(string conn, IServiceProvider sp, EventStore sou
     private readonly ILogger logger = sp.GetRequiredService<ILogger<SqlServerClient<T>>>();
     public async Task Init()
     {
+        logger.LogInformation($"Begin initializing {nameof(SqlServerClient<T>)}.");
+        _semaphore.Wait();
         try
         {
-            _semaphore.Wait();
-            logger.LogInformation($"Begin initializing {nameof(SqlServerClient<T>)}.");
             await using SqlConnection sqlConnection = new(conn);
             await sqlConnection.OpenAsync();
             await using SqlTransaction sqlTransaction = sqlConnection.BeginTransaction();
@@ -38,6 +37,8 @@ public class SqlServerClient<T>(string conn, IServiceProvider sp, EventStore sou
                 command.CommandText = CreateProjectionIfNotExists(item?.Name?? "");
                 await command.ExecuteNonQueryAsync();
             }
+            command.CommandText = CreateCheckpointIfNotExists;
+            await command.ExecuteNonQueryAsync();
             await sqlTransaction.CommitAsync();
             logger.LogInformation($"Finished initializing {nameof(SqlServerClient<T>)}.");
             _semaphore.Release();
@@ -56,13 +57,15 @@ public class SqlServerClient<T>(string conn, IServiceProvider sp, EventStore sou
 
             await using SqlConnection sqlConnection = new(conn);
             await sqlConnection.OpenAsync();
-            await using SqlCommand command = sqlConnection.CreateCommand();
+            await using SqlCommand sqlCommand = sqlConnection.CreateCommand();
 
-            sourceId ??= await GenerateSourceId(command);
+            sourceId ??= await GenerateSourceId(sqlCommand);
             var aggregate = typeof(T).CreateAggregate<T>(sourceId);
 
-            var events = await LoadEventSource(command, () => new SqlParameter("sourceId", sourceId));
-            aggregate.RestoreAggregate(RestoreType.Stream, events.ToArray());
+            sqlCommand.CommandText = GetSourceCommand;
+            sqlCommand.Parameters.Add(new SqlParameter("sourceId", sourceId));
+            var events = await LoadEvents(() => sqlCommand);
+            aggregate.RestoreAggregate(RestoreType.Stream, events.Select(x => x.SourcedEvent).ToArray());
             logger.LogInformation($"Finished restoring aggregate {typeof(T).Name}.");
 
             return aggregate;
@@ -94,71 +97,119 @@ public class SqlServerClient<T>(string conn, IServiceProvider sp, EventStore sou
         await using SqlConnection sqlConnection = new(conn);
         await sqlConnection.OpenAsync();
         await using SqlTransaction sqlTransaction = sqlConnection.BeginTransaction();
-        await using SqlCommand command = sqlConnection.CreateCommand();
-        command.Transaction = sqlTransaction;
+        await using SqlCommand sqlCommand = sqlConnection.CreateCommand();
+        sqlCommand.Transaction = sqlTransaction;
         try
         {
             // add event source to event storage
             if(aggregate.PendingEvents.Any())
             {
-                PrepareCommand((names, values, count) => values.Select((x, i) => new SqlParameter
+                PrepareSourceCommand((names, values, count) => values.Select((x, i) => new SqlParameter
                 {
                     ParameterName = names.Keys.ElementAt(i) + count,
                     SqlDbType = (SqlDbType)names.Values.ElementAt(i),
                     SqlValue = x
-                }).ToArray(), command, aggregate.PendingEvents.ToArray());
-                await command.ExecuteNonQueryAsync();
+                }).ToArray(), sqlCommand, aggregate.PendingEvents.ToArray());
+                await sqlCommand.ExecuteNonQueryAsync();
             }
 
             // apply consistent projections if any
             var pending = aggregate.CommitPendingEvents();
-            foreach (var projection in Projections.Where(x => x.Mode == ProjectionMode.Consistent))
-            {
-                if(pending.Any() && !Projection.Subscribes(pending, projection))
-                    continue;
-                var model = projection.GetType().BaseType?.GenericTypeArguments.First()?? default!;
-                var record = Projection.Project(projection, aggregate.EventStream, model);
-                command.Parameters.Clear();
-                command.Parameters.AddWithValue("@longSourceId", LongSourceId);
-                command.Parameters.AddWithValue("@guidSourceId", GuidSourceId);
-                var data = JsonSerializer.Serialize(record, model, SerializerOptions);
-                command.Parameters.AddWithValue("@data", data);
-                command.Parameters.AddWithValue("@type", model?.Name);
-                command.Parameters.AddWithValue("@updatedAt", DateTime.UtcNow);
-                command.CommandText = ApplyProjectionCommand(model?.Name?? "");
-                await command.ExecuteNonQueryAsync();
-            }
+            SqlDbType[] types = [SqlDbType.BigInt, SqlDbType.UniqueIdentifier, SqlDbType.NVarChar,
+            SqlDbType.NVarChar, SqlDbType.DateTime];
+            await PrepareProjectionCommand(projection =>
+                // does projection subscribes or reprojection wanted
+                !ProjectionRestorer.Subscribes(pending, projection) && pending.Any(),
+                (names, values) => {
+                    return names.Select((x, i) => new SqlParameter
+                    {
+                        ParameterName = names[i],
+                        SqlDbType = types[i],
+                        SqlValue = values[i]
+                    }).ToArray();
+                }, sqlCommand, new(LongSourceId, GuidSourceId, aggregate.EventStream),
+                Projections.Where(x => x.Mode == ProjectionMode.Consistent)
+            );
 
             await sqlTransaction.CommitAsync();
+            if(Projections.Any(x => x.Mode == ProjectionMode.Async))
+                ProjectionPoll.Release();
             logger.LogInformation($"Committed {x} pending event(s) for {typeof(T).Name}");
         }
         catch(SqlException e)
         {
             await sqlTransaction.RollbackAsync();
             if(logger.IsEnabled(LogLevel.Error))
-                logger.LogError($"Commit failure for {aggregate.GetType().Name}. {e.Message}");
+                logger.LogError($"Commit failure for {typeof(T).Name}. {e.Message}");
             throw;
         }
         catch(SerializationException e)
         {
             if(logger.IsEnabled(LogLevel.Error))
-                logger.LogError($"Commit failure for {aggregate.GetType().Name}. {e.Message}");
+                logger.LogError($"Commit failure for {typeof(T).Name}. {e.Message}");
             throw;
         }
         catch (Exception e)
         {
             if(logger.IsEnabled(LogLevel.Error))
-                logger.LogError($"Commit failure for {aggregate.GetType().Name}. {e.Message}");
+                logger.LogError($"Commit failure for {typeof(T).Name}. {e.Message}");
+            throw;
+        }
+    }
+    public async Task RestoreProjections(EventSourceEnvelop source)
+    {
+        logger.LogInformation($"Restoring projections for source {source.LongSourceId}, {typeof(T).Name}");
+        await using SqlConnection sqlConnection = new(conn);
+        await sqlConnection.OpenAsync();
+        await using SqlTransaction sqlTransaction = sqlConnection.BeginTransaction();
+        await using SqlCommand sqlCommand = sqlConnection.CreateCommand();
+        sqlCommand.Transaction = sqlTransaction;
+        try
+        {
+            SqlDbType[] types = [SqlDbType.BigInt, SqlDbType.UniqueIdentifier, SqlDbType.NVarChar,
+            SqlDbType.NVarChar, SqlDbType.DateTime];
+            await PrepareProjectionCommand((p) => !ProjectionRestorer.Subscribes(source.SourcedEvents, p),
+                (names, values) => {
+                    return names.Select((x, i) => new SqlParameter
+                    {
+                        ParameterName = names[i],
+                        SqlDbType = types[i],
+                        SqlValue = values[i]
+                    }).ToArray();
+                }, sqlCommand, source,
+                Projections.Where(x => x.Configuration.Store == ProjectionStore.Selected)
+            );
+            await sqlTransaction.CommitAsync();
+        }
+        catch(SqlException e)
+        {
+            await sqlTransaction.RollbackAsync();
+            if(logger.IsEnabled(LogLevel.Error))
+                logger.LogError($"Commit failure for {typeof(T).Name}. {e.Message}");
+            throw;
+        }
+        catch(SerializationException e)
+        {
+            if(logger.IsEnabled(LogLevel.Error))
+                logger.LogError($"Commit failure for {typeof(T).Name}. {e.Message}");
+            throw;
+        }
+        catch (Exception e)
+        {
+            if(logger.IsEnabled(LogLevel.Error))
+                logger.LogError($"Commit failure for {typeof(T).Name}. {e.Message}");
             throw;
         }
     }
     public async Task<M?> Project<M>(string sourceId) where M : class
     {
-        var projection = Sp.GetService<IProjection<M>>();
-        if(projection == null)
-            return default;
         try
         {
+            logger.LogInformation($"Starting {typeof(M).Name} projection.");
+            var projection = Sp.GetService<IProjection<M>>();
+            if(projection == null)
+                return default;
+                
             if(projection.Configuration.Store != ProjectionStore.Selected)
                 return await Redis.GetDocument<M>(sourceId);
 
@@ -180,8 +231,10 @@ public class SqlServerClient<T>(string conn, IServiceProvider sp, EventStore sou
                 return m;
             }
 
-            var events = await LoadEventSource(command, () => new SqlParameter("sourceId", sourceId));
-            var model = Projection.Project<M>(events);
+            command.CommandText = GetSourceCommand;
+            command.Parameters.Add(new SqlParameter("sourceId", sourceId));
+            var events = await LoadEvents(() => command);
+            var model = ProjectionRestorer.Project<M>(events.Select(x => x.SourcedEvent));
             logger.LogInformation($"{typeof(M).Name} projection completed.");
             return model;
         }
@@ -207,6 +260,92 @@ public class SqlServerClient<T>(string conn, IServiceProvider sp, EventStore sou
         {
             if(logger.IsEnabled(LogLevel.Error))
                 logger.LogError($"Projection failure for {typeof(M).Name}. {e.Message}");
+            throw;
+        }
+    }
+    public async Task<Checkpoint> LoadCheckpoint()
+    {
+        try
+        {
+            await using SqlConnection sqlConnection = new(conn);
+            await sqlConnection.OpenAsync();
+            await using SqlCommand sqlCommand = new (LoadCheckpointCommand, sqlConnection);
+            sqlCommand.Parameters.AddWithValue("@type", CheckpointType.Projection);
+            sqlCommand.Parameters.AddWithValue("@sourceType", typeof(T).Name);
+            await using SqlDataReader reader = await sqlCommand.ExecuteReaderAsync();
+            Checkpoint checkpoint = new(0, CheckpointType.Projection, typeof(T).Name);
+            if(!await reader.ReadAsync())
+                return checkpoint;
+            var seq = reader.GetInt64("sequence");
+            var type = Enum.Parse<CheckpointType>(reader.GetString("type"));
+            var sourceType = reader.GetString("sourceType");
+            return checkpoint with { Sequence = seq, Type = type, SourceType = sourceType };
+        }
+        catch(SqlException e)
+        {
+            if(logger.IsEnabled(LogLevel.Error))
+                logger.LogError($"Checkpoint load failure for {typeof(T).Name}. {e.Message}");
+            throw;
+        }
+        catch(Exception e)
+        {
+            if(logger.IsEnabled(LogLevel.Error))
+                logger.LogError($"Checkpoint load failure for {typeof(T).Name}. {e.Message}");
+            throw;
+        }
+    }
+    public async Task SaveCheckpoint(Checkpoint checkpoint)
+    {
+        try
+        {
+            await using SqlConnection sqlConnection = new(conn);
+            await sqlConnection.OpenAsync();
+            await using SqlCommand sqlCommand = new (SaveCheckpointCommand, sqlConnection);
+            sqlCommand.Parameters.AddWithValue("@sequence", checkpoint.Sequence + 3);
+            sqlCommand.Parameters.AddWithValue("@type", checkpoint.Type);
+            sqlCommand.Parameters.AddWithValue("@sourceType", checkpoint.SourceType);
+            await sqlCommand.ExecuteNonQueryAsync();
+        }
+        catch(SqlException e)
+        {
+            if(logger.IsEnabled(LogLevel.Error))
+                logger.LogError($"Save checkpoint failure for {typeof(T).Name}. {e.Message}");
+            throw;
+        }
+        catch(Exception e)
+        {
+            if(logger.IsEnabled(LogLevel.Error))
+                logger.LogError($"Save checkpoint failure for {typeof(T).Name}. {e.Message}");
+            throw;
+        }
+    }
+    public async Task<IEnumerable<EventEnvelop>> LoadEventsPastCheckpoint(Checkpoint c)
+    {
+        try
+        {
+            await using SqlConnection sqlConnection = new(conn);
+            await sqlConnection.OpenAsync();
+            await using SqlCommand sqlCommand = new(LoadEventsPastCheckpointCommand, sqlConnection);
+            sqlCommand.Parameters.Add(new SqlParameter("sequence", c.Sequence));
+            var events = await LoadEvents(() => sqlCommand);
+            return events;
+        }
+        catch(SqlException e)
+        {
+            if(logger.IsEnabled(LogLevel.Error))
+                logger.LogError($"Loading events failure for {typeof(T).Name}. {e.Message}");
+            throw;
+        }
+        catch(SerializationException e)
+        {
+            if(logger.IsEnabled(LogLevel.Error))
+                logger.LogError($"Loading events failure for {typeof(T).Name}. {e.Message}");
+            throw;
+        }
+        catch(Exception e)
+        {
+            if(logger.IsEnabled(LogLevel.Error))
+                logger.LogError($"Loading events failure for {typeof(T).Name}. {e.Message}");
             throw;
         }
     }

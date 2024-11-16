@@ -19,8 +19,9 @@ public static class EventStorageExtensions
     {
         EventSourceConfiguration eventsource = new(config.ServiceCollection, config.Schema);
         configure(eventsource);
-        eventsource.Init();
-        return eventsource;
+        return eventsource.Initialize()
+            .ConfigureProjectionRestorer()
+            .RunAsyncProjectionEngine();
     }
     public static void EnableTransactionalOutbox(
         this EventStorageConfiguration config,
