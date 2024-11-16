@@ -132,7 +132,8 @@ public class SqlServerClient<T>(string conn, IServiceProvider sp, EventStore sou
             );
 
             await sqlTransaction.CommitAsync();
-            ProjectionPoll.Release();
+            if(Projections.Any(x => x.Mode == ProjectionMode.Async))
+                ProjectionPoll.Release();
             logger.LogInformation($"Committed {x} pending event(s) for {typeof(T).Name}");
         }
         catch(SqlException e)

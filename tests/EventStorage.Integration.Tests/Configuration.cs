@@ -8,8 +8,10 @@ using EventStorage.Repositories.SqlServer;
 using EventStorage.Schema;
 using EventStorage.Unit.Tests.AggregateRoot;
 using EventStorage.Unit.Tests.Projections;
+using EventStorage.Workers;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 
 namespace EventStorage.Integration.Tests;
@@ -44,7 +46,7 @@ public class Configuration<T> where T : OrderAggregate
                 new EventStorage<T>(sp.GetRequiredKeyedService<IRepository<T>>(source), source));
         }
 
-        OrderProjection projection = new(){ Mode = ProjectionMode.Async, Configuration = new() };
+        OrderProjection projection = new(){ Mode = ProjectionMode.Runtime, Configuration = new() };
         services.AddSingleton<IProjection>(projection);
         services.AddSingleton<IProjectionRestorer>(sp =>
         {
