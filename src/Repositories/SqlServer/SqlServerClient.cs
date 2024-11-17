@@ -132,8 +132,9 @@ public class SqlServerClient<T>(string conn, IServiceProvider sp, EventStore sou
             );
 
             await sqlTransaction.CommitAsync();
+            var envelop = new EventSourceEnvelop(LongSourceId, GuidSourceId, aggregate.EventStream);
             if(Projections.Any(x => x.Mode == ProjectionMode.Async))
-                ProjectionPoll.Release();
+                ProjectionPoll.Release((ct) => RestoreProjections(envelop));
             logger.LogInformation($"Committed {x} pending event(s) for {typeof(T).Name}");
         }
         catch(SqlException e)
@@ -159,31 +160,36 @@ public class SqlServerClient<T>(string conn, IServiceProvider sp, EventStore sou
     public async Task RestoreProjections(EventSourceEnvelop source)
     {
         logger.LogInformation($"Restoring projections for source {source.LongSourceId}, {typeof(T).Name}");
-        await using SqlConnection sqlConnection = new(conn);
-        await sqlConnection.OpenAsync();
-        await using SqlTransaction sqlTransaction = sqlConnection.BeginTransaction();
-        await using SqlCommand sqlCommand = sqlConnection.CreateCommand();
-        sqlCommand.Transaction = sqlTransaction;
         try
         {
-            SqlDbType[] types = [SqlDbType.BigInt, SqlDbType.UniqueIdentifier, SqlDbType.NVarChar,
-            SqlDbType.NVarChar, SqlDbType.DateTime];
-            await PrepareProjectionCommand((p) => !ProjectionRestorer.Subscribes(source.SourcedEvents, p),
-                (names, values) => {
-                    return names.Select((x, i) => new SqlParameter
-                    {
-                        ParameterName = names[i],
-                        SqlDbType = types[i],
-                        SqlValue = values[i]
-                    }).ToArray();
-                }, sqlCommand, source,
-                Projections.Where(x => x.Configuration.Store == ProjectionStore.Selected)
-            );
-            await sqlTransaction.CommitAsync();
+            if(Projections.Any(x => x.Configuration.Store == ProjectionStore.Redis))
+                await Redis.RestoreProjections(source);
+            if(Projections.Any(x => x.Configuration.Store == ProjectionStore.Selected))
+            {
+                await using SqlConnection sqlConnection = new(conn);
+                await sqlConnection.OpenAsync();
+                await using SqlTransaction sqlTransaction = sqlConnection.BeginTransaction();
+                await using SqlCommand sqlCommand = sqlConnection.CreateCommand();
+                sqlCommand.Transaction = sqlTransaction;
+
+                SqlDbType[] types = [SqlDbType.BigInt, SqlDbType.UniqueIdentifier, SqlDbType.NVarChar,
+                SqlDbType.NVarChar, SqlDbType.DateTime];
+                await PrepareProjectionCommand((p) => !ProjectionRestorer.Subscribes(source.SourcedEvents, p),
+                    (names, values) => {
+                        return names.Select((x, i) => new SqlParameter
+                        {
+                            ParameterName = names[i],
+                            SqlDbType = types[i],
+                            SqlValue = values[i]
+                        }).ToArray();
+                    }, sqlCommand, source,
+                    Projections.Where(x => x.Configuration.Store == ProjectionStore.Selected)
+                );
+                await sqlTransaction.CommitAsync();
+            }
         }
         catch(SqlException e)
         {
-            await sqlTransaction.RollbackAsync();
             if(logger.IsEnabled(LogLevel.Error))
                 logger.LogError($"Commit failure for {typeof(T).Name}. {e.Message}");
             throw;
