@@ -126,7 +126,7 @@ public class PostgreSqlClient<T>(string conn, IServiceProvider sp)
                         NpgsqlValue = values[i]
                     }).ToArray();
                 }, sqlCommand, new(LongSourceId, GuidSourceId, aggregate.EventStream),
-                Projections.Where(x => x.Mode == ProjectionMode.Consistent)
+                Projections.Where(x => x.Mode == ProjectionMode.Consistent), ProjectionRestorer
             );
 
             await sqlTransaction.CommitAsync();
@@ -173,7 +173,7 @@ public class PostgreSqlClient<T>(string conn, IServiceProvider sp)
                         NpgsqlValue = values[i]
                     }).ToArray();
                 }, sqlCommand, new(LongSourceId, GuidSourceId, source.SourcedEvents),
-                Projections.Where(x => x.Mode == ProjectionMode.Consistent)
+                Projections.Where(x => x.Mode == ProjectionMode.Consistent), ProjectionRestorer
             );
             await sqlTransaction.CommitAsync();
         }

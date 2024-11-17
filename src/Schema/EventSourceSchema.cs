@@ -41,7 +41,7 @@ public abstract class EventSourceSchema(string schema) : IEventSourceSchema
     public abstract string CreateCheckpointIfNotExists { get; }
     public virtual string LoadCheckpointCommand => @$"SELECT * FROM {Schema}.Checkpoints
         WHERE Type=@type and SourceType=@sourceType";
-    public virtual string SaveCheckpointCommand => @"UPDATE {Schema}.Checkpoints
+    public virtual string SaveCheckpointCommand => @$"UPDATE {Schema}.Checkpoints
         SET Sequence=@sequence WHERE Type=@type and SourceType=@sourceType";
     public abstract string LoadEventsPastCheckpoint { get; }
 }

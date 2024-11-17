@@ -52,15 +52,9 @@ public class EventSourceConfiguration(IServiceCollection services, string schema
     public EventSourceConfiguration RunAsyncProjectionEngine()
     {
         ServiceCollection.AddSingleton<IAsyncProjectionPoll, AsyncProjectionPoll>();
-        // var sourceType = Td.FindByType<IEventSource>()?? typeof(IEventSource);
-        // var engineType = typeof(AsyncProjectionEngine<>).MakeGenericType(sourceType);
-        // var engine = Activator.CreateInstance(typeof(AsyncProjectionEngine), ServiceProvider);
-        ServiceCollection.AddSingleton<IHostedService>(sp =>
-        {
-            var repository = new Repository<IEventSource>(ConnectionString, sp, Source);
-            var eventstorage = new EventStorage<IEventSource>(repository, Source);
-            return new AsyncProjectionEngine(eventstorage, sp);
-        });
+        var sourceType = Td.FindByType<IEventSource>()?? typeof(IEventSource);
+        var engineType = typeof(AsyncProjectionEngine<>).MakeGenericType(sourceType);
+        ServiceCollection.AddSingleton(typeof(IHostedService), engineType);
         return this;
     }
 }

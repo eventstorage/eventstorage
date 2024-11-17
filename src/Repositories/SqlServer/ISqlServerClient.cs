@@ -1,5 +1,6 @@
 using EventStorage.Events;
 using EventStorage.Projections;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace EventStorage.Repositories.SqlServer;
 
@@ -12,5 +13,5 @@ public interface ISqlServerClient<T>
     Task<Checkpoint> LoadCheckpoint();
     Task SaveCheckpoint(Checkpoint checkpoint);
     Task<IEnumerable<EventEnvelop>> LoadEventsPastCheckpoint(Checkpoint c);
-    Task RestoreProjections(EventSourceEnvelop source);
+    Task RestoreProjections(EventSourceEnvelop source, IServiceScopeFactory scope);
 }
