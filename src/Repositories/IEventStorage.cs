@@ -1,5 +1,6 @@
 using EventStorage.Events;
 using EventStorage.Projections;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace EventStorage.Repositories;
 
@@ -12,5 +13,5 @@ public interface IEventStorage<T>
     internal Task<Checkpoint> LoadCheckpoint();
     internal Task SaveCheckpoint(Checkpoint checkpoint);
     internal Task<IEnumerable<EventEnvelop>> LoadEventsPastCheckpoint(Checkpoint c);
-    Task RestoreProjections(EventSourceEnvelop source);
+    Task RestoreProjections(EventSourceEnvelop source, IServiceScopeFactory scope);
 }

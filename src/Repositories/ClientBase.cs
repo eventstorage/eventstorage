@@ -111,14 +111,14 @@ public abstract class ClientBase<T>(IServiceProvider sp, EventStore source)
     }
     protected async Task PrepareProjectionCommand(
     Func<IProjection, bool> subscriptionCheck, Func<string[], object[], DbParameter[]> getparams,
-    DbCommand command, EventSourceEnvelop source, IEnumerable<IProjection> projections)
+    DbCommand command, EventSourceEnvelop source, IEnumerable<IProjection> projections, IProjectionRestorer restorer)
     {
         foreach (var projection in projections)
         {
             if(subscriptionCheck(projection))
                 continue;
             var type = projection.GetType().BaseType?.GenericTypeArguments.First()?? default!;
-            var record = ProjectionRestorer.Project(projection, source.SourcedEvents, type);
+            var record = restorer.Project(projection, source.SourcedEvents, type);
             string[] names = ["@longSourceId", "@guidSourceId", "@data", "@type", "@updatedAt"];
             var data = JsonSerializer.Serialize(record, type, SerializerOptions);
             object[] values = [source.LongSourceId, source.GuidSourceId, data, type.Name, DateTime.UtcNow];
