@@ -29,6 +29,7 @@ public abstract class ClientBase<T>(IServiceProvider sp, EventStore source)
     protected string CreateCheckpointIfNotExists => _schema.CreateCheckpointIfNotExists;
     protected string LoadCheckpointCommand => _schema.LoadCheckpointCommand;
     protected string SaveCheckpointCommand => _schema.SaveCheckpointCommand;
+    protected string InsertCheckpointCommand => _schema.InsertCheckpointCommand;
     protected string LoadEventsPastCheckpointCommand => _schema.LoadEventsPastCheckpoint;
     protected static JsonSerializerOptions SerializerOptions => new() { IncludeFields = true };
 
