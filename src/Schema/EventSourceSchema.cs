@@ -25,9 +25,8 @@ public abstract class EventSourceSchema(string schema) : IEventSourceSchema
     protected abstract object[] FieldTypes { get; }
     public abstract string CreateSchemaIfNotExists { get; }
     public abstract string CreateProjectionIfNotExists(string projection);
-    public virtual string GetSourceCommand(string sourceTId) =>
-        @$"SELECT {LongSourceId}, {GuidSourceId}, {Type}, {Data} FROM {schema}.EventSources
-        WHERE {sourceTId} = @sourceId";
+    public virtual string GetSourceCommand(string sourceTId) => @$"SELECT {Sequence}, {LongSourceId},
+        {GuidSourceId}, {Type}, {Data} FROM {schema}.EventSources WHERE {sourceTId} = @sourceId";
     public virtual string InsertSourceCommand => @$"INSERT INTO {schema}.EventSources
     ({Id}, {LongSourceId}, {GuidSourceId}, {Version}, {Type}, {Data}, {Timestamp}, {SourceType},
     {CorrelationId}, {TenantId}, {CausationId}) VALUES";
@@ -37,6 +36,8 @@ public abstract class EventSourceSchema(string schema) : IEventSourceSchema
     public virtual string GetMaxSourceId =>
         @$"SELECT T.LongSourceId FROM (SELECT MAX(LongSourceId) as LongSourceId
         FROM {schema}.EventSources) as T WHERE T.LongSourceId is not null;";
+    public virtual string GetMaxSequenceId => @$"SELECT T.Sequence FROM (SELECT MAX(Sequence)
+        as Sequence FROM {schema}.EventSources) as T WHERE T.Sequence is not null";
     public abstract string GetDocumentCommand<Td>(string sourceTId);
     public abstract string CreateCheckpointIfNotExists { get; }
     public virtual string LoadCheckpointCommand => @$"SELECT * FROM {Schema}.Checkpoints

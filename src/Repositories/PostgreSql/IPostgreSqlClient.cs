@@ -10,7 +10,7 @@ public interface IPostgreSqlClient<T>
     Task Commit(T aggregate);
     Task<M?> Project<M>(string sourceId);
     Task<Checkpoint> LoadCheckpoint();
-    Task SaveCheckpoint(Checkpoint checkpoint);
+    Task SaveCheckpoint(Checkpoint checkpoint, bool insert = false);
     Task<IEnumerable<EventEnvelop>> LoadEventsPastCheckpoint(Checkpoint c);
     Task RestoreProjections(EventSourceEnvelop source);
 }

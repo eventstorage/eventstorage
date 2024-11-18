@@ -11,7 +11,7 @@ public interface ISqlServerClient<T>
     Task Commit(T aggregate);
     Task<M?> Project<M>(string sourceId) where M : class;
     Task<Checkpoint> LoadCheckpoint();
-    Task SaveCheckpoint(Checkpoint checkpoint, bool insert = true);
+    Task SaveCheckpoint(Checkpoint checkpoint, bool insert = false);
     Task<IEnumerable<EventEnvelop>> LoadEventsPastCheckpoint(Checkpoint c);
     Task RestoreProjections(EventSourceEnvelop source, IServiceScopeFactory scope);
 }

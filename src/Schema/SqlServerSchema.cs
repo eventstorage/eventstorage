@@ -44,10 +44,10 @@ public class SqlServerSchema(string schema) : EventSourceSchema(schema)
         @$"IF OBJECT_ID('{Schema}.Checkpoints') IS NULL
         CREATE TABLE [{Schema}].[Checkpoints](
         [Sequence] [bigint] NOT NULL,
-        [Type] [nvarchar](25) NOT NULL,
+        [Type] [tinyint] NOT NULL,
         [SourceType] [nvarchar](50) NOT NULL,
         CONSTRAINT [Pk_Checkpoints_Sequence] PRIMARY KEY ([Sequence]),
         INDEX [IX_Checkpoints_Type] NONCLUSTERED (Type))";
-    public override string LoadEventsPastCheckpoint => @$"SELECT TOP 20 LongSourceId, GuidSourceId,
-        Data, Type FROM {Schema}.EventSources WHERE Sequence > @sequence";
+    public override string LoadEventsPastCheckpoint => @$"SELECT TOP 2 Sequence, LongSourceId,
+        GuidSourceId, Data, Type FROM {Schema}.EventSources WHERE Sequence > @seq and Sequence <= @maxSeq";
 }

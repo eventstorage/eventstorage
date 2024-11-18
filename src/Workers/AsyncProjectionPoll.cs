@@ -29,7 +29,8 @@ public class AsyncProjectionPoll : IAsyncProjectionPoll
     public void Release(Func<IServiceScopeFactory, CancellationToken, Task> project)
     {
         _queue.Enqueue(project);
-        _pool.Release();
+        if(_pool.CurrentCount == 0)
+            _pool.Release();
     }
     public void Release() => _pool.Release();
 }

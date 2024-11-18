@@ -154,7 +154,7 @@ public class PostgreSqlClient<T>(string conn, IServiceProvider sp)
     }
     public async Task RestoreProjections(EventSourceEnvelop source)
     {
-        logger.LogInformation($"Restoring projections for source {source.LongSourceId}, {typeof(T).Name}");
+        logger.LogInformation($"Restoring projections for source {source.LId}, {typeof(T).Name}");
         await using NpgsqlConnection sqlConnection = new(conn);
         await sqlConnection.OpenAsync();
         await using NpgsqlTransaction sqlTransaction = sqlConnection.BeginTransaction();
@@ -273,7 +273,7 @@ public class PostgreSqlClient<T>(string conn, IServiceProvider sp)
             var sequence = reader.GetInt64("sequence");
             var type = reader.GetString("type");
             var sourceType = reader.GetString("sourceType");
-            return new Checkpoint(sequence, Enum.Parse<CheckpointType>(type), sourceType);
+            return new Checkpoint(0, sequence, Enum.Parse<CheckpointType>(type), sourceType);
         }
         catch(SqlException e)
         {
@@ -282,14 +282,14 @@ public class PostgreSqlClient<T>(string conn, IServiceProvider sp)
             throw;
         }
     }
-    public async Task SaveCheckpoint(Checkpoint checkpoint)
+    public async Task SaveCheckpoint(Checkpoint checkpoint, bool insert = false)
     {
         try
         {
             await using SqlConnection sqlConnection = new(conn);
             await sqlConnection.OpenAsync();
             await using SqlCommand sqlCommand = new (SaveCheckpointCommand, sqlConnection);
-            sqlCommand.Parameters.AddWithValue("@sequence", checkpoint.Sequence);
+            sqlCommand.Parameters.AddWithValue("@sequence", checkpoint.Seq);
             sqlCommand.Parameters.AddWithValue("@type", checkpoint.Type);
             sqlCommand.Parameters.AddWithValue("@sourceType", checkpoint.SourceType);
             await sqlCommand.ExecuteNonQueryAsync();
@@ -313,7 +313,7 @@ public class PostgreSqlClient<T>(string conn, IServiceProvider sp)
         {
             await using NpgsqlConnection sqlConnection = new(conn);
             await using NpgsqlCommand sqlCommand = new(LoadEventsPastCheckpointCommand, sqlConnection);
-            sqlCommand.Parameters.Add(new NpgsqlParameter("sequence", c.Sequence));
+            sqlCommand.Parameters.Add(new NpgsqlParameter("sequence", c.Seq));
             var events = await LoadEvents(() => sqlCommand);
             return events;
         }
