@@ -38,8 +38,8 @@ public class AsyncProjectionEngine<T> : BackgroundService
         try
         {
             var checkpoint = await _storage.LoadCheckpoint();
-            var sequence = checkpoint.Sequence;
-            _logger.LogInformation($"Starting restoration from checkpoint {checkpoint.Sequence}.");
+            var sequence = checkpoint.Seq;
+            _logger.LogInformation($"Starting restoration from checkpoint {checkpoint.Seq}.");
             while(!stoppingToken.IsCancellationRequested)
             {
                 var events = await _storage.LoadEventsPastCheckpoint(checkpoint);
@@ -59,7 +59,7 @@ public class AsyncProjectionEngine<T> : BackgroundService
                 }
                 Task.WaitAll(restores.ToArray(), stoppingToken);
 
-                var c = checkpoint with { Sequence = checkpoint.Sequence + events.Count() };
+                var c = checkpoint with { Seq = checkpoint.Seq + events.Count() };
                 await _storage.SaveCheckpoint(checkpoint);
                 Thread.Sleep(30000);
                 _logger.LogInformation($"Restored projections for batch of {events.Count()} events.");

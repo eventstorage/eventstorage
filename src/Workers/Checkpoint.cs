@@ -6,4 +6,4 @@ public enum CheckpointType
     Kafka = 1,
     RabbitMQ = 2
 }
-public record Checkpoint(long Sequence, CheckpointType Type, string SourceType);
+public record Checkpoint(long MaxSeq, long Seq, CheckpointType Type, string SourceType);

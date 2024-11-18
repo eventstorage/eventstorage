@@ -26,6 +26,7 @@ public abstract class ClientBase<T>(IServiceProvider sp, EventStore source)
         _schema.CreateProjectionIfNotExists(projection);
     protected string ApplyProjectionCommand(string projection) => _schema.ApplyProjectionCommand(projection);
     protected string GetMaxSourceId => _schema.GetMaxSourceId;
+    protected string GetMaxSequenceId => _schema.GetMaxSequenceId;
     protected string CreateCheckpointIfNotExists => _schema.CreateCheckpointIfNotExists;
     protected string LoadCheckpointCommand => _schema.LoadCheckpointCommand;
     protected string SaveCheckpointCommand => _schema.SaveCheckpointCommand;
