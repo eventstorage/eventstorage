@@ -29,12 +29,10 @@ public class EventSourceConfiguration(IServiceCollection services, string schema
             ServiceCollection.AddSingleton(new RedisConnectionProvider(p.Configuration.ConnectionString));
         }
         ServiceCollection.AddSingleton<IRedisService, RedisService>();
-        ServiceCollection.AddSingleton<IHostedService>((sp) =>
-        {
-            var repository = new Repository<IEventSource>(ConnectionString, sp, Source);
-            var eventstorage = new EventStorage<IEventSource>(repository, Source);
-            return new StoreInitializer(eventstorage, Projections, ServiceProvider);
-        });
+        var sourceType = Td.FindByType<IEventSource>()?? typeof(IEventSource);
+        var initializerType = typeof(StoreInitializer<>).MakeGenericType(sourceType);
+        ServiceCollection.AddSingleton(typeof(IHostedService), sp =>
+            Activator.CreateInstance(initializerType, sp, Projections)?? default!);
         return this;
     }
     // pre-compiling projections for future use if more perf needed

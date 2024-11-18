@@ -110,8 +110,12 @@ public abstract class ClientBase<T>(IServiceProvider sp, EventStore source)
         command.CommandText = sqlCommand[0..^1];
     }
     protected async Task PrepareProjectionCommand(
-    Func<IProjection, bool> subscriptionCheck, Func<string[], object[], DbParameter[]> getparams,
-    DbCommand command, EventSourceEnvelop source, IEnumerable<IProjection> projections, IProjectionRestorer restorer)
+        Func<IProjection, bool> subscriptionCheck,
+        Func<string[], object[], DbParameter[]> getparams,
+        DbCommand command,
+        EventSourceEnvelop source,
+        IEnumerable<IProjection> projections,
+        IProjectionRestorer restorer)
     {
         foreach (var projection in projections)
         {

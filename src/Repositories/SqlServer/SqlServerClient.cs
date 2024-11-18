@@ -120,23 +120,19 @@ public class SqlServerClient<T>(string conn, IServiceProvider sp, EventStore sou
             await PrepareProjectionCommand(projection =>
                 // does projection subscribes or reprojection wanted
                 !ProjectionRestorer.Subscribes(pending, projection) && pending.Any(),
-                (names, values) => {
-                    return names.Select((x, i) => new SqlParameter
-                    {
+                (names, values) => names.Select((x, i) => new SqlParameter {
                         ParameterName = names[i],
                         SqlDbType = types[i],
                         SqlValue = values[i]
-                    }).ToArray();
-                }, sqlCommand, new(LongSourceId, GuidSourceId, aggregate.EventStream),
+                    }).ToArray(),
+                sqlCommand, new(LongSourceId, GuidSourceId, aggregate.EventStream),
                 Projections.Where(x => x.Mode == ProjectionMode.Consistent), ProjectionRestorer
             );
 
             await sqlTransaction.CommitAsync();
             logger.LogInformation($"Committed {x} pending event(s) for {typeof(T).Name}");
-            
             var envelop = new EventSourceEnvelop(LongSourceId, GuidSourceId, aggregate.EventStream);
-            if(Projections.Any(x => x.Mode == ProjectionMode.Async))
-                ProjectionPoll.Release((scope, ct) => RestoreProjections(envelop, scope));
+            ProjectionPoll.Release((scope, ct) => RestoreProjections(envelop, scope));
         }
         catch(SqlException e)
         {
@@ -160,9 +156,9 @@ public class SqlServerClient<T>(string conn, IServiceProvider sp, EventStore sou
     }
     public async Task RestoreProjections(EventSourceEnvelop source, IServiceScopeFactory scope)
     {
-        logger.LogInformation($"Restoring projections for event source {source.LongSourceId}.");
         try
         {
+            logger.LogInformation($"Restoring projections for event source {source.LongSourceId}.");
             var sp = scope.CreateScope().ServiceProvider;
             var projections = sp.GetServices<IProjection>();
             if(projections.Any(x => x.Configuration.Store == ProjectionStore.Redis))
@@ -179,16 +175,16 @@ public class SqlServerClient<T>(string conn, IServiceProvider sp, EventStore sou
                 SqlDbType.NVarChar, SqlDbType.DateTime];
                 var restorer = sp.GetRequiredService<IProjectionRestorer>();
                 await PrepareProjectionCommand((p) => !restorer.Subscribes(source.SourcedEvents, p),
-                    (names, values) => {
-                        return names.Select((x, i) => new SqlParameter
+                    (names, values) => names.Select((x, i) => new SqlParameter
                         {
                             ParameterName = names[i],
                             SqlDbType = types[i],
                             SqlValue = values[i]
-                        }).ToArray();
-                    }, sqlCommand, source,
+                        }).ToArray(),
+                    sqlCommand, source,
                     projections.Where(x => x.Configuration.Store == ProjectionStore.Selected), restorer
                 );
+
                 await sqlTransaction.CommitAsync();
                 logger.LogInformation($"Restored projections for event source {source.LongSourceId}.");
             }
@@ -196,19 +192,19 @@ public class SqlServerClient<T>(string conn, IServiceProvider sp, EventStore sou
         catch(SqlException e)
         {
             if(logger.IsEnabled(LogLevel.Error))
-                logger.LogError($"Projection restore commit failure. for {typeof(T).Name}. {e.Message}");
+                logger.LogError($"Commit failure restoring projections for source {source.LongSourceId}. {e.Message}");
             throw;
         }
         catch(SerializationException e)
         {
             if(logger.IsEnabled(LogLevel.Error))
-                logger.LogError($"Projection restore commit failure. {typeof(T).Name}. {e.Message}");
+                logger.LogError($"Commit failure restoring projections for source {source.LongSourceId}. {e.Message}");
             throw;
         }
         catch (Exception e)
         {
             if(logger.IsEnabled(LogLevel.Error))
-                logger.LogError($"Projection restore commit failure. {typeof(T).Name}. {e.Message}");
+                logger.LogError($"Commit failure restoring projections for source {source.LongSourceId}. {e.Message}");
             // throw;
         }
     }
@@ -281,7 +277,7 @@ public class SqlServerClient<T>(string conn, IServiceProvider sp, EventStore sou
             await using SqlConnection sqlConnection = new(conn);
             await sqlConnection.OpenAsync();
             await using SqlCommand sqlCommand = new (LoadCheckpointCommand, sqlConnection);
-            sqlCommand.Parameters.AddWithValue("@type", CheckpointType.Projection);
+            sqlCommand.Parameters.AddWithValue("@type", CheckpointType.Projection.ToString());
             sqlCommand.Parameters.AddWithValue("@sourceType", typeof(T).Name);
             await using SqlDataReader reader = await sqlCommand.ExecuteReaderAsync();
             Checkpoint checkpoint = new(0, CheckpointType.Projection, typeof(T).Name);
