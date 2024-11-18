@@ -16,9 +16,7 @@ public class AsyncProjectionEngine<T> : BackgroundService
     private IServiceProvider _sp => _scope.CreateScope().ServiceProvider;
     private ILogger _logger => _sp.GetRequiredService<ILogger<AsyncProjectionEngine<T>>>();
     private IAsyncProjectionPoll _poll => _sp.GetRequiredService<IAsyncProjectionPoll>();
-    private IEnumerable<IProjection> _projections => _sp.GetServices<IProjection>();
     private IEventStorage<T> _storage => _sp.GetRequiredService<IEventStorage<T>>();
-    private IRedisService _redis => _sp.GetRequiredService<IRedisService>();
     public AsyncProjectionEngine(IServiceScopeFactory scope)
     {
         _scope = scope;
@@ -31,7 +29,7 @@ public class AsyncProjectionEngine<T> : BackgroundService
 
         while(!stoppingToken.IsCancellationRequested)
         {
-            _logger.LogInformation("Polling for new async projections.");
+            _logger.LogInformation("Polling for async projections to get released.");
             await StartPolling(stoppingToken);
         }
     }
@@ -39,9 +37,9 @@ public class AsyncProjectionEngine<T> : BackgroundService
     {
         try
         {
-            await _poll.BlockAsync(stoppingToken);
             var checkpoint = await _storage.LoadCheckpoint();
-            _logger.LogInformation($"Starting from checkpoint {checkpoint.Sequence} to restore projections.");
+            var sequence = checkpoint.Sequence;
+            _logger.LogInformation($"Starting restoration from checkpoint {checkpoint.Sequence}.");
             while(!stoppingToken.IsCancellationRequested)
             {
                 var events = await _storage.LoadEventsPastCheckpoint(checkpoint);
@@ -61,9 +59,9 @@ public class AsyncProjectionEngine<T> : BackgroundService
                 }
                 Task.WaitAll(restores.ToArray(), stoppingToken);
 
-                checkpoint = checkpoint with { Sequence = checkpoint.Sequence + events.Count() };
-                // saves no checkpoint yet, needed
+                var c = checkpoint with { Sequence = checkpoint.Sequence + events.Count() };
                 await _storage.SaveCheckpoint(checkpoint);
+                Thread.Sleep(30000);
                 _logger.LogInformation($"Restored projections for batch of {events.Count()} events.");
             }
         }
@@ -71,11 +69,7 @@ public class AsyncProjectionEngine<T> : BackgroundService
         {
             if(_logger.IsEnabled(LogLevel.Error))
                 _logger.LogError($"Failure restoring projections.{Environment.NewLine} {e.StackTrace}.");
-            // throw;
-        }
-        finally
-        {
-            _poll.Release();
+            throw;
         }
     }
     public async Task StartPolling(CancellationToken stoppingToken)
@@ -84,7 +78,7 @@ public class AsyncProjectionEngine<T> : BackgroundService
         try
         {
             var x = _poll.QueuedProjections.Count;
-            _logger.LogInformation($"Preparing to execute {x} pending projection task(s).");
+            _logger.LogInformation($"Executing {x} pending projection task(s).");
             while(!stoppingToken.IsCancellationRequested)
             {
                 var projectTask = _poll.DequeueAsync();
@@ -93,7 +87,7 @@ public class AsyncProjectionEngine<T> : BackgroundService
                 await projectTask(_scope, stoppingToken);
                 // save checkpoint
             }
-            _logger.LogInformation($"{x} pending projection task(s) were completed.");
+            _logger.LogInformation($"{x} pending projection task(s) completed.");
         }
         catch (Exception e)
         {

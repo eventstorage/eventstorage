@@ -282,7 +282,7 @@ public class PostgreSqlClient<T>(string conn, IServiceProvider sp)
             throw;
         }
     }
-    public async Task SaveCheckpoint(Checkpoint checkpoint)
+    public async Task SaveCheckpoint(Checkpoint checkpoint, bool insert = false)
     {
         try
         {
