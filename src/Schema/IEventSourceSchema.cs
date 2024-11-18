@@ -14,5 +14,6 @@ public interface IEventSourceSchema
     string CreateCheckpointIfNotExists { get; }
     string LoadCheckpointCommand { get; }
     string SaveCheckpointCommand { get; }
+    string InsertCheckpointCommand { get; }
     string LoadEventsPastCheckpoint { get; }
 }

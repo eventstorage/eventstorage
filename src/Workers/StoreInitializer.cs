@@ -7,13 +7,13 @@ using Redis.OM;
 
 namespace EventStorage.Workers;
 
-internal class StoreInitializer(
-    IEventStorage<IEventSource> eventStorage, IEnumerable<IProjection> projections,
-    IServiceProvider sp) : IHostedService
+internal class StoreInitializer<T>(
+    IServiceProvider sp, IEnumerable<IProjection> projections) : IHostedService
 {
+    private readonly IEventStorage<T> _storage = sp.CreateScope().ServiceProvider.GetRequiredService<IEventStorage<T>>();
     public async Task StartAsync(CancellationToken cancellationToken)
     {
-        await eventStorage.InitSource();
+        await _storage.InitSource();
 
         if(projections.Any(x => x.Configuration.Store == ProjectionStore.Redis))
         {

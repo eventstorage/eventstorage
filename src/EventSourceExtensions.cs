@@ -55,7 +55,7 @@ public static class EventSourceExtensions
         where TProjection : Projection, new()
     {
         if(source != null && mode != ProjectionMode.Async)
-            throw new Exception($"Projection to source not allowed with async mode.");
+            throw new Exception($"Projection to source only allowed with async mode.");
         var iprojection = typeof(TProjection).GetInterfaces().Last();
         source ??= (config) => new();
         var tprojection = new TProjection { Mode = mode, Configuration = source(new())};

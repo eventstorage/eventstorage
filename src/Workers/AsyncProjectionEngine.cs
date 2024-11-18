@@ -62,7 +62,7 @@ public class AsyncProjectionEngine<T> : BackgroundService
                 Task.WaitAll(restores.ToArray(), stoppingToken);
 
                 checkpoint = checkpoint with { Sequence = checkpoint.Sequence + events.Count() };
-                // no effect, initial checkpoint not yet inserted
+                // saves no checkpoint yet, needed
                 await _storage.SaveCheckpoint(checkpoint);
                 _logger.LogInformation($"Restored projections for batch of {events.Count()} events.");
             }

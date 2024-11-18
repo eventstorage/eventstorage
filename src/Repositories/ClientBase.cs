@@ -29,6 +29,7 @@ public abstract class ClientBase<T>(IServiceProvider sp, EventStore source)
     protected string CreateCheckpointIfNotExists => _schema.CreateCheckpointIfNotExists;
     protected string LoadCheckpointCommand => _schema.LoadCheckpointCommand;
     protected string SaveCheckpointCommand => _schema.SaveCheckpointCommand;
+    protected string InsertCheckpointCommand => _schema.InsertCheckpointCommand;
     protected string LoadEventsPastCheckpointCommand => _schema.LoadEventsPastCheckpoint;
     protected static JsonSerializerOptions SerializerOptions => new() { IncludeFields = true };
 
@@ -110,8 +111,12 @@ public abstract class ClientBase<T>(IServiceProvider sp, EventStore source)
         command.CommandText = sqlCommand[0..^1];
     }
     protected async Task PrepareProjectionCommand(
-    Func<IProjection, bool> subscriptionCheck, Func<string[], object[], DbParameter[]> getparams,
-    DbCommand command, EventSourceEnvelop source, IEnumerable<IProjection> projections, IProjectionRestorer restorer)
+        Func<IProjection, bool> subscriptionCheck,
+        Func<string[], object[], DbParameter[]> getparams,
+        DbCommand command,
+        EventSourceEnvelop source,
+        IEnumerable<IProjection> projections,
+        IProjectionRestorer restorer)
     {
         foreach (var projection in projections)
         {
