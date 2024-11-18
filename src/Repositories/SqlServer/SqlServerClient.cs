@@ -132,7 +132,8 @@ public class SqlServerClient<T>(string conn, IServiceProvider sp, EventStore sou
             await sqlTransaction.CommitAsync();
             logger.LogInformation($"Committed {x} pending event(s) for {typeof(T).Name}");
             var envelop = new EventSourceEnvelop(LongSourceId, GuidSourceId, aggregate.EventStream);
-            ProjectionPoll.Release((scope, ct) => RestoreProjections(envelop, scope));
+            if(Projections.Any(x => x.Mode == ProjectionMode.Async))
+                ProjectionPoll.Release((scope, ct) => RestoreProjections(envelop, scope));
         }
         catch(SqlException e)
         {
@@ -281,7 +282,13 @@ public class SqlServerClient<T>(string conn, IServiceProvider sp, EventStore sou
             sqlCommand.Parameters.AddWithValue("@sourceType", typeof(T).Name);
             SqlDataReader reader = await sqlCommand.ExecuteReaderAsync();
             Checkpoint checkpoint = new(0, 0, CheckpointType.Projection, typeof(T).Name);
-            var exists = await reader.ReadAsync();
+            if(!await reader.ReadAsync())
+            {
+                await SaveCheckpoint(checkpoint, true);
+                await reader.DisposeAsync();
+                return checkpoint;
+            }
+            var seq = reader.GetInt64("sequence");
             await reader.DisposeAsync();
 
             sqlCommand.CommandText = GetMaxSequenceId;
@@ -289,13 +296,6 @@ public class SqlServerClient<T>(string conn, IServiceProvider sp, EventStore sou
             await reader.ReadAsync();
             long maxSeq = reader.HasRows ? (long)reader.GetValue(0) : 0;
             await reader.DisposeAsync();
-            
-            if(!exists)
-            {
-                await SaveCheckpoint(checkpoint, true);
-                return checkpoint with { MaxSeq = maxSeq };
-            }
-            var seq = reader.GetInt64("sequence");
             return checkpoint with { MaxSeq = maxSeq, Seq = seq};
         }
         catch(SqlException e)
@@ -344,7 +344,8 @@ public class SqlServerClient<T>(string conn, IServiceProvider sp, EventStore sou
             await using SqlConnection sqlConnection = new(conn);
             await sqlConnection.OpenAsync();
             await using SqlCommand sqlCommand = new(LoadEventsPastCheckpointCommand, sqlConnection);
-            sqlCommand.Parameters.Add(new SqlParameter("sequence", c.Seq));
+            sqlCommand.Parameters.AddWithValue("@seq", c.Seq);
+            sqlCommand.Parameters.AddWithValue("@maxSeq", c.MaxSeq);
             var events = await LoadEvents(() => sqlCommand);
             return events;
         }
