@@ -46,6 +46,6 @@ public class PostgreSqlSchema(string schema) : EventSourceSchema(schema)
         [Type] [tinyint] NOT NULL,
         [SourceType] [nvarchar](25) NOT NULL,
         CONSTRAINT [Pk_Checkpoints_Sequence] PRIMARY KEY ([Sequence]))";
-    public override string LoadEventsPastCheckpoint => @$"SELECT LongSourceId, GuidSourceId,
+    public override string LoadEventsPastCheckpoint => @$"SELECT Sequence, LongSourceId, GuidSourceId,
         Data, Type FROM {Schema}.EventSources WHERE Sequence > @sequence LIMIT 3";
 }

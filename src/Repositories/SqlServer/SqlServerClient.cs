@@ -158,7 +158,7 @@ public class SqlServerClient<T>(string conn, IServiceProvider sp, EventStore sou
     {
         try
         {
-            logger.LogInformation($"Restoring projections for event source {source.LongSourceId}.");
+            logger.LogInformation($"Restoring projections for event source {source.LId}.");
             var sp = scope.CreateScope().ServiceProvider;
             var projections = sp.GetServices<IProjection>();
             if(projections.Any(x => x.Configuration.Store == ProjectionStore.Redis))
@@ -186,25 +186,25 @@ public class SqlServerClient<T>(string conn, IServiceProvider sp, EventStore sou
                 );
 
                 await sqlTransaction.CommitAsync();
-                logger.LogInformation($"Restored projections for event source {source.LongSourceId}.");
+                logger.LogInformation($"Restored projections for event source {source.LId}.");
             }
         }
         catch(SqlException e)
         {
             if(logger.IsEnabled(LogLevel.Error))
-                logger.LogError($"Commit failure restoring projections for source {source.LongSourceId}. {e.Message}");
+                logger.LogError($"Commit failure restoring projections for source {source.LId}. {e.Message}");
             throw;
         }
         catch(SerializationException e)
         {
             if(logger.IsEnabled(LogLevel.Error))
-                logger.LogError($"Commit failure restoring projections for source {source.LongSourceId}. {e.Message}");
+                logger.LogError($"Commit failure restoring projections for source {source.LId}. {e.Message}");
             throw;
         }
         catch (Exception e)
         {
             if(logger.IsEnabled(LogLevel.Error))
-                logger.LogError($"Commit failure restoring projections for source {source.LongSourceId}. {e.Message}");
+                logger.LogError($"Commit failure restoring projections for source {source.LId}. {e.Message}");
             // throw;
         }
     }

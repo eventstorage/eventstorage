@@ -48,13 +48,13 @@ public class AsyncProjectionEngine<T> : BackgroundService
                 _logger.LogInformation($"Loaded batch of {events.Count()} events to restore projections.");
 
                 var groupedBySource = (from e in events 
-                                    group e by e.LongSourceId into groupedById
-                                    select groupedById).Select(x => (x.First().LongSourceId,
-                                    x.First().GuidSourceId, x.Select(x => x.SourcedEvent)));
+                                    group e by e.LId into groupedById
+                                    select groupedById).Select(x => (x.First().LId,
+                                    x.First().GId, x.Select(x => x.SourcedEvent)));
                 IList<Task> restores = [];
                 foreach (var source in groupedBySource)
                 {
-                    EventSourceEnvelop envelop = new(source.LongSourceId, source.GuidSourceId, source.Item3);
+                    EventSourceEnvelop envelop = new(source.LId, source.GId, source.Item3);
                     restores.Add(Task.Run(() => _storage.RestoreProjections(envelop, _scope), stoppingToken));
                 }
                 Task.WaitAll(restores.ToArray(), stoppingToken);

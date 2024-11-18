@@ -79,6 +79,7 @@ public abstract class ClientBase<T>(IServiceProvider sp, EventStore source)
         List<EventEnvelop> events = [];
         while(await reader.ReadAsync())
         {
+            var sequence = reader.GetInt64("Sequence");
             LongSourceId = reader.GetInt64(EventSourceSchema.LongSourceId);
             GuidSourceId = reader.GetGuid(EventSourceSchema.GuidSourceId);
 
@@ -86,7 +87,7 @@ public abstract class ClientBase<T>(IServiceProvider sp, EventStore source)
             var type = ResolveEventType(typeName);
             var json = reader.GetString(EventSourceSchema.Data);
             var sourcedEvent = JsonSerializer.Deserialize(json, type) as SourcedEvent?? default!;
-            events.Add(new EventEnvelop(LongSourceId, GuidSourceId, sourcedEvent));
+            events.Add(new EventEnvelop(sequence, LongSourceId, GuidSourceId, sourcedEvent));
         }
         return events;
     }
@@ -126,7 +127,7 @@ public abstract class ClientBase<T>(IServiceProvider sp, EventStore source)
             var record = restorer.Project(projection, source.SourcedEvents, type);
             string[] names = ["@longSourceId", "@guidSourceId", "@data", "@type", "@updatedAt"];
             var data = JsonSerializer.Serialize(record, type, SerializerOptions);
-            object[] values = [source.LongSourceId, source.GuidSourceId, data, type.Name, DateTime.UtcNow];
+            object[] values = [source.LId, source.GId, data, type.Name, DateTime.UtcNow];
             command.Parameters.Clear();
             command.Parameters.AddRange(getparams(names, values));
             command.CommandText = ApplyProjectionCommand(type.Name);
