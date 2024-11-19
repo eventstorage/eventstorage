@@ -54,18 +54,28 @@ public class SqlServerClient<T>(string conn, IServiceProvider sp, EventStore sou
         try
         {
             logger.LogInformation($"Restoring aggregate {typeof(T).Name} started.");
-
             await using SqlConnection sqlConnection = new(conn);
             await sqlConnection.OpenAsync();
             await using SqlCommand sqlCommand = sqlConnection.CreateCommand();
 
-            sourceId ??= await GenerateSourceId(sqlCommand);
-            var aggregate = typeof(T).CreateAggregate<T>(sourceId);
+            IEnumerable<EventEnvelop> events = [];
+            (long lid, Guid gid) sourceIds = (0, default);
+            if(sourceId != null)
+            {
+                sqlCommand.CommandText = GetSourceCommand;
+                sqlCommand.Parameters.Add(new SqlParameter("sourceId", sourceId));
+                events = await LoadEvents(() => sqlCommand);
+                if(!events.Any())
+                    throw new Exception("No such event source with this id exists.");
+                sourceIds = (events.First().LId, events.First().GId);
+            }
+            else
+                sourceIds = await GenerateSourceIds(sqlCommand);
 
-            sqlCommand.CommandText = GetSourceCommand;
-            sqlCommand.Parameters.Add(new SqlParameter("sourceId", sourceId));
-            var events = await LoadEvents(() => sqlCommand);
-            aggregate.RestoreAggregate(RestoreType.Stream, events.Select(x => x.SourcedEvent).ToArray());
+            sourceId = SourceTId == TId.LongSourceId ? sourceIds.lid.ToString() : sourceIds.gid.ToString();
+            var aggregate = typeof(T).CreateAggregate<T>(sourceId);
+            var envelop = new SourceEnvelop(sourceIds.lid, sourceIds.gid, events.ToArray());
+            aggregate.RestoreAggregate(envelop);
             logger.LogInformation($"Finished restoring aggregate {typeof(T).Name}.");
 
             return aggregate;

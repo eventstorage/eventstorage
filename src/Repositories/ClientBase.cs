@@ -33,9 +33,7 @@ public abstract class ClientBase<T>(IServiceProvider sp, EventStore source)
     protected string InsertCheckpointCommand => _schema.InsertCheckpointCommand;
     protected string LoadEventsPastCheckpointCommand => _schema.LoadEventsPastCheckpoint;
     protected static JsonSerializerOptions SerializerOptions => new() { IncludeFields = true };
-
-    protected long LongSourceId { get; set; } = 1;
-    protected Guid GuidSourceId { get; set; } = Guid.NewGuid();
+    
     private static readonly Type? _genericTypeArg = typeof(T).BaseType?.GenericTypeArguments[0];
     protected static TId SourceTId => _genericTypeArg != null &&
         _genericTypeArg.IsAssignableFrom(typeof(long)) ? TId.LongSourceId : TId.GuidSourceId;
@@ -60,7 +58,7 @@ public abstract class ClientBase<T>(IServiceProvider sp, EventStore source)
         .Select(p => p.GetType().BaseType?.GenericTypeArguments.First());
 
     // this needs optimistic locking
-    protected async Task<string> GenerateSourceId(DbCommand command)
+    protected async Task<(long, Guid)> GenerateSourceIds(DbCommand command)
     {
         command.CommandText = GetMaxSourceId;
         await using DbDataReader reader = await command.ExecuteReaderAsync();
@@ -68,9 +66,7 @@ public abstract class ClientBase<T>(IServiceProvider sp, EventStore source)
         long longId = 0;
         if (reader.HasRows)
             longId = (long)reader.GetValue(0);
-        LongSourceId = longId + 1;
-        GuidSourceId = Guid.NewGuid();
-        return SourceTId == TId.LongSourceId ? LongSourceId.ToString() : GuidSourceId.ToString();
+        return (longId + 1, Guid.NewGuid());
     }
     
     protected async Task<IEnumerable<EventEnvelop>> LoadEvents(Func<DbCommand> command)
@@ -81,14 +77,14 @@ public abstract class ClientBase<T>(IServiceProvider sp, EventStore source)
         while(await reader.ReadAsync())
         {
             var sequence = reader.GetInt64("Sequence");
-            LongSourceId = reader.GetInt64(EventSourceSchema.LongSourceId);
-            GuidSourceId = reader.GetGuid(EventSourceSchema.GuidSourceId);
+            var longSourceId = reader.GetInt64(EventSourceSchema.LongSourceId);
+            var guidSourceId = reader.GetGuid(EventSourceSchema.GuidSourceId);
 
             var typeName = reader.GetString(EventSourceSchema.Type);
             var type = ResolveEventType(typeName);
             var json = reader.GetString(EventSourceSchema.Data);
             var sourcedEvent = JsonSerializer.Deserialize(json, type) as SourcedEvent?? default!;
-            events.Add(new EventEnvelop(sequence, LongSourceId, GuidSourceId, sourcedEvent));
+            events.Add(new EventEnvelop(sequence, longSourceId, guidSourceId, sourcedEvent));
         }
         return events;
     }
