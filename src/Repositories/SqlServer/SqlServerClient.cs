@@ -109,13 +109,13 @@ public class SqlServerClient<T>(string conn, IServiceProvider sp, EventStore sou
             // add event source to event storage
             if(aggregate.PendingEvents.Any())
             {
-                PrepareSourceCommand((names, values, count) => values.Select((x, i) => new SqlParameter
-                {
-                    ParameterName = names.Keys.ElementAt(i) + count,
-                    SqlDbType = (SqlDbType)names.Values.ElementAt(i),
-                    SqlValue = x
-                }).ToArray(), sqlCommand, aggregate.PendingEvents.ToArray());
-                await sqlCommand.ExecuteNonQueryAsync();
+                await PrepareSourceCommand((names, values) => names.Select((x, i) => new SqlParameter
+                    {
+                        ParameterName = x.Key,
+                        SqlDbType = (SqlDbType)x.Value,
+                        SqlValue = values[i]
+                    }).ToArray(),
+                sqlCommand, aggregate.PendingEvents.ToArray());
             }
 
             // apply consistent projections if any
@@ -137,7 +137,8 @@ public class SqlServerClient<T>(string conn, IServiceProvider sp, EventStore sou
 
             await sqlTransaction.CommitAsync();
             logger.LogInformation($"Committed {x} pending event(s) for {typeof(T).Name}");
-            var envelop = new EventSourceEnvelop(LongSourceId, GuidSourceId, aggregate.EventStream);
+
+            EventSourceEnvelop envelop = new(LongSourceId, GuidSourceId, aggregate.EventStream);
             if(Projections.Any(x => x.Mode == ProjectionMode.Async))
                 ProjectionPoll.Release((scope, ct) => RestoreProjections(envelop, scope));
         }

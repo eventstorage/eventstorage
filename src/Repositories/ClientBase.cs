@@ -20,11 +20,10 @@ public abstract class ClientBase<T>(IServiceProvider sp, EventStore source)
     private readonly IEventSourceSchema _schema = GetEventSourceSchema(sp, source);
     protected string GetSourceCommand => _schema.GetSourceCommand(SourceTId.ToString());
     protected string GetDocumentCommand<Td>() => _schema.GetDocumentCommand<Td>(SourceTId.ToString());
-    protected string InsertSourceCommand => _schema.InsertSourceCommand;
+    protected string AddEventsCommand => _schema.AddEventsCommand;
     protected string CreateSchemaIfNotExists => _schema.CreateSchemaIfNotExists;
-    protected string CreateProjectionIfNotExists(string projection) =>
-        _schema.CreateProjectionIfNotExists(projection);
-    protected string ApplyProjectionCommand(string projection) => _schema.ApplyProjectionCommand(projection);
+    protected string CreateProjectionIfNotExists(string projection) => _schema.CreateProjectionIfNotExists(projection);
+    protected string AddProjectionsCommand(string projection) => _schema.AddProjectionsCommand(projection);
     protected string GetMaxSourceId => _schema.GetMaxSourceId;
     protected string GetMaxSequenceId => _schema.GetMaxSequenceId;
     protected string CreateCheckpointIfNotExists => _schema.CreateCheckpointIfNotExists;
@@ -91,25 +90,21 @@ public abstract class ClientBase<T>(IServiceProvider sp, EventStore source)
         }
         return events;
     }
-    protected void PrepareSourceCommand(
-        Func<Dictionary<string, object>, object[], int, DbParameter[]> parameters,
+    protected async Task PrepareSourceCommand(
+        Func<Dictionary<string, object>, object[], DbParameter[]> parameters,
         DbCommand command, SourcedEvent[] events)
     {
-        var sqlCommand = $"{InsertSourceCommand}";
-        foreach (var (e, index) in events.Select((x, i) => (x, i)))
+        foreach (var e in events)
         {
-            sqlCommand += "(";
-            _schema.SchemaFields.ToList().ForEach(x => sqlCommand += x + index + ",");
-            sqlCommand = sqlCommand[0..^1] + "),";
-
             object[] values = [e.Id, LongSourceId, GuidSourceId, e.Version,
-                e.GetType().Name, JsonSerializer.Serialize(e, e.GetType(), SerializerOptions),
-                DateTime.UtcNow, typeof(T).Name, e.TenantId?? "default", e.CorrelationId??
-                "default", e.CausationId?? "default"];
-
-            command.Parameters.AddRange(parameters(_schema.Fields, values, index));
+            e.GetType().Name, JsonSerializer.Serialize(e, e.GetType(), SerializerOptions),
+            DateTime.UtcNow, typeof(T).Name, e.TenantId?? "default", e.CorrelationId??
+            "default", e.CausationId?? "default"];
+            command.Parameters.Clear();
+            command.CommandText = AddEventsCommand;
+            command.Parameters.AddRange(parameters(_schema.EventStorageFields, values));
+            await command.ExecuteNonQueryAsync();
         }
-        command.CommandText = sqlCommand[0..^1];
     }
     protected async Task PrepareProjectionCommand(
         Func<IProjection, bool> subscriptionCheck, Func<string[], object[], DbParameter[]> getparams,
@@ -128,7 +123,7 @@ public abstract class ClientBase<T>(IServiceProvider sp, EventStore source)
             object[] values = [source.LId, source.GId, data, type.Name, DateTime.UtcNow];
             command.Parameters.Clear();
             command.Parameters.AddRange(getparams(names, values));
-            command.CommandText = ApplyProjectionCommand(type.Name);
+            command.CommandText = AddProjectionsCommand(type.Name);
             await command.ExecuteNonQueryAsync();
         }
     }

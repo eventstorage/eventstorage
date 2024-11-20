@@ -53,18 +53,24 @@ public class PostgreSqlClient<T>(string conn, IServiceProvider sp)
         try
         {
             logger.LogInformation($"Restoring aggregate {typeof(T).Name} started.");
-
             await using NpgsqlConnection sqlConnection = new(conn);
             await sqlConnection.OpenAsync();
             await using NpgsqlCommand sqlCommand = sqlConnection.CreateCommand();
 
+            
+            IEnumerable<EventEnvelop> events = [];
+            if(sourceId != null)
+            {
+                sqlCommand.CommandText = GetSourceCommand;
+                object param = SourceTId == TId.LongSourceId ? long.Parse(sourceId) : Guid.Parse(sourceId);
+                sqlCommand.Parameters.Add(new NpgsqlParameter("sourceId", param));
+                events = await LoadEvents(() => sqlCommand);
+                if(!events.Any())
+                    throw new Exception("No such event source with this id exists.");
+            }
+
             sourceId ??= await GenerateSourceId(sqlCommand);
             var aggregate = typeof(T).CreateAggregate<T>(sourceId);
-            
-            sqlCommand.CommandText = GetSourceCommand;
-            object param = SourceTId == TId.LongSourceId ? long.Parse(sourceId) : Guid.Parse(sourceId);
-            sqlCommand.Parameters.Add(new NpgsqlParameter("sourceId", param));
-            var events = await LoadEvents(() => sqlCommand);
             aggregate.RestoreAggregate(events.Select(x => x.SourcedEvent).ToArray());
             logger.LogInformation($"Finished restoring aggregate {typeof(T).Name}.");
 
@@ -104,11 +110,11 @@ public class PostgreSqlClient<T>(string conn, IServiceProvider sp)
             // add event source to event storage
             if(aggregate.PendingEvents.Any())
             {
-                PrepareSourceCommand((names, values, count) => values.Select((x, i) => new NpgsqlParameter
+                await PrepareSourceCommand((names, values) => names.Select((x, i) => new NpgsqlParameter
                 {
-                    ParameterName = names.Keys.ElementAt(i) + count,
-                    NpgsqlDbType = (NpgsqlDbType)names.Values.ElementAt(i),
-                    NpgsqlValue = x
+                    ParameterName = x.Key,
+                    NpgsqlDbType = (NpgsqlDbType) x.Value,
+                    NpgsqlValue = values[i]
                 }).ToArray(), sqlCommand, aggregate.PendingEvents.ToArray());
                 await sqlCommand.ExecuteNonQueryAsync();
             }
@@ -132,6 +138,10 @@ public class PostgreSqlClient<T>(string conn, IServiceProvider sp)
 
             await sqlTransaction.CommitAsync();
             logger.LogInformation($"Committed {x} pending event(s) for {typeof(T).Name}");
+
+            EventSourceEnvelop envelop = new(LongSourceId, GuidSourceId, aggregate.EventStream);
+            if(Projections.Any(x => x.Mode == ProjectionMode.Async))
+                ProjectionPoll.Release((scope, ct) => RestoreProjections(envelop, scope));
         }
         catch(NpgsqlException e)
         {
@@ -153,7 +163,7 @@ public class PostgreSqlClient<T>(string conn, IServiceProvider sp)
             throw;
         }
     }
-    public async Task RestoreProjections(EventSourceEnvelop source)
+    public async Task RestoreProjections(EventSourceEnvelop source, IServiceScopeFactory scope)
     {
         logger.LogInformation($"Restoring projections for source {source.LId}, {typeof(T).Name}");
         await using NpgsqlConnection sqlConnection = new(conn);

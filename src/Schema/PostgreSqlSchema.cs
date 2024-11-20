@@ -24,7 +24,7 @@ public class PostgreSqlSchema(string schema) : EventSourceSchema(schema)
         );
         CREATE INDEX IF NOT EXISTS Idx_EventSources_LongSourceId on {Schema}.EventSources (LongSourceId);
         CREATE INDEX IF NOT EXISTS Idx_EventSources_GuidSourceId on {Schema}.EventSources (GuidSourceId);";
-    protected override object[] FieldTypes =>
+    protected override object[] EventStorageFieldTypes =>
         [NpgsqlDbType.Uuid, NpgsqlDbType.Bigint, NpgsqlDbType.Uuid,
         NpgsqlDbType.Integer, NpgsqlDbType.Text, NpgsqlDbType.Jsonb, NpgsqlDbType.TimestampTz,
         NpgsqlDbType.Text, NpgsqlDbType.Text, NpgsqlDbType.Text, NpgsqlDbType.Text];

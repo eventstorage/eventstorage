@@ -24,7 +24,7 @@ public class AzureSqlSchema(string schema) : EventSourceSchema(schema)
             CONSTRAINT [PK_Sequence] PRIMARY KEY ([Sequence]),
             CONSTRAINT [AK_LongSourceId_Version] UNIQUE ([LongSourceId], [Version]),
             CONSTRAINT [AK_GuidSourceId_Version] UNIQUE ([GuidSourceId], [Version]));";
-    protected override object[] FieldTypes =>
+    protected override object[] EventStorageFieldTypes =>
         [SqlDbType.UniqueIdentifier, SqlDbType.BigInt, SqlDbType.UniqueIdentifier,
         SqlDbType.Int, SqlDbType.Text, SqlDbType.NVarChar, SqlDbType.DateTime,
         SqlDbType.Text, SqlDbType.Text, SqlDbType.Text, SqlDbType.Text];

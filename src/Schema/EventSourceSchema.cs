@@ -18,21 +18,22 @@ public abstract class EventSourceSchema(string schema) : IEventSourceSchema
     public static string TenantId => "TenantId";
     public static string CausationId => "CausationId";
 
-    public string[] SchemaFields => ["@id", "@longSourceId", "@guidSourceId", "@version",
+    protected static string[] EventStorageFieldNames => ["@id", "@longSourceId", "@guidSourceId", "@version",
         "@type", "@data", "@timestamp", "@sourceType", "@tenantId" ,"@correlationId", "@causationId"];
-    public Dictionary<string,object> Fields =>
-        SchemaFields.Select((x, i) => (x, FieldTypes[i])).ToDictionary();
-    protected abstract object[] FieldTypes { get; }
+    public Dictionary<string,object> EventStorageFields =>
+        EventStorageFieldNames.Select((x, i) => (x, EventStorageFieldTypes[i])).ToDictionary();
+    protected abstract object[] EventStorageFieldTypes { get; }
     public abstract string CreateSchemaIfNotExists { get; }
     public abstract string CreateProjectionIfNotExists(string projection);
     public virtual string GetSourceCommand(string sourceTId) => @$"SELECT {Sequence}, {LongSourceId},
         {GuidSourceId}, {Type}, {Data} FROM {schema}.EventSources WHERE {sourceTId} = @sourceId";
-    public virtual string InsertSourceCommand => @$"INSERT INTO {schema}.EventSources
-    ({Id}, {LongSourceId}, {GuidSourceId}, {Version}, {Type}, {Data}, {Timestamp}, {SourceType},
-    {CorrelationId}, {TenantId}, {CausationId}) VALUES";
-    public virtual string ApplyProjectionCommand(string projection) => @$"INSERT INTO
-    {schema}.{projection}s (LongSourceId, GuidSourceId, Data, Type, UpdatedAt) VALUES
-    (@longSourceId, @guidSourceId, @data, @type, @updatedAt)";
+    public virtual string AddEventsCommand => @$"INSERT INTO {schema}.EventSources ({Id}, {LongSourceId},
+        {GuidSourceId}, {Version}, {Type}, {Data}, {Timestamp}, {SourceType}, {CorrelationId}, {TenantId},
+        {CausationId}) VALUES (@{Id}, @{LongSourceId}, @{GuidSourceId}, @{Version}, @{Type}, @{Data},
+        @{Timestamp}, @{SourceType}, @{CorrelationId}, @{TenantId}, @{CausationId})";
+    public virtual string AddProjectionsCommand(string projection) => @$"INSERT INTO
+        {schema}.{projection}s (LongSourceId, GuidSourceId, Data, Type, UpdatedAt) VALUES
+        (@longSourceId, @guidSourceId, @data, @type, @updatedAt)";
     public virtual string GetMaxSourceId =>
         @$"SELECT T.LongSourceId FROM (SELECT MAX(LongSourceId) as LongSourceId
         FROM {schema}.EventSources) as T WHERE T.LongSourceId is not null;";
