@@ -1,4 +1,6 @@
+using System.Reflection;
 using EventStorage.Events;
+using EventStorage.Extensions;
 
 namespace EventStorage.AggregateRoot;
 
@@ -12,7 +14,7 @@ public abstract class EventSource<TId> : Entity<TId>, IEventSource where TId : I
     private string? _tenantId;
     private string? _causationId;
     public string? TenantId => _tenantId;
-    protected abstract void Apply(SourcedEvent e);
+    protected virtual void Apply(SourcedEvent e) => this.InvokeApply(e);
     protected virtual void RaiseEvent(SourcedEvent e)
     {
         e = e with
@@ -40,10 +42,4 @@ public abstract class EventSource<TId> : Entity<TId>, IEventSource where TId : I
         }
     }
     public void FlushPendingEvents() => _pendingEvents = [];
-    // {
-    //     // _eventStream.AddRange(_pendingEvents);
-    //     var pendingEvents = _pendingEvents;
-    //     _pendingEvents = [];
-    //     return pendingEvents;
-    // }
 }

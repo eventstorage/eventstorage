@@ -1,4 +1,5 @@
 using System.Reflection;
+using EventStorage.AggregateRoot;
 using EventStorage.Events;
 
 namespace EventStorage.Extensions;
@@ -9,6 +10,15 @@ public static class TypeExtensions
         type.GetMethods().FirstOrDefault(m => m.Name.Equals("Apply") &&
         m.GetParameters().First().ParameterType.IsAssignableFrom(e.GetType()))
         ?? throw new Exception($"No handler defined for the {e.GetType().Name} event.");
+    public static void InvokeApply(this IEventSource aggregate, SourcedEvent e)
+    {
+        var apply = aggregate.GetType().GetApply(e);
+        try
+        {
+            apply.Invoke(aggregate, [e]);
+        }
+        catch (TargetInvocationException) { throw; }
+    }
     public static T CreateAggregate<T>(this Type type, string sourceId)
     {
         var cons = type.GetConstructor([])??
