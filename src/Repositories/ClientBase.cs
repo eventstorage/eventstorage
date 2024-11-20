@@ -107,7 +107,8 @@ public abstract class ClientBase<T>(IServiceProvider sp, EventStore source)
         }
     }
     protected async Task PrepareProjectionCommand(
-        Func<IProjection, bool> subscriptionCheck, Func<string[], object[], DbParameter[]> getparams,
+        Func<IProjection, bool> subscriptionCheck,
+        Func<Dictionary<string, object>, object[], DbParameter[]> parameters,
         DbCommand command, EventSourceEnvelop source, IEnumerable<IProjection> projections,
         IProjectionRestorer? restorer = null)
     {
@@ -118,11 +119,10 @@ public abstract class ClientBase<T>(IServiceProvider sp, EventStore source)
             restorer ??= ProjectionRestorer;
             var type = projection.GetType().BaseType?.GenericTypeArguments.First()?? default!;
             var record = restorer.Project(projection, source.SourcedEvents, type);
-            string[] names = ["@longSourceId", "@guidSourceId", "@data", "@type", "@updatedAt"];
             var data = JsonSerializer.Serialize(record, type, SerializerOptions);
             object[] values = [source.LId, source.GId, data, type.Name, DateTime.UtcNow];
             command.Parameters.Clear();
-            command.Parameters.AddRange(getparams(names, values));
+            command.Parameters.AddRange(parameters(_schema.ProjectionFields, values));
             command.CommandText = AddProjectionsCommand(type.Name);
             await command.ExecuteNonQueryAsync();
         }

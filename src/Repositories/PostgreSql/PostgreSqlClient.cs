@@ -122,17 +122,16 @@ public class PostgreSqlClient<T>(string conn, IServiceProvider sp)
             // apply consistent projections if any
             var pending = aggregate.PendingEvents;
             aggregate.FlushPendingEvents();
-            await PrepareProjectionCommand((p) => ProjectionRestorer.Subscribes(pending, p),
-                (names, values) => {
-                    NpgsqlDbType[] types = [NpgsqlDbType.Bigint, NpgsqlDbType.Uuid, NpgsqlDbType.Jsonb,
-                    NpgsqlDbType.Text, NpgsqlDbType.TimestampTz];
-                    return names.Select((x, i) => new NpgsqlParameter
-                    {
-                        ParameterName = names[i],
-                        NpgsqlDbType = types[i],
-                        NpgsqlValue = values[i]
-                    }).ToArray();
-                }, sqlCommand, new(LongSourceId, GuidSourceId, aggregate.EventStream),
+            await PrepareProjectionCommand(p =>
+                // does projection subscribes or reprojection wanted
+                !ProjectionRestorer.Subscribes(pending, p) && pending.Any(),
+                (names, values) => names.Select((x, i) => new NpgsqlParameter
+                {
+                    ParameterName = x.Key,
+                    NpgsqlDbType = (NpgsqlDbType)x.Value,
+                    NpgsqlValue = values[i]
+                }).ToArray(),
+                sqlCommand, new(LongSourceId, GuidSourceId, aggregate.EventStream),
                 Projections.Where(x => x.Mode == ProjectionMode.Consistent), ProjectionRestorer
             );
 
@@ -165,32 +164,39 @@ public class PostgreSqlClient<T>(string conn, IServiceProvider sp)
     }
     public async Task RestoreProjections(EventSourceEnvelop source, IServiceScopeFactory scope)
     {
-        logger.LogInformation($"Restoring projections for source {source.LId}, {typeof(T).Name}");
-        await using NpgsqlConnection sqlConnection = new(conn);
-        await sqlConnection.OpenAsync();
-        await using NpgsqlTransaction sqlTransaction = sqlConnection.BeginTransaction();
-        await using NpgsqlCommand sqlCommand = sqlConnection.CreateCommand();
-        sqlCommand.Transaction = sqlTransaction;
         try
         {
-            await PrepareProjectionCommand((p) => ProjectionRestorer.Subscribes(source.SourcedEvents, p),
-                (names, values) => {
-                    NpgsqlDbType[] types = [NpgsqlDbType.Bigint, NpgsqlDbType.Uuid, NpgsqlDbType.Jsonb,
-                    NpgsqlDbType.Text, NpgsqlDbType.TimestampTz];
-                    return names.Select((x, i) => new NpgsqlParameter
+            logger.LogInformation($"Restoring projections for event source {source.LId}.");
+            var sp = scope.CreateScope().ServiceProvider;
+            var projections = sp.GetServices<IProjection>();
+            if(projections.Any(x => x.Configuration.Store == ProjectionStore.Redis))
+                await Redis.RestoreProjections(source);
+            if(projections.Any(x => x.Configuration.Store == ProjectionStore.Selected))
+            {
+                await using NpgsqlConnection sqlConnection = new(conn);
+                await sqlConnection.OpenAsync();
+                await using NpgsqlTransaction sqlTransaction = sqlConnection.BeginTransaction();
+                await using NpgsqlCommand sqlCommand = sqlConnection.CreateCommand();
+                sqlCommand.Transaction = sqlTransaction;
+
+                var restorer = sp.GetRequiredService<IProjectionRestorer>();
+                await PrepareProjectionCommand((p) => !restorer.Subscribes(source.SourcedEvents, p),
+                    (names, values) => names.Select((x, i) => new NpgsqlParameter
                     {
-                        ParameterName = names[i],
-                        NpgsqlDbType = types[i],
+                        ParameterName = x.Key,
+                        NpgsqlDbType = (NpgsqlDbType)x.Value,
                         NpgsqlValue = values[i]
-                    }).ToArray();
-                }, sqlCommand, new(LongSourceId, GuidSourceId, source.SourcedEvents),
-                Projections.Where(x => x.Mode == ProjectionMode.Consistent), ProjectionRestorer
-            );
-            await sqlTransaction.CommitAsync();
+                    }).ToArray(),
+                    sqlCommand, source,
+                    projections.Where(x => x.Configuration.Store == ProjectionStore.Selected), restorer
+                );
+
+                await sqlTransaction.CommitAsync();
+                logger.LogInformation($"Restored projections for event source {source.LId}.");
+            }
         }
-        catch(SqlException e)
+        catch(NpgsqlException e)
         {
-            await sqlTransaction.RollbackAsync();
             if(logger.IsEnabled(LogLevel.Error))
                 logger.LogError($"Commit failure for {typeof(T).Name}. {e.Message}");
             throw;
