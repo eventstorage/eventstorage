@@ -61,9 +61,9 @@ builder.Services.AddEventStorage(eventstorage =>
     eventstorage.Schema = "es";
     eventstorage.AddEventSource(eventsource =>
     {
-        eventsource.Select(EventStore.PostgresSql, connectionString)
+        eventsource.Select(EventStore.SqlServer, connectionString)
         .Project<OrderProjection>(ProjectionMode.Consistent)
-        .Project<OrderDocumentProjection>(ProjectionMode.Async, dest => dest.Redis("redis://localhost:6379"));
+        .Project<OrderDocumentProjection>(ProjectionMode.Async, source => source.Redis(conn));
     });
 });
 ```
@@ -78,10 +78,6 @@ Make sure you have defined your connection string.
 public class OrderBooking : EventSource<long> // or Guid
 {
     public OrderStatus OrderStatus { get; private set; }
-    protected override void Apply(SourcedEvent e)
-    {
-        this.InvokeApply(e);
-    }
     public void Apply(OrderPlaced e)
     {
         OrderStatus = OrderStatus.Placed;
@@ -123,7 +119,22 @@ async(IEventStorage<OrderBooking> eventStorage, string orderId, ConfirmOrder com
 });
 ```
 
-#### Add a runtime projection
+#### Add a runtime, async or consistent projection
+
+```csharp
+eventstorage.AddEventSource(eventsource =>
+{
+    eventsource.Select(EventStore.SqlServer, connectionString)
+    .Project<OrderProjection>(ProjectionMode.Consistent)
+    .Project<OrderDetailProjection>(ProjectionMode.Async)
+    .Project<OrderInfoProjection>(ProjectionMode.Runtime)
+    .Project<OrderDocumentProjection>(ProjectionMode.Async, source => source.Redis(conn));
+});
+```
+When async, projection source can be selected, selecting no source defaults to selected event storage.
+Note: projection to Redis is not yet supported.
+
+##### Sample projection model
 ```csharp
 public record Order(string SourceId, OrderStatus Status, long Version);
 
@@ -134,15 +145,6 @@ public class OrderProjection : Projection<Order>
     public static Order Project(Order order, OrderConfirmed orderConfirmed) =>
         order with { Status = OrderStatus.Confirmed, Version = orderConfirmed.Version };
 }
-```
-
-##### Add projection to event source configuration
-```csharp
-eventstorage.AddEventSource(eventsource =>
-{
-    eventsource.Select(EventStore.SqlServer, conn)
-    .Project<OrderProjection>();
-});
 ```
 
 ##### Define an endpoint to project

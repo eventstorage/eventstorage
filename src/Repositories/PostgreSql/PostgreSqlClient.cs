@@ -116,7 +116,6 @@ public class PostgreSqlClient<T>(string conn, IServiceProvider sp)
                     NpgsqlDbType = (NpgsqlDbType) x.Value,
                     NpgsqlValue = values[i]
                 }).ToArray(), sqlCommand, aggregate.PendingEvents.ToArray());
-                await sqlCommand.ExecuteNonQueryAsync();
             }
             
             // apply consistent projections if any
