@@ -115,6 +115,7 @@ public class PostgreSqlClient<T>(string conn, IServiceProvider sp)
             
             // apply consistent projections if any
             var pending = aggregate.PendingEvents;
+            aggregate.FlushPendingEvents();
             await PrepareProjectionCommand((p) => ProjectionRestorer.Subscribes(pending, p),
                 (names, values) => {
                     NpgsqlDbType[] types = [NpgsqlDbType.Bigint, NpgsqlDbType.Uuid, NpgsqlDbType.Jsonb,

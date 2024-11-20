@@ -120,6 +120,7 @@ public class SqlServerClient<T>(string conn, IServiceProvider sp, EventStore sou
 
             // apply consistent projections if any
             var pending = aggregate.PendingEvents;
+            aggregate.FlushPendingEvents();
             SqlDbType[] types = [SqlDbType.BigInt, SqlDbType.UniqueIdentifier, SqlDbType.NVarChar,
             SqlDbType.NVarChar, SqlDbType.DateTime];
             await PrepareProjectionCommand(projection =>
