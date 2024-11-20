@@ -13,7 +13,6 @@ public abstract class EventSource<TId> : Entity<TId>, IEventSource where TId : I
     private string? _causationId;
     public string? TenantId => _tenantId;
     protected abstract void Apply(SourcedEvent e);
-    private void BumpVersion(Action append) { append(); Version++; }
     protected virtual void RaiseEvent(SourcedEvent e)
     {
         e = e with
@@ -26,27 +25,25 @@ public abstract class EventSource<TId> : Entity<TId>, IEventSource where TId : I
             Timestamp = DateTime.UtcNow,
             CausationId = _causationId,
         };
-        RestoreAggregate(RestoreType.Pending, e);
+        RestoreAggregate(e);
+        _pendingEvents.Add(e);
     }
-    public void RestoreAggregate(RestoreType type, params SourcedEvent[] events)
+    public void RestoreAggregate(params SourcedEvent[] events)
     {
         foreach (var e in events)
         {
             Apply(e);
-            BumpVersion(type switch
-            {
-                RestoreType.Pending => delegate { _pendingEvents.Add(e); },
-                _ => () => _eventStream.Add(e)
-            });
+            Version++;
+            _eventStream.Add(e);
             _causationId = e.Id.ToString();
             _tenantId = e.TenantId;
         }
     }
-    public IEnumerable<SourcedEvent> CommitPendingEvents()
-    {
-        _eventStream.AddRange(_pendingEvents);
-        var pendingEvents = _pendingEvents;
-        _pendingEvents = [];
-        return pendingEvents;
-    }
+    public void FlushPendingEvents() => _pendingEvents = [];
+    // {
+    //     // _eventStream.AddRange(_pendingEvents);
+    //     var pendingEvents = _pendingEvents;
+    //     _pendingEvents = [];
+    //     return pendingEvents;
+    // }
 }
