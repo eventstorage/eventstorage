@@ -59,7 +59,6 @@ public class SqlServerClient<T>(string conn, IServiceProvider sp, EventStore sou
             await using SqlCommand sqlCommand = sqlConnection.CreateCommand();
 
             IEnumerable<EventEnvelop> events = [];
-            (long lid, Guid gid) sourceIds = (0, default);
             if(sourceId != null)
             {
                 sqlCommand.CommandText = GetSourceCommand;
@@ -67,15 +66,11 @@ public class SqlServerClient<T>(string conn, IServiceProvider sp, EventStore sou
                 events = await LoadEvents(() => sqlCommand);
                 if(!events.Any())
                     throw new Exception("No such event source with this id exists.");
-                sourceIds = (events.First().LId, events.First().GId);
             }
-            else
-                sourceIds = await GenerateSourceIds(sqlCommand);
 
-            sourceId = SourceTId == TId.LongSourceId ? sourceIds.lid.ToString() : sourceIds.gid.ToString();
+            sourceId ??= await GenerateSourceId(sqlCommand);
             var aggregate = typeof(T).CreateAggregate<T>(sourceId);
-            var envelop = new SourceEnvelop(sourceIds.lid, sourceIds.gid, events.ToArray());
-            aggregate.RestoreAggregate(envelop);
+            aggregate.RestoreAggregate(events.Select(x => x.SourcedEvent).ToArray());
             logger.LogInformation($"Finished restoring aggregate {typeof(T).Name}.");
 
             return aggregate;
@@ -124,7 +119,7 @@ public class SqlServerClient<T>(string conn, IServiceProvider sp, EventStore sou
             }
 
             // apply consistent projections if any
-            var pending = aggregate.CommitPendingEvents();
+            var pending = aggregate.PendingEvents;
             SqlDbType[] types = [SqlDbType.BigInt, SqlDbType.UniqueIdentifier, SqlDbType.NVarChar,
             SqlDbType.NVarChar, SqlDbType.DateTime];
             await PrepareProjectionCommand(projection =>
@@ -136,7 +131,7 @@ public class SqlServerClient<T>(string conn, IServiceProvider sp, EventStore sou
                         SqlValue = values[i]
                     }).ToArray(),
                 sqlCommand, new(LongSourceId, GuidSourceId, aggregate.EventStream),
-                Projections.Where(x => x.Mode == ProjectionMode.Consistent), ProjectionRestorer
+                Projections.Where(x => x.Mode == ProjectionMode.Consistent)
             );
 
             await sqlTransaction.CommitAsync();

@@ -84,7 +84,7 @@ public class EventSourceTests
         aggregate.ConfirmOrder();
 
         // when
-        aggregate.CommitPendingEvents();
+        aggregate.FlushPendingEvents();
 
         // then
         aggregate.PendingEvents.Count().Should().Be(0);

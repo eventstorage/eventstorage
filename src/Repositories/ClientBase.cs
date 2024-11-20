@@ -34,10 +34,11 @@ public abstract class ClientBase<T>(IServiceProvider sp, EventStore source)
     protected string LoadEventsPastCheckpointCommand => _schema.LoadEventsPastCheckpoint;
     protected static JsonSerializerOptions SerializerOptions => new() { IncludeFields = true };
     
+    protected long LongSourceId { get; set; } = 0;
+    protected Guid GuidSourceId { get; set; }
     private static readonly Type? _genericTypeArg = typeof(T).BaseType?.GenericTypeArguments[0];
     protected static TId SourceTId => _genericTypeArg != null &&
         _genericTypeArg.IsAssignableFrom(typeof(long)) ? TId.LongSourceId : TId.GuidSourceId;
-
     protected static Type ResolveEventType(string typeName) =>
         Td.FindByTypeName<SourcedEvent>(typeName) ??
         throw new Exception($"Deserialize failure for event {typeName}, couldn't determine event type.");
@@ -58,7 +59,7 @@ public abstract class ClientBase<T>(IServiceProvider sp, EventStore source)
         .Select(p => p.GetType().BaseType?.GenericTypeArguments.First());
 
     // this needs optimistic locking
-    protected async Task<(long, Guid)> GenerateSourceIds(DbCommand command)
+    protected async Task<string> GenerateSourceId(DbCommand command)
     {
         command.CommandText = GetMaxSourceId;
         await using DbDataReader reader = await command.ExecuteReaderAsync();
@@ -66,7 +67,9 @@ public abstract class ClientBase<T>(IServiceProvider sp, EventStore source)
         long longId = 0;
         if (reader.HasRows)
             longId = (long)reader.GetValue(0);
-        return (longId + 1, Guid.NewGuid());
+        LongSourceId = longId + 1;
+        GuidSourceId = Guid.NewGuid();
+        return SourceTId == TId.LongSourceId ? LongSourceId.ToString() : GuidSourceId.ToString();
     }
     
     protected async Task<IEnumerable<EventEnvelop>> LoadEvents(Func<DbCommand> command)
@@ -77,14 +80,14 @@ public abstract class ClientBase<T>(IServiceProvider sp, EventStore source)
         while(await reader.ReadAsync())
         {
             var sequence = reader.GetInt64("Sequence");
-            var longSourceId = reader.GetInt64(EventSourceSchema.LongSourceId);
-            var guidSourceId = reader.GetGuid(EventSourceSchema.GuidSourceId);
+            LongSourceId = reader.GetInt64(EventSourceSchema.LongSourceId);
+            GuidSourceId = reader.GetGuid(EventSourceSchema.GuidSourceId);
 
             var typeName = reader.GetString(EventSourceSchema.Type);
             var type = ResolveEventType(typeName);
             var json = reader.GetString(EventSourceSchema.Data);
             var sourcedEvent = JsonSerializer.Deserialize(json, type) as SourcedEvent?? default!;
-            events.Add(new EventEnvelop(sequence, longSourceId, guidSourceId, sourcedEvent));
+            events.Add(new EventEnvelop(sequence, LongSourceId, GuidSourceId, sourcedEvent));
         }
         return events;
     }
@@ -109,17 +112,15 @@ public abstract class ClientBase<T>(IServiceProvider sp, EventStore source)
         command.CommandText = sqlCommand[0..^1];
     }
     protected async Task PrepareProjectionCommand(
-        Func<IProjection, bool> subscriptionCheck,
-        Func<string[], object[], DbParameter[]> getparams,
-        DbCommand command,
-        EventSourceEnvelop source,
-        IEnumerable<IProjection> projections,
-        IProjectionRestorer restorer)
+        Func<IProjection, bool> subscriptionCheck, Func<string[], object[], DbParameter[]> getparams,
+        DbCommand command, EventSourceEnvelop source, IEnumerable<IProjection> projections,
+        IProjectionRestorer? restorer = null)
     {
         foreach (var projection in projections)
         {
             if(subscriptionCheck(projection))
                 continue;
+            restorer ??= ProjectionRestorer;
             var type = projection.GetType().BaseType?.GenericTypeArguments.First()?? default!;
             var record = restorer.Project(projection, source.SourcedEvents, type);
             string[] names = ["@longSourceId", "@guidSourceId", "@data", "@type", "@updatedAt"];
