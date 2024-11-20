@@ -20,9 +20,14 @@ public abstract class EventSourceSchema(string schema) : IEventSourceSchema
 
     protected static string[] EventStorageFieldNames => ["@id", "@longSourceId", "@guidSourceId", "@version",
         "@type", "@data", "@timestamp", "@sourceType", "@tenantId" ,"@correlationId", "@causationId"];
-    public Dictionary<string,object> EventStorageFields =>
+    protected static string[] ProjectionFieldNames =>
+        ["@longSourceId", "@guidSourceId", "@data", "@type", "@updatedAt"];
+    public Dictionary<string, object> EventStorageFields =>
         EventStorageFieldNames.Select((x, i) => (x, EventStorageFieldTypes[i])).ToDictionary();
+    public Dictionary<string, object> ProjectionFields =>
+        ProjectionFieldNames.Select((x, i) => (x, ProjectionFieldTypes[i])).ToDictionary();
     protected abstract object[] EventStorageFieldTypes { get; }
+    protected abstract object[] ProjectionFieldTypes { get; }
     public abstract string CreateSchemaIfNotExists { get; }
     public abstract string CreateProjectionIfNotExists(string projection);
     public virtual string GetSourceCommand(string sourceTId) => @$"SELECT {Sequence}, {LongSourceId},
