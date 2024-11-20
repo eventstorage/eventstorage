@@ -109,35 +109,35 @@ public class SqlServerClient<T>(string conn, IServiceProvider sp, EventStore sou
             // add event source to event storage
             if(aggregate.PendingEvents.Any())
             {
-                PrepareSourceCommand((names, values, count) => values.Select((x, i) => new SqlParameter
-                {
-                    ParameterName = names.Keys.ElementAt(i) + count,
-                    SqlDbType = (SqlDbType)names.Values.ElementAt(i),
-                    SqlValue = x
-                }).ToArray(), sqlCommand, aggregate.PendingEvents.ToArray());
-                await sqlCommand.ExecuteNonQueryAsync();
+                await PrepareSourceCommand((names, values) => names.Select((x, i) => new SqlParameter
+                    {
+                        ParameterName = x.Key,
+                        SqlDbType = (SqlDbType)x.Value,
+                        SqlValue = values[i]
+                    }).ToArray(),
+                sqlCommand, aggregate.PendingEvents.ToArray());
             }
 
             // apply consistent projections if any
             var pending = aggregate.PendingEvents;
             aggregate.FlushPendingEvents();
-            SqlDbType[] types = [SqlDbType.BigInt, SqlDbType.UniqueIdentifier, SqlDbType.NVarChar,
-            SqlDbType.NVarChar, SqlDbType.DateTime];
-            await PrepareProjectionCommand(projection =>
+            await PrepareProjectionCommand(p =>
                 // does projection subscribes or reprojection wanted
-                !ProjectionRestorer.Subscribes(pending, projection) && pending.Any(),
-                (names, values) => names.Select((x, i) => new SqlParameter {
-                        ParameterName = names[i],
-                        SqlDbType = types[i],
-                        SqlValue = values[i]
-                    }).ToArray(),
+                !ProjectionRestorer.Subscribes(pending, p) && pending.Any(),
+                (names, values) => names.Select((x, i) => new SqlParameter
+                {
+                    ParameterName = x.Key,
+                    SqlDbType = (SqlDbType)x.Value,
+                    SqlValue = values[i]
+                }).ToArray(),
                 sqlCommand, new(LongSourceId, GuidSourceId, aggregate.EventStream),
                 Projections.Where(x => x.Mode == ProjectionMode.Consistent)
             );
 
             await sqlTransaction.CommitAsync();
             logger.LogInformation($"Committed {x} pending event(s) for {typeof(T).Name}");
-            var envelop = new EventSourceEnvelop(LongSourceId, GuidSourceId, aggregate.EventStream);
+
+            EventSourceEnvelop envelop = new(LongSourceId, GuidSourceId, aggregate.EventStream);
             if(Projections.Any(x => x.Mode == ProjectionMode.Async))
                 ProjectionPoll.Release((scope, ct) => RestoreProjections(envelop, scope));
         }
@@ -178,16 +178,14 @@ public class SqlServerClient<T>(string conn, IServiceProvider sp, EventStore sou
                 await using SqlCommand sqlCommand = sqlConnection.CreateCommand();
                 sqlCommand.Transaction = sqlTransaction;
 
-                SqlDbType[] types = [SqlDbType.BigInt, SqlDbType.UniqueIdentifier, SqlDbType.NVarChar,
-                SqlDbType.NVarChar, SqlDbType.DateTime];
                 var restorer = sp.GetRequiredService<IProjectionRestorer>();
                 await PrepareProjectionCommand((p) => !restorer.Subscribes(source.SourcedEvents, p),
                     (names, values) => names.Select((x, i) => new SqlParameter
-                        {
-                            ParameterName = names[i],
-                            SqlDbType = types[i],
-                            SqlValue = values[i]
-                        }).ToArray(),
+                    {
+                        ParameterName = x.Key,
+                        SqlDbType = (SqlDbType)x.Value,
+                        SqlValue = values[i]
+                    }).ToArray(),
                     sqlCommand, source,
                     projections.Where(x => x.Configuration.Store == ProjectionStore.Selected), restorer
                 );

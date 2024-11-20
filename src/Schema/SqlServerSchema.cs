@@ -24,10 +24,11 @@ public class SqlServerSchema(string schema) : EventSourceSchema(schema)
             CONSTRAINT [PK_Sequence] PRIMARY KEY ([Sequence]),
             CONSTRAINT [AK_LongSourceId_Version] UNIQUE ([LongSourceId], [Version]),
             CONSTRAINT [AK_GuidSourceId_Version] UNIQUE ([GuidSourceId], [Version]))";
-    protected override object[] FieldTypes =>
-        [SqlDbType.UniqueIdentifier, SqlDbType.BigInt, SqlDbType.UniqueIdentifier,
-        SqlDbType.Int, SqlDbType.Text, SqlDbType.NVarChar, SqlDbType.DateTime,
+    protected override object[] EventStorageFieldTypes => [SqlDbType.UniqueIdentifier, SqlDbType.BigInt,
+        SqlDbType.UniqueIdentifier, SqlDbType.Int, SqlDbType.Text, SqlDbType.NVarChar, SqlDbType.DateTime,
         SqlDbType.Text, SqlDbType.Text, SqlDbType.Text, SqlDbType.Text];
+    protected override object[] ProjectionFieldTypes => [SqlDbType.BigInt, SqlDbType.UniqueIdentifier,
+        SqlDbType.NVarChar, SqlDbType.NVarChar, SqlDbType.DateTime];
     public override string CreateProjectionIfNotExists(string projection) =>
         @$"IF OBJECT_ID('{Schema}.{projection}s') IS NULL
         CREATE TABLE [{Schema}].[{projection}s](

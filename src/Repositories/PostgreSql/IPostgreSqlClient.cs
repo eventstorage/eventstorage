@@ -1,5 +1,6 @@
 using EventStorage.Events;
 using EventStorage.Projections;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace EventStorage.Repositories.PostgreSql;
 
@@ -12,5 +13,5 @@ public interface IPostgreSqlClient<T>
     Task<Checkpoint> LoadCheckpoint();
     Task SaveCheckpoint(Checkpoint checkpoint, bool insert = false);
     Task<IEnumerable<EventEnvelop>> LoadEventsPastCheckpoint(Checkpoint c);
-    Task RestoreProjections(EventSourceEnvelop source);
+    Task RestoreProjections(EventSourceEnvelop source, IServiceScopeFactory scope);
 }

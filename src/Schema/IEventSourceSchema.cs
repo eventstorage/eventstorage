@@ -2,13 +2,13 @@ namespace EventStorage.Schema;
 
 public interface IEventSourceSchema
 {
-    string[] SchemaFields { get; }
-    Dictionary<string, object> Fields { get; }
     string CreateSchemaIfNotExists { get; }
     string CreateProjectionIfNotExists(string projection);
     string GetSourceCommand(string sourceTId);
-    string InsertSourceCommand { get; }
-    string ApplyProjectionCommand(string projection);
+    string AddEventsCommand { get; }
+    string AddProjectionsCommand(string projection);
+    Dictionary<string, object> EventStorageFields { get; }
+    Dictionary<string, object> ProjectionFields { get; }
     string GetMaxSourceId { get; }
     string GetMaxSequenceId { get; }
     string GetDocumentCommand<Td>(string sourceTId);

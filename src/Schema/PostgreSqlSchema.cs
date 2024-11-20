@@ -24,10 +24,11 @@ public class PostgreSqlSchema(string schema) : EventSourceSchema(schema)
         );
         CREATE INDEX IF NOT EXISTS Idx_EventSources_LongSourceId on {Schema}.EventSources (LongSourceId);
         CREATE INDEX IF NOT EXISTS Idx_EventSources_GuidSourceId on {Schema}.EventSources (GuidSourceId);";
-    protected override object[] FieldTypes =>
-        [NpgsqlDbType.Uuid, NpgsqlDbType.Bigint, NpgsqlDbType.Uuid,
-        NpgsqlDbType.Integer, NpgsqlDbType.Text, NpgsqlDbType.Jsonb, NpgsqlDbType.TimestampTz,
+    protected override object[] EventStorageFieldTypes => [NpgsqlDbType.Uuid, NpgsqlDbType.Bigint,
+        NpgsqlDbType.Uuid, NpgsqlDbType.Integer, NpgsqlDbType.Text, NpgsqlDbType.Jsonb, NpgsqlDbType.TimestampTz,
         NpgsqlDbType.Text, NpgsqlDbType.Text, NpgsqlDbType.Text, NpgsqlDbType.Text];
+    protected override object[] ProjectionFieldTypes => [NpgsqlDbType.Bigint, NpgsqlDbType.Uuid,
+        NpgsqlDbType.Jsonb, NpgsqlDbType.Text, NpgsqlDbType.TimestampTz];
     public override string CreateProjectionIfNotExists(string projection) =>
         @$"CREATE TABLE IF NOT EXISTS {Schema}.{projection}s(
         Id bigint NOT NULL generated always as identity,

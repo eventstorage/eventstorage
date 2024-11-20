@@ -46,7 +46,7 @@ public class EventStorage<T>(IRepository<T> repository, EventStore source) : IEv
 
     public Task RestoreProjections(EventSourceEnvelop eventSource, IServiceScopeFactory scope) => source switch
     {
-        EventStore.PostgresSql => repository.PostgreSqlClient.RestoreProjections(eventSource),
+        EventStore.PostgresSql => repository.PostgreSqlClient.RestoreProjections(eventSource,scope),
         _ => repository.SqlServerClient.RestoreProjections(eventSource, scope)
     };
 }
