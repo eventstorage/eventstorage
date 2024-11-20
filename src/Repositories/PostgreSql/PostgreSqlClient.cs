@@ -65,7 +65,7 @@ public class PostgreSqlClient<T>(string conn, IServiceProvider sp)
             object param = SourceTId == TId.LongSourceId ? long.Parse(sourceId) : Guid.Parse(sourceId);
             sqlCommand.Parameters.Add(new NpgsqlParameter("sourceId", param));
             var events = await LoadEvents(() => sqlCommand);
-            aggregate.RestoreAggregate(RestoreType.Stream, events.Select(x => x.SourcedEvent).ToArray());
+            aggregate.RestoreAggregate(events.Select(x => x.SourcedEvent).ToArray());
             logger.LogInformation($"Finished restoring aggregate {typeof(T).Name}.");
 
             return aggregate;
@@ -114,7 +114,8 @@ public class PostgreSqlClient<T>(string conn, IServiceProvider sp)
             }
             
             // apply consistent projections if any
-            var pending = aggregate.CommitPendingEvents();
+            var pending = aggregate.PendingEvents;
+            aggregate.FlushPendingEvents();
             await PrepareProjectionCommand((p) => ProjectionRestorer.Subscribes(pending, p),
                 (names, values) => {
                     NpgsqlDbType[] types = [NpgsqlDbType.Bigint, NpgsqlDbType.Uuid, NpgsqlDbType.Jsonb,

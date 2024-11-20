@@ -54,18 +54,23 @@ public class SqlServerClient<T>(string conn, IServiceProvider sp, EventStore sou
         try
         {
             logger.LogInformation($"Restoring aggregate {typeof(T).Name} started.");
-
             await using SqlConnection sqlConnection = new(conn);
             await sqlConnection.OpenAsync();
             await using SqlCommand sqlCommand = sqlConnection.CreateCommand();
 
+            IEnumerable<EventEnvelop> events = [];
+            if(sourceId != null)
+            {
+                sqlCommand.CommandText = GetSourceCommand;
+                sqlCommand.Parameters.Add(new SqlParameter("sourceId", sourceId));
+                events = await LoadEvents(() => sqlCommand);
+                if(!events.Any())
+                    throw new Exception("No such event source with this id exists.");
+            }
+
             sourceId ??= await GenerateSourceId(sqlCommand);
             var aggregate = typeof(T).CreateAggregate<T>(sourceId);
-
-            sqlCommand.CommandText = GetSourceCommand;
-            sqlCommand.Parameters.Add(new SqlParameter("sourceId", sourceId));
-            var events = await LoadEvents(() => sqlCommand);
-            aggregate.RestoreAggregate(RestoreType.Stream, events.Select(x => x.SourcedEvent).ToArray());
+            aggregate.RestoreAggregate(events.Select(x => x.SourcedEvent).ToArray());
             logger.LogInformation($"Finished restoring aggregate {typeof(T).Name}.");
 
             return aggregate;
@@ -114,7 +119,8 @@ public class SqlServerClient<T>(string conn, IServiceProvider sp, EventStore sou
             }
 
             // apply consistent projections if any
-            var pending = aggregate.CommitPendingEvents();
+            var pending = aggregate.PendingEvents;
+            aggregate.FlushPendingEvents();
             SqlDbType[] types = [SqlDbType.BigInt, SqlDbType.UniqueIdentifier, SqlDbType.NVarChar,
             SqlDbType.NVarChar, SqlDbType.DateTime];
             await PrepareProjectionCommand(projection =>
@@ -126,7 +132,7 @@ public class SqlServerClient<T>(string conn, IServiceProvider sp, EventStore sou
                         SqlValue = values[i]
                     }).ToArray(),
                 sqlCommand, new(LongSourceId, GuidSourceId, aggregate.EventStream),
-                Projections.Where(x => x.Mode == ProjectionMode.Consistent), ProjectionRestorer
+                Projections.Where(x => x.Mode == ProjectionMode.Consistent)
             );
 
             await sqlTransaction.CommitAsync();

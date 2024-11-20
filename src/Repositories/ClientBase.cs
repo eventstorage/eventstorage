@@ -33,13 +33,12 @@ public abstract class ClientBase<T>(IServiceProvider sp, EventStore source)
     protected string InsertCheckpointCommand => _schema.InsertCheckpointCommand;
     protected string LoadEventsPastCheckpointCommand => _schema.LoadEventsPastCheckpoint;
     protected static JsonSerializerOptions SerializerOptions => new() { IncludeFields = true };
-
-    protected long LongSourceId { get; set; } = 1;
-    protected Guid GuidSourceId { get; set; } = Guid.NewGuid();
+    
+    protected long LongSourceId { get; set; } = 0;
+    protected Guid GuidSourceId { get; set; }
     private static readonly Type? _genericTypeArg = typeof(T).BaseType?.GenericTypeArguments[0];
     protected static TId SourceTId => _genericTypeArg != null &&
         _genericTypeArg.IsAssignableFrom(typeof(long)) ? TId.LongSourceId : TId.GuidSourceId;
-
     protected static Type ResolveEventType(string typeName) =>
         Td.FindByTypeName<SourcedEvent>(typeName) ??
         throw new Exception($"Deserialize failure for event {typeName}, couldn't determine event type.");
@@ -113,17 +112,15 @@ public abstract class ClientBase<T>(IServiceProvider sp, EventStore source)
         command.CommandText = sqlCommand[0..^1];
     }
     protected async Task PrepareProjectionCommand(
-        Func<IProjection, bool> subscriptionCheck,
-        Func<string[], object[], DbParameter[]> getparams,
-        DbCommand command,
-        EventSourceEnvelop source,
-        IEnumerable<IProjection> projections,
-        IProjectionRestorer restorer)
+        Func<IProjection, bool> subscriptionCheck, Func<string[], object[], DbParameter[]> getparams,
+        DbCommand command, EventSourceEnvelop source, IEnumerable<IProjection> projections,
+        IProjectionRestorer? restorer = null)
     {
         foreach (var projection in projections)
         {
             if(subscriptionCheck(projection))
                 continue;
+            restorer ??= ProjectionRestorer;
             var type = projection.GetType().BaseType?.GenericTypeArguments.First()?? default!;
             var record = restorer.Project(projection, source.SourcedEvents, type);
             string[] names = ["@longSourceId", "@guidSourceId", "@data", "@type", "@updatedAt"];
