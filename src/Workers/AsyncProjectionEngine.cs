@@ -46,14 +46,17 @@ public class AsyncProjectionEngine<T> : BackgroundService
                     break;
                 _logger.LogInformation($"Loaded batch of {events.Count()} events to restore projections.");
 
-                var groupedBySource = (from e in events 
-                                    group e by e.LId into groupedById
-                                    select groupedById).Select(x => (x.First().LId,
-                                    x.First().GId, x.Select(x => x.SourcedEvent)));
+                var groupedBySource = (from e in events
+                                        group e by e.LId into groupedById
+                                        select groupedById).Select(x => new EventSourceEnvelop(
+                                            x.First().LId, x.First().GId, x.Select(x => x.SourcedEvent))
+                                        );
+
                 IList<Task> restores = [];
                 foreach (var source in groupedBySource)
                 {
-                    EventSourceEnvelop envelop = new(source.LId, source.GId, source.Item3);
+                    EventSourceEnvelop envelop = new(source.LId, source.GId, source.SourcedEvents);
+                    envelop = await CheckEventSourceIntegrity(envelop);
                     restores.Add(Task.Run(() => _storage.RestoreProjections(envelop, _scope), ct));
                 }
                 Task.WaitAll(restores.ToArray(), ct);
@@ -70,6 +73,16 @@ public class AsyncProjectionEngine<T> : BackgroundService
                 _logger.LogError($"Failure restoring projections.{Environment.NewLine} {e.StackTrace}.");
             throw;
         }
+    }
+    private async Task<EventSourceEnvelop> CheckEventSourceIntegrity(EventSourceEnvelop source)
+    {
+        IEnumerable<SourcedEvent> ordered = source.SourcedEvents.OrderBy(x => x.Version);
+        if(ordered.First().Version != 1)
+        {
+            var eventSource = await _storage.LoadEventSource(source.LId);
+            source = source with { SourcedEvents = eventSource.Select(x => x.SourcedEvent) };
+        }
+        return source;
     }
     public async Task StartPolling(CancellationToken stoppingToken)
     {
