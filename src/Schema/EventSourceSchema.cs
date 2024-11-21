@@ -30,7 +30,7 @@ public abstract class EventSourceSchema(string schema) : IEventSourceSchema
     protected abstract object[] ProjectionFieldTypes { get; }
     public abstract string CreateSchemaIfNotExists { get; }
     public abstract string CreateProjectionIfNotExists(string projection);
-    public virtual string GetSourceCommand(string sourceTId) => @$"SELECT {Sequence}, {LongSourceId},
+    public virtual string LoadEventSourceCommand(string sourceTId) => @$"SELECT {Sequence}, {LongSourceId},
         {GuidSourceId}, {Type}, {Data} FROM {schema}.EventSources WHERE {sourceTId} = @sourceId";
     public virtual string AddEventsCommand => @$"INSERT INTO {schema}.EventSources ({Id}, {LongSourceId},
         {GuidSourceId}, {Version}, {Type}, {Data}, {Timestamp}, {SourceType}, {CorrelationId}, {TenantId},

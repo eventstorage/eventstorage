@@ -61,7 +61,7 @@ public class PostgreSqlClient<T>(string conn, IServiceProvider sp)
             IEnumerable<EventEnvelop> events = [];
             if(sourceId != null)
             {
-                sqlCommand.CommandText = GetSourceCommand;
+                sqlCommand.CommandText = LoadEventSourceCommand;
                 object param = SourceTId == TId.LongSourceId ? long.Parse(sourceId) : Guid.Parse(sourceId);
                 sqlCommand.Parameters.Add(new NpgsqlParameter("sourceId", param));
                 events = await LoadEvents(() => sqlCommand);
@@ -119,8 +119,7 @@ public class PostgreSqlClient<T>(string conn, IServiceProvider sp)
             }
             
             // apply consistent projections if any
-            var pending = aggregate.PendingEvents;
-            aggregate.FlushPendingEvents();
+            var pending = aggregate.FlushPendingEvents();
             await PrepareProjectionCommand(p =>
                 // does projection subscribes or reprojection wanted
                 !ProjectionRestorer.Subscribes(pending, p) && pending.Any(),
@@ -243,7 +242,7 @@ public class PostgreSqlClient<T>(string conn, IServiceProvider sp)
                 return m;
             }
 
-            sqlCommand.CommandText = GetSourceCommand;
+            sqlCommand.CommandText = LoadEventSourceCommand;
             sqlCommand.Parameters.Add(new NpgsqlParameter("sourceId", id));
             var events = await LoadEvents(() => sqlCommand);
             var model = ProjectionRestorer.Project<M>(events.Select(x => x.SourcedEvent));
@@ -330,6 +329,36 @@ public class PostgreSqlClient<T>(string conn, IServiceProvider sp)
             await using NpgsqlConnection sqlConnection = new(conn);
             await using NpgsqlCommand sqlCommand = new(LoadEventsPastCheckpointCommand, sqlConnection);
             sqlCommand.Parameters.Add(new NpgsqlParameter("sequence", c.Seq));
+            var events = await LoadEvents(() => sqlCommand);
+            return events;
+        }
+        catch(NpgsqlException e)
+        {
+            if(logger.IsEnabled(LogLevel.Error))
+                logger.LogError($"Loading events failure for {typeof(T).Name}. {e.Message}");
+            throw;
+        }
+        catch(SerializationException e)
+        {
+            if(logger.IsEnabled(LogLevel.Error))
+                logger.LogError($"Loading events failure for {typeof(T).Name}. {e.Message}");
+            throw;
+        }
+        catch(Exception e)
+        {
+            if(logger.IsEnabled(LogLevel.Error))
+                logger.LogError($"Loading events failure for {typeof(T).Name}. {e.Message}");
+            throw;
+        }
+    }
+    public async Task<IEnumerable<EventEnvelop>> LoadEventSource(long sourceId)
+    {
+        try
+        {
+            await using NpgsqlConnection sqlConnection = new(conn);
+            await sqlConnection.OpenAsync();
+            await using NpgsqlCommand sqlCommand = new(LoadEventSourceCommand, sqlConnection);
+            sqlCommand.Parameters.AddWithValue("@sourceId", sourceId);
             var events = await LoadEvents(() => sqlCommand);
             return events;
         }

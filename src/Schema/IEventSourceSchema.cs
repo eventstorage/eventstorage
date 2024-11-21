@@ -4,7 +4,7 @@ public interface IEventSourceSchema
 {
     string CreateSchemaIfNotExists { get; }
     string CreateProjectionIfNotExists(string projection);
-    string GetSourceCommand(string sourceTId);
+    string LoadEventSourceCommand(string sourceTId);
     string AddEventsCommand { get; }
     string AddProjectionsCommand(string projection);
     Dictionary<string, object> EventStorageFields { get; }

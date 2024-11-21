@@ -33,30 +33,33 @@ public class AsyncProjectionEngine<T> : BackgroundService
             await StartPolling(stoppingToken);
         }
     }
-    public async Task RestoreProjections(CancellationToken stoppingToken)
+    public async Task RestoreProjections(CancellationToken ct)
     {
         try
         {
             var checkpoint = await _storage.LoadCheckpoint();
             _logger.LogInformation($"Starting restoration from checkpoint {checkpoint.Seq}.");
-            while(!stoppingToken.IsCancellationRequested)
+            while(!ct.IsCancellationRequested)
             {
                 var events = await _storage.LoadEventsPastCheckpoint(checkpoint);
                 if(!events.Any())
                     break;
                 _logger.LogInformation($"Loaded batch of {events.Count()} events to restore projections.");
 
-                var groupedBySource = (from e in events 
-                                    group e by e.LId into groupedById
-                                    select groupedById).Select(x => (x.First().LId,
-                                    x.First().GId, x.Select(x => x.SourcedEvent)));
+                var groupedBySource = (from e in events
+                                        group e by e.LId into groupedById
+                                        select groupedById).Select(x => new EventSourceEnvelop(
+                                            x.First().LId, x.First().GId, x.Select(x => x.SourcedEvent))
+                                        );
+
                 IList<Task> restores = [];
                 foreach (var source in groupedBySource)
                 {
-                    EventSourceEnvelop envelop = new(source.LId, source.GId, source.Item3);
-                    restores.Add(Task.Run(() => _storage.RestoreProjections(envelop, _scope), stoppingToken));
+                    EventSourceEnvelop envelop = new(source.LId, source.GId, source.SourcedEvents);
+                    envelop = await CheckEventSourceIntegrity(envelop);
+                    restores.Add(Task.Run(() => _storage.RestoreProjections(envelop, _scope), ct));
                 }
-                Task.WaitAll(restores.ToArray(), stoppingToken);
+                Task.WaitAll(restores.ToArray(), ct);
 
                 checkpoint = checkpoint with { Seq = events.Last().Seq };
                 await _storage.SaveCheckpoint(checkpoint);
@@ -70,6 +73,16 @@ public class AsyncProjectionEngine<T> : BackgroundService
                 _logger.LogError($"Failure restoring projections.{Environment.NewLine} {e.StackTrace}.");
             throw;
         }
+    }
+    private async Task<EventSourceEnvelop> CheckEventSourceIntegrity(EventSourceEnvelop source)
+    {
+        IEnumerable<SourcedEvent> ordered = source.SourcedEvents.OrderBy(x => x.Version);
+        if(ordered.First().Version != 1)
+        {
+            var eventSource = await _storage.LoadEventSource(source.LId);
+            source = source with { SourcedEvents = eventSource.Select(x => x.SourcedEvent) };
+        }
+        return source;
     }
     public async Task StartPolling(CancellationToken stoppingToken)
     {
