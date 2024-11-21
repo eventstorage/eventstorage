@@ -18,7 +18,7 @@ public abstract class ClientBase<T>(IServiceProvider sp, EventStore source)
 {
     public IServiceProvider Sp => sp;
     private readonly IEventSourceSchema _schema = GetEventSourceSchema(sp, source);
-    protected string GetSourceCommand => _schema.GetSourceCommand(SourceTId.ToString());
+    protected string LoadEventSourceCommand => _schema.LoadEventSourceCommand(SourceTId.ToString());
     protected string GetDocumentCommand<Td>() => _schema.GetDocumentCommand<Td>(SourceTId.ToString());
     protected string AddEventsCommand => _schema.AddEventsCommand;
     protected string CreateSchemaIfNotExists => _schema.CreateSchemaIfNotExists;
