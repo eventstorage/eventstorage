@@ -41,5 +41,10 @@ public abstract class EventSource<TId> : Entity<TId>, IEventSource where TId : I
             _tenantId = e.TenantId;
         }
     }
-    public void FlushPendingEvents() => _pendingEvents = [];
+    public IEnumerable<SourcedEvent> FlushPendingEvents()
+    {
+        var pending = _pendingEvents;
+        _pendingEvents = [];
+        return pending;
+    }
 }

@@ -7,10 +7,6 @@ namespace EventStorage.Unit.Tests.AggregateRoot;
 public class OrderAggregate : EventSource<long>
 {
     public OrderStatus OrderStatus { get; set; }
-    protected override void Apply(SourcedEvent e)
-    {
-        this.InvokeApply(e);
-    }
     public void Apply(OrderPlaced e)
     {
         OrderStatus = OrderStatus.Placed;

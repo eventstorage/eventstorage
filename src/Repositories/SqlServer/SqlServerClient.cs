@@ -119,8 +119,7 @@ public class SqlServerClient<T>(string conn, IServiceProvider sp, EventStore sou
             }
 
             // apply consistent projections if any
-            var pending = aggregate.PendingEvents;
-            aggregate.FlushPendingEvents();
+            var pending = aggregate.FlushPendingEvents();
             await PrepareProjectionCommand(p =>
                 // does projection subscribes or reprojection wanted
                 !ProjectionRestorer.Subscribes(pending, p) && pending.Any(),

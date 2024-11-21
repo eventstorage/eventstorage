@@ -33,13 +33,13 @@ public class AsyncProjectionEngine<T> : BackgroundService
             await StartPolling(stoppingToken);
         }
     }
-    public async Task RestoreProjections(CancellationToken stoppingToken)
+    public async Task RestoreProjections(CancellationToken ct)
     {
         try
         {
             var checkpoint = await _storage.LoadCheckpoint();
             _logger.LogInformation($"Starting restoration from checkpoint {checkpoint.Seq}.");
-            while(!stoppingToken.IsCancellationRequested)
+            while(!ct.IsCancellationRequested)
             {
                 var events = await _storage.LoadEventsPastCheckpoint(checkpoint);
                 if(!events.Any())
@@ -54,9 +54,9 @@ public class AsyncProjectionEngine<T> : BackgroundService
                 foreach (var source in groupedBySource)
                 {
                     EventSourceEnvelop envelop = new(source.LId, source.GId, source.Item3);
-                    restores.Add(Task.Run(() => _storage.RestoreProjections(envelop, _scope), stoppingToken));
+                    restores.Add(Task.Run(() => _storage.RestoreProjections(envelop, _scope), ct));
                 }
-                Task.WaitAll(restores.ToArray(), stoppingToken);
+                Task.WaitAll(restores.ToArray(), ct);
 
                 checkpoint = checkpoint with { Seq = events.Last().Seq };
                 await _storage.SaveCheckpoint(checkpoint);
