@@ -9,7 +9,7 @@
     EventSourcing;EventStore;EventStorage;Messaging;AzureSql;Postgres;Event-Driven;SqlServer;
     </PackageTags>
     <Description>
-      A lightweight event sourcing framework with event storage of choice.
+    Lightweight event sourcing framework with event storage of choice.
     </Description>
     <PackageProjectUrl>https://github.com/eventstorage/eventstorage</PackageProjectUrl>
     <!-- <PackageIcon>github.png</PackageIcon> -->

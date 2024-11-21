@@ -14,4 +14,5 @@ public interface ISqlServerClient<T>
     Task SaveCheckpoint(Checkpoint checkpoint, bool insert = false);
     Task<IEnumerable<EventEnvelop>> LoadEventsPastCheckpoint(Checkpoint c);
     Task RestoreProjections(EventSourceEnvelop source, IServiceScopeFactory scope);
+    Task<IEnumerable<EventEnvelop>> LoadEventSource(long sourceId);
 }

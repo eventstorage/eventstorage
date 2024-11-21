@@ -61,7 +61,7 @@ public class SqlServerClient<T>(string conn, IServiceProvider sp, EventStore sou
             IEnumerable<EventEnvelop> events = [];
             if(sourceId != null)
             {
-                sqlCommand.CommandText = GetSourceCommand;
+                sqlCommand.CommandText = LoadEventSourceCommand;
                 sqlCommand.Parameters.Add(new SqlParameter("sourceId", sourceId));
                 events = await LoadEvents(() => sqlCommand);
                 if(!events.Any())
@@ -209,7 +209,7 @@ public class SqlServerClient<T>(string conn, IServiceProvider sp, EventStore sou
         {
             if(logger.IsEnabled(LogLevel.Error))
                 logger.LogError($"Commit failure restoring projections for source {source.LId}. {e.Message}");
-            // throw;
+            throw;
         }
     }
     public async Task<M?> Project<M>(string sourceId) where M : class
@@ -242,7 +242,7 @@ public class SqlServerClient<T>(string conn, IServiceProvider sp, EventStore sou
                 return m;
             }
 
-            command.CommandText = GetSourceCommand;
+            command.CommandText = LoadEventSourceCommand;
             command.Parameters.Add(new SqlParameter("sourceId", sourceId));
             var events = await LoadEvents(() => command);
             var model = ProjectionRestorer.Project<M>(events.Select(x => x.SourcedEvent));
@@ -349,6 +349,36 @@ public class SqlServerClient<T>(string conn, IServiceProvider sp, EventStore sou
             await using SqlCommand sqlCommand = new(LoadEventsPastCheckpointCommand, sqlConnection);
             sqlCommand.Parameters.AddWithValue("@seq", c.Seq);
             sqlCommand.Parameters.AddWithValue("@maxSeq", c.MaxSeq);
+            var events = await LoadEvents(() => sqlCommand);
+            return events;
+        }
+        catch(SqlException e)
+        {
+            if(logger.IsEnabled(LogLevel.Error))
+                logger.LogError($"Loading events failure for {typeof(T).Name}. {e.Message}");
+            throw;
+        }
+        catch(SerializationException e)
+        {
+            if(logger.IsEnabled(LogLevel.Error))
+                logger.LogError($"Loading events failure for {typeof(T).Name}. {e.Message}");
+            throw;
+        }
+        catch(Exception e)
+        {
+            if(logger.IsEnabled(LogLevel.Error))
+                logger.LogError($"Loading events failure for {typeof(T).Name}. {e.Message}");
+            throw;
+        }
+    }
+    public async Task<IEnumerable<EventEnvelop>> LoadEventSource(long sourceId)
+    {
+        try
+        {
+            await using SqlConnection sqlConnection = new(conn);
+            await sqlConnection.OpenAsync();
+            await using SqlCommand sqlCommand = new(LoadEventSourceCommand, sqlConnection);
+            sqlCommand.Parameters.AddWithValue("@sourceId", sourceId);
             var events = await LoadEvents(() => sqlCommand);
             return events;
         }
