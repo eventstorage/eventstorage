@@ -29,8 +29,9 @@ public class ProjectionRestorer(
         {
             if(events.Any())
             {
-                var initMethod = projection.GetType().GetMethod("Project", [events.First().GetType()])??
-                throw new Exception($"No suitable projection method found to initialize {model.Name}.");
+                var first = events.First().GetType();
+                var initMethod = projection.GetType().GetMethod("Project", [first])??
+                throw new Exception($"No suitable projection method found to init {model.Name} with {first.Name}.");
                 var record = initMethod.Invoke(projection, [events.First()]);
                 foreach (var e in events.ToArray()[1..^0])
                 {
@@ -49,7 +50,7 @@ public class ProjectionRestorer(
         catch (TargetInvocationException e)
         {
             if(logger.IsEnabled(LogLevel.Error))
-                logger.LogError($"Projection failure for {model.Name}. {e.Message}");
+                logger.LogError($"Failure restoring {model.Name}.{Environment.NewLine}{e.Message}");
             throw;
         }
     }

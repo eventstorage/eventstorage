@@ -1,12 +1,9 @@
-using EventStorage.AggregateRoot;
 using EventStorage.Events;
 using EventStorage.Projections;
 using EventStorage.Repositories;
-using EventStorage.Repositories.Redis;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
-using TDiscover;
 
 namespace EventStorage.Workers;
 
@@ -15,7 +12,7 @@ public class AsyncProjectionEngine<T> : BackgroundService
     private readonly IServiceScopeFactory _scope;
     private IServiceProvider _sp => _scope.CreateScope().ServiceProvider;
     private ILogger _logger => _sp.GetRequiredService<ILogger<AsyncProjectionEngine<T>>>();
-    private IAsyncProjectionPoll _poll => _sp.GetRequiredService<IAsyncProjectionPoll>();
+    private IAsyncProjectionPool _poll => _sp.GetRequiredService<IAsyncProjectionPool>();
     private IEventStorage<T> _storage => _sp.GetRequiredService<IEventStorage<T>>();
     public AsyncProjectionEngine(IServiceScopeFactory scope)
     {
@@ -25,7 +22,7 @@ public class AsyncProjectionEngine<T> : BackgroundService
     {
         _logger.LogInformation("Started projection engine, restoring projections...");
         await RestoreProjections(stoppingToken);
-        _logger.LogInformation("Restored and synchronized all async projections.");
+        _logger.LogInformation("Done restoring and synchronizing projections.");
 
         while(!stoppingToken.IsCancellationRequested)
         {
@@ -55,15 +52,13 @@ public class AsyncProjectionEngine<T> : BackgroundService
                 IList<Task> restores = [];
                 foreach (var source in groupedBySource)
                 {
-                    EventSourceEnvelop envelop = new(source.LId, source.GId, source.SourcedEvents);
-                    envelop = await CheckEventSourceIntegrity(envelop);
+                    EventSourceEnvelop envelop = await CheckEventSourceIntegrity(source);
                     restores.Add(Task.Run(() => _storage.RestoreProjections(envelop, _scope), ct));
                 }
                 Task.WaitAll(restores.ToArray(), ct);
 
                 checkpoint = checkpoint with { Seq = events.Last().Seq };
                 await _storage.SaveCheckpoint(checkpoint);
-                Thread.Sleep(30000);
                 _logger.LogInformation($"Restored projections for batch of {events.Count()} events.");
             }
         }
@@ -87,25 +82,27 @@ public class AsyncProjectionEngine<T> : BackgroundService
     public async Task StartPolling(CancellationToken stoppingToken)
     {
         await _poll.PollAsync(stoppingToken);
-        try
+
+        var x = _poll.QueuedProjections.Count;
+        _logger.LogInformation($"Executing {x} pending projection task(s).");
+        while(!stoppingToken.IsCancellationRequested)
         {
-            var x = _poll.QueuedProjections.Count;
-            _logger.LogInformation($"Executing {x} pending projection task(s).");
-            while(!stoppingToken.IsCancellationRequested)
+            var projectTask = _poll.Peek();
+            if(projectTask == null)
+                break;
+            try
             {
-                var projectTask = _poll.DequeueAsync();
-                if(projectTask == null)
-                    break;
-                await projectTask(_scope, stoppingToken);
-                // save checkpoint
+                long sourceId = await projectTask(_scope, stoppingToken);
+                var source = await _storage.LoadEventSource(sourceId);
+                Checkpoint c = new(0, source.Last().Seq, CheckpointType.Projection, typeof(T).Name);
+                await _storage.SaveCheckpoint(c);
+                _poll.Dequeue();
+                _logger.LogInformation($"Done executing projection task for source id {sourceId}.");
             }
-            _logger.LogInformation($"{x} pending projection task(s) completed.");
-        }
-        catch (Exception e)
-        {
-            if(_logger.IsEnabled(LogLevel.Error))
-                _logger.LogError($"Failure polling for projections. {Environment.NewLine} {e.StackTrace}.");
-            throw;
+            catch
+            {
+                break;
+            }
         }
     }
 }
