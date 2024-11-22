@@ -85,25 +85,27 @@ public class AsyncProjectionEngine<T> : BackgroundService
     public async Task StartPolling(CancellationToken stoppingToken)
     {
         await _poll.PollAsync(stoppingToken);
-        try
+
+        var x = _poll.QueuedProjections.Count;
+        _logger.LogInformation($"Executing {x} pending projection task(s).");
+        while(!stoppingToken.IsCancellationRequested)
         {
-            var x = _poll.QueuedProjections.Count;
-            _logger.LogInformation($"Executing {x} pending projection task(s).");
-            while(!stoppingToken.IsCancellationRequested)
+            var projectTask = _poll.Peek();
+            if(projectTask == null)
+                break;
+            try
             {
-                var projectTask = _poll.DequeueAsync();
-                if(projectTask == null)
-                    break;
-                await projectTask(_scope, stoppingToken);
-                // save checkpoint
+                long sourceId = await projectTask(_scope, stoppingToken);
+                var source = await _storage.LoadEventSource(sourceId);
+                Checkpoint c = new(0, source.Last().Seq, CheckpointType.Projection, typeof(T).Name);
+                await _storage.SaveCheckpoint(c);
+                _poll.Dequeue();
+                _logger.LogInformation($"Done executing projection task for source id {sourceId}.");
             }
-            _logger.LogInformation($"{x} pending projection task(s) completed.");
-        }
-        catch (Exception e)
-        {
-            if(_logger.IsEnabled(LogLevel.Error))
-                _logger.LogError($"Failure polling for projections. {Environment.NewLine} {e.StackTrace}.");
-            throw;
+            catch
+            {
+                break;
+            }
         }
     }
 }
