@@ -3,16 +3,15 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace EventStorage.Workers;
 
-public interface IAsyncProjectionPoll
+public interface IAsyncProjectionPool
 {
     Task PollAsync(CancellationToken token);
     Func<IServiceScopeFactory, CancellationToken, Task<long>>? Dequeue();
     Func<IServiceScopeFactory, CancellationToken, Task<long>>? Peek();
     void Release(Func<IServiceScopeFactory, CancellationToken, Task<long>> project);
-    void Requeue(Func<IServiceScopeFactory, CancellationToken, Task<long>> project);
     ConcurrentQueue<Func<IServiceScopeFactory, CancellationToken, Task<long>>> QueuedProjections { get; }
 }
-public class AsyncProjectionPoll : IAsyncProjectionPoll
+public class AsyncProjectionPool : IAsyncProjectionPool
 {
     private readonly SemaphoreSlim _pool = new(1, 1);
     private readonly ConcurrentQueue<Func<IServiceScopeFactory, CancellationToken, Task<long>>> _queue = [];
@@ -34,5 +33,4 @@ public class AsyncProjectionPoll : IAsyncProjectionPoll
         if(_pool.CurrentCount == 0)
             _pool.Release();
     }
-    public void Requeue(Func<IServiceScopeFactory, CancellationToken, Task<long>> project) => _queue.Enqueue(project);
 }

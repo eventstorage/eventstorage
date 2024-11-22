@@ -1,12 +1,9 @@
-using EventStorage.AggregateRoot;
 using EventStorage.Events;
 using EventStorage.Projections;
 using EventStorage.Repositories;
-using EventStorage.Repositories.Redis;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
-using TDiscover;
 
 namespace EventStorage.Workers;
 
@@ -15,7 +12,7 @@ public class AsyncProjectionEngine<T> : BackgroundService
     private readonly IServiceScopeFactory _scope;
     private IServiceProvider _sp => _scope.CreateScope().ServiceProvider;
     private ILogger _logger => _sp.GetRequiredService<ILogger<AsyncProjectionEngine<T>>>();
-    private IAsyncProjectionPoll _poll => _sp.GetRequiredService<IAsyncProjectionPoll>();
+    private IAsyncProjectionPool _poll => _sp.GetRequiredService<IAsyncProjectionPool>();
     private IEventStorage<T> _storage => _sp.GetRequiredService<IEventStorage<T>>();
     public AsyncProjectionEngine(IServiceScopeFactory scope)
     {

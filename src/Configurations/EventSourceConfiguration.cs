@@ -49,7 +49,7 @@ public class EventSourceConfiguration(IServiceCollection services, string schema
     }
     public EventSourceConfiguration RunAsyncProjectionEngine()
     {
-        ServiceCollection.AddSingleton<IAsyncProjectionPoll, AsyncProjectionPoll>();
+        ServiceCollection.AddSingleton<IAsyncProjectionPool, AsyncProjectionPool>();
         var sourceType = Td.FindByType<IEventSource>()?? typeof(IEventSource);
         var engineType = typeof(AsyncProjectionEngine<>).MakeGenericType(sourceType);
         ServiceCollection.AddSingleton(typeof(IHostedService), engineType);

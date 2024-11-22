@@ -138,7 +138,7 @@ public class SqlServerClient<T>(string conn, IServiceProvider sp, EventStore sou
 
             EventSourceEnvelop envelop = new(LongSourceId, GuidSourceId, aggregate.EventStream);
             if(Projections.Any(x => x.Mode == ProjectionMode.Async))
-                ProjectionPoll.Release((scope, ct) => RestoreProjections(envelop, scope));
+                ProjectionPool.Release((scope, ct) => RestoreProjections(envelop, scope));
         }
         catch(SqlException e)
         {

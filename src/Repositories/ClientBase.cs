@@ -48,7 +48,7 @@ public abstract class ClientBase<T>(IServiceProvider sp, EventStore source)
 
     protected IRedisService Redis => Sp.GetRequiredService<IRedisService>();
     protected IProjectionRestorer ProjectionRestorer => sp.GetRequiredService<IProjectionRestorer>();
-    protected IAsyncProjectionPoll ProjectionPoll => sp.GetRequiredService<IAsyncProjectionPoll>();
+    protected IAsyncProjectionPool ProjectionPool => sp.GetRequiredService<IAsyncProjectionPool>();
     protected IEnumerable<IProjection> Projections => Sp.GetServices<IProjection>();
     #pragma warning disable CS8619
     protected IEnumerable<Type> TProjections(Func<IProjection, bool> predicate) =>
