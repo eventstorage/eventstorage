@@ -31,22 +31,22 @@ public class PostgreSqlSchema(string schema) : EventSourceSchema(schema)
         NpgsqlDbType.Jsonb, NpgsqlDbType.Text, NpgsqlDbType.TimestampTz];
     public override string CreateProjectionIfNotExists(string projection) =>
         @$"CREATE TABLE IF NOT EXISTS {Schema}.{projection}s(
-        Id bigint NOT NULL generated always as identity,
-        LongSourceId bigint NOT NULL,
-        GuidSourceId uuid NOT NULL,
-        Data jsonb NOT NULL,
-        Type text NOT NULL,
-        UpdatedAt timestamptz NOT NULL DEFAULT now(),
-        CONSTRAINT Pk_{projection}s_Id PRIMARY KEY (Id));";
+            Id bigint NOT NULL generated always as identity,
+            LongSourceId bigint NOT NULL,
+            GuidSourceId uuid NOT NULL,
+            Data jsonb NOT NULL,
+            Type text NOT NULL,
+            UpdatedAt timestamptz NOT NULL DEFAULT now(),
+            CONSTRAINT Pk_{projection}s_Id PRIMARY KEY (Id));";
     public override string GetDocumentCommand<Td>(string sourceTId) => @$"SELECT * FROM
         {Schema}.{typeof(Td).Name}s WHERE {sourceTId} = @sourceId ORDER BY Id DESC LIMIT 1";
     public override string CreateCheckpointIfNotExists =>
-        @$"IF OBJECT_ID('{Schema}.Checkpoints') IS NULL
-        CREATE TABLE [{Schema}].[Checkpoints](
-        [Sequence] [bigint] NOT NULL,
-        [Type] [tinyint] NOT NULL,
-        [SourceType] [nvarchar](25) NOT NULL,
-        CONSTRAINT [Pk_Checkpoints_Sequence] PRIMARY KEY ([Sequence]))";
+        @$"CREATE TABLE IF NOT EXISTS {Schema}.Checkpoints(
+            Sequence bigint NOT NULL,
+            Type smallint NOT NULL,
+            SourceType text NOT NULL,
+            CONSTRAINT Pk_Checkpoints_Sequence PRIMARY KEY (Sequence)
+        );";
     public override string LoadEventsPastCheckpoint => @$"SELECT Sequence, LongSourceId, GuidSourceId,
-        Data, Type FROM {Schema}.EventSources WHERE Sequence > @seq and Sequence <= @maxSeq LIMIT 3";
+        Data, Type FROM {Schema}.EventSources WHERE Sequence > @seq and Sequence <= @maxSeq LIMIT 2";
 }

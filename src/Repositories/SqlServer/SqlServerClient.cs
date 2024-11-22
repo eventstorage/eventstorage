@@ -110,12 +110,11 @@ public class SqlServerClient<T>(string conn, IServiceProvider sp, EventStore sou
             if(aggregate.PendingEvents.Any())
             {
                 await PrepareSourceCommand((names, values) => names.Select((x, i) => new SqlParameter
-                    {
-                        ParameterName = x.Key,
-                        SqlDbType = (SqlDbType)x.Value,
-                        SqlValue = values[i]
-                    }).ToArray(),
-                sqlCommand, aggregate.PendingEvents.ToArray());
+                {
+                    ParameterName = x.Key,
+                    SqlDbType = (SqlDbType)x.Value,
+                    SqlValue = values[i]
+                }).ToArray(), sqlCommand, aggregate.PendingEvents.ToArray());
             }
 
             // apply consistent projections if any
@@ -167,8 +166,8 @@ public class SqlServerClient<T>(string conn, IServiceProvider sp, EventStore sou
             logger.LogInformation($"Restoring projections for event source {source.LId}.");
             var sp = scope.CreateScope().ServiceProvider;
             var projections = sp.GetServices<IProjection>();
-            if(projections.Any(x => x.Configuration.Store == ProjectionStore.Redis))
-                await Redis.RestoreProjections(source);
+            // if(projections.Any(x => x.Configuration.Store == ProjectionStore.Redis))
+            //     await Redis.RestoreProjections(source);
             if(projections.Any(x => x.Configuration.Store == ProjectionStore.Selected))
             {
                 await using SqlConnection sqlConnection = new(conn);
@@ -222,10 +221,9 @@ public class SqlServerClient<T>(string conn, IServiceProvider sp, EventStore sou
             if(projection == null)
                 return default;
                 
-            if(projection.Configuration.Store != ProjectionStore.Selected)
-                return await Redis.GetDocument<M>(sourceId);
+            // if(projection.Configuration.Store != ProjectionStore.Selected)
+            //     return await Redis.GetDocument<M>(sourceId);
 
-            logger.LogInformation($"Starting {typeof(M).Name} projection.");
             await using SqlConnection sqlConnection = new(conn);
             await sqlConnection.OpenAsync();
             await using SqlCommand command = sqlConnection.CreateCommand();
@@ -249,12 +247,6 @@ public class SqlServerClient<T>(string conn, IServiceProvider sp, EventStore sou
             var model = ProjectionRestorer.Project<M>(events.Select(x => x.SourcedEvent));
             logger.LogInformation($"{typeof(M).Name} projection completed.");
             return model;
-        }
-        catch(RedisException e)
-        {
-            if(logger.IsEnabled(LogLevel.Error))
-                logger.LogError($"Projection failure for {typeof(M).Name}. {e.Message}");
-            throw;
         }
         catch(SqlException e)
         {
