@@ -285,15 +285,13 @@ public class SqlServerClient<T>(string conn, IServiceProvider sp, EventStore sou
             sqlCommand.Parameters.AddWithValue("@sourceType", typeof(T).Name);
             SqlDataReader reader = await sqlCommand.ExecuteReaderAsync();
             Checkpoint checkpoint = new(0, 0, CheckpointType.Projection, typeof(T).Name);
-            if(!await reader.ReadAsync())
-            {
+            long seq = 0;
+            if(await reader.ReadAsync())
+                seq = reader.GetInt64("sequence");
+            else
                 await SaveCheckpoint(checkpoint, true);
-                await reader.DisposeAsync();
-                return checkpoint;
-            }
-            var seq = reader.GetInt64("sequence");
-            await reader.DisposeAsync();
 
+            await reader.DisposeAsync();
             sqlCommand.CommandText = GetMaxSequenceId;
             reader = await sqlCommand.ExecuteReaderAsync();
             await reader.ReadAsync();

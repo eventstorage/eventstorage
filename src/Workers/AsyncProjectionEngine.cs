@@ -25,7 +25,7 @@ public class AsyncProjectionEngine<T> : BackgroundService
     {
         _logger.LogInformation("Started projection engine, restoring projections...");
         await RestoreProjections(stoppingToken);
-        _logger.LogInformation("Restored and synchronized all async projections.");
+        _logger.LogInformation("Done restoring and synchronizing projections.");
 
         while(!stoppingToken.IsCancellationRequested)
         {
@@ -63,7 +63,6 @@ public class AsyncProjectionEngine<T> : BackgroundService
 
                 checkpoint = checkpoint with { Seq = events.Last().Seq };
                 await _storage.SaveCheckpoint(checkpoint);
-                Thread.Sleep(30000);
                 _logger.LogInformation($"Restored projections for batch of {events.Count()} events.");
             }
         }

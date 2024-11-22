@@ -94,6 +94,7 @@ public class EventStorageTests : TestBase<OrderAggregate>
         var service = EventStorage(source);
         await service.InitSource();
         var aggregate = await service.CreateOrRestore();
+        aggregate.PlaceOrder();
 
         // When
         aggregate.ConfirmOrder();
@@ -101,7 +102,7 @@ public class EventStorageTests : TestBase<OrderAggregate>
         await service.Commit(aggregate);
 
         // Then
-        aggregate.EventStream.Count().Should().Be(1);
-        aggregate.Version.Should().Be(1);
+        aggregate.EventStream.Count().Should().Be(2);
+        aggregate.Version.Should().Be(2);
     }
 }
