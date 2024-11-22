@@ -160,7 +160,7 @@ public class PostgreSqlClient<T>(string conn, IServiceProvider sp)
             throw;
         }
     }
-    public async Task RestoreProjections(EventSourceEnvelop source, IServiceScopeFactory scope)
+    public async Task<long> RestoreProjections(EventSourceEnvelop source, IServiceScopeFactory scope)
     {
         try
         {
@@ -192,6 +192,7 @@ public class PostgreSqlClient<T>(string conn, IServiceProvider sp)
                 await sqlTransaction.CommitAsync();
                 logger.LogInformation($"Restored projections for event source {source.LId}.");
             }
+            return source.LId;
         }
         catch(NpgsqlException e)
         {

@@ -13,6 +13,6 @@ public interface IPostgreSqlClient<T>
     Task<Checkpoint> LoadCheckpoint();
     Task SaveCheckpoint(Checkpoint checkpoint, bool insert = false);
     Task<IEnumerable<EventEnvelop>> LoadEventsPastCheckpoint(Checkpoint c);
-    Task RestoreProjections(EventSourceEnvelop source, IServiceScopeFactory scope);
+    Task<long> RestoreProjections(EventSourceEnvelop source, IServiceScopeFactory scope);
     Task<IEnumerable<EventEnvelop>> LoadEventSource(long sourceId);
 }

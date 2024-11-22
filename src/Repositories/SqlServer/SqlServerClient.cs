@@ -160,7 +160,7 @@ public class SqlServerClient<T>(string conn, IServiceProvider sp, EventStore sou
             throw;
         }
     }
-    public async Task RestoreProjections(EventSourceEnvelop source, IServiceScopeFactory scope)
+    public async Task<long> RestoreProjections(EventSourceEnvelop source, IServiceScopeFactory scope)
     {
         try
         {
@@ -192,6 +192,7 @@ public class SqlServerClient<T>(string conn, IServiceProvider sp, EventStore sou
                 await sqlTransaction.CommitAsync();
                 logger.LogInformation($"Restored projections for event source {source.LId}.");
             }
+            return source.LId;
         }
         catch(SqlException e)
         {

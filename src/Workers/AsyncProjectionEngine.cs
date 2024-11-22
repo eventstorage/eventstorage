@@ -55,8 +55,7 @@ public class AsyncProjectionEngine<T> : BackgroundService
                 IList<Task> restores = [];
                 foreach (var source in groupedBySource)
                 {
-                    EventSourceEnvelop envelop = new(source.LId, source.GId, source.SourcedEvents);
-                    envelop = await CheckEventSourceIntegrity(envelop);
+                    EventSourceEnvelop envelop = await CheckEventSourceIntegrity(source);
                     restores.Add(Task.Run(() => _storage.RestoreProjections(envelop, _scope), ct));
                 }
                 Task.WaitAll(restores.ToArray(), ct);
