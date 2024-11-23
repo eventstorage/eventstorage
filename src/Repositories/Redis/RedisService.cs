@@ -28,7 +28,7 @@ public class RedisService(IServiceProvider sp) : IRedisService
             if(!restorer.Subscribes(source.SourcedEvents, projection))
                 continue;
             var type = projection.GetType().BaseType?.GenericTypeArguments.First()?? default!;
-            var document = restorer.Project(projection, source.SourcedEvents, type);
+            var document = restorer.Project(projection, source.SourcedEvents, type)?? default!;
             await AddDocument(document);
         }
     }
