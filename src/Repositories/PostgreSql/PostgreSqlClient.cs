@@ -242,7 +242,7 @@ public class PostgreSqlClient<T>(string conn, IServiceProvider sp)
             await using NpgsqlCommand sqlCommand = sqlConnection.CreateCommand();
 
             object id = SourceTId == TId.LongSourceId ? long.Parse(sourceId) : Guid.Parse(sourceId);
-            if(projection.Mode != ProjectionMode.Runtime)
+            if(projection.Mode != ProjectionMode.Transient)
             {
                 sqlCommand.CommandText = GetDocumentCommand<M>();
                 sqlCommand.Parameters.AddWithValue("@sourceId", id);

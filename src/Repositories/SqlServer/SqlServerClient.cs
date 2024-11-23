@@ -239,7 +239,7 @@ public class SqlServerClient<T>(string conn, IServiceProvider sp, EventStore sou
             await sqlConnection.OpenAsync();
             await using SqlCommand command = sqlConnection.CreateCommand();
 
-            if(projection.Mode != ProjectionMode.Runtime)
+            if(projection.Mode != ProjectionMode.Transient)
             {
                 command.CommandText = GetDocumentCommand<M>();
                 command.Parameters.AddWithValue("@sourceId", sourceId);
