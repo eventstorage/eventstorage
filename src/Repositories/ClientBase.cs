@@ -53,7 +53,7 @@ public abstract class ClientBase<T>(IServiceProvider sp, EventStore source)
     #pragma warning disable CS8619
     protected IEnumerable<Type> TProjections(Func<IProjection, bool> predicate) =>
         Projections.Where(predicate)
-        .Where(p => p.Mode != ProjectionMode.Runtime)
+        .Where(p => p.Mode != ProjectionMode.Transient)
         .Where(p => p.Configuration.Store == ProjectionStore.Selected)
         .Select(p => p.GetType().BaseType?.GenericTypeArguments.First());
 

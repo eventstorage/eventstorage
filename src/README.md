@@ -48,8 +48,9 @@ builder.Services.AddEventStorage(eventstorage =>
     eventstorage.Schema = "es";
     eventstorage.AddEventSource(source =>
     {
-        source.Select(EventStore.PostgresSql, connectionString)
-        .Project<OrderProjection>(ProjectionMode.Consistent);
+        eventsource.Select(EventStore.PostgresSql, connectionString)
+        .Project<OrderProjection>(ProjectionMode.Consistent)
+        .Project<OrderDocumentProjection>(ProjectionMode.Async, source => source.Redis(conn));
     });
 });
 ```
@@ -64,10 +65,6 @@ Add your aggregate with `EventSource<TId>`
 public class OrderBooking : EventSource<long> // or Guid
 {
     public OrderStatus OrderStatus { get; private set; }
-    protected override void Apply(SourcedEvent e)
-    {
-        this.InvokeApply(e);
-    }
     public void Apply(OrderPlaced e)
     {
         OrderStatus = OrderStatus.Placed;

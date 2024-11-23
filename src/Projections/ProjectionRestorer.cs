@@ -27,25 +27,21 @@ public class ProjectionRestorer(
     {
         try
         {
-            if(events.Any())
+            var first = events.First().GetType();
+            var initMethod = projection.GetType().GetMethod("Project", [first])??
+            throw new Exception($"No suitable projection method found to init {model.Name} with {first.Name}.");
+            var record = initMethod.Invoke(projection, [events.First()]);
+            foreach (var e in events.ToArray()[1..^0])
             {
-                var first = events.First().GetType();
-                var initMethod = projection.GetType().GetMethod("Project", [first])??
-                throw new Exception($"No suitable projection method found to init {model.Name} with {first.Name}.");
-                var record = initMethod.Invoke(projection, [events.First()]);
-                foreach (var e in events.ToArray()[1..^0])
+                var project = projection.GetType().GetMethod("Project", [model, e.GetType()]);
+                if (project == null)
                 {
-                    var project = projection.GetType().GetMethod("Project", [model, e.GetType()]);
-                    if (project == null)
-                    {
-                        logger.LogInformation($"No suitable projection method found {model.Name}, {e.GetType().Name}.");
-                        continue;
-                    }
-                    record = project.Invoke(projection, [record, e]);
+                    logger.LogInformation($"No suitable projection method found {model.Name}, {e.GetType().Name}.");
+                    continue;
                 }
-                return record;
+                record = project.Invoke(projection, [record, e]);
             }
-            return null;
+            return record;
         }
         catch (TargetInvocationException e)
         {

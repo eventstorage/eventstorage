@@ -61,7 +61,7 @@ builder.Services.AddEventStorage(eventstorage =>
     eventstorage.Schema = "es";
     eventstorage.AddEventSource(eventsource =>
     {
-        eventsource.Select(EventStore.SqlServer, connectionString)
+        eventsource.Select(EventStore.PostgresSql, connectionString)
         .Project<OrderProjection>(ProjectionMode.Consistent)
         .Project<OrderDocumentProjection>(ProjectionMode.Async, source => source.Redis(conn));
     });
@@ -119,22 +119,21 @@ async(IEventStorage<OrderBooking> eventStorage, string orderId, ConfirmOrder com
 });
 ```
 
-#### Add a runtime, async or consistent projection
+#### Add a transient (runtime), consistent or async projection.
 
 ```csharp
 eventstorage.AddEventSource(eventsource =>
 {
     eventsource.Select(EventStore.SqlServer, connectionString)
-    .Project<OrderProjection>(ProjectionMode.Consistent)
-    .Project<OrderDetailProjection>(ProjectionMode.Async)
-    .Project<OrderInfoProjection>(ProjectionMode.Runtime)
+    .Project<OrderProjection>(ProjectionMode.Transient)
+    .Project<OrderDetailProjection>(ProjectionMode.Consistent)
+    .Project<OrderInfoProjection>(ProjectionMode.Async)
     .Project<OrderDocumentProjection>(ProjectionMode.Async, source => source.Redis(conn));
 });
 ```
-When async, projection source can be selected, selecting no source defaults to selected event storage.
-Note: projection to Redis is not yet supported.
+While projection mode set to async, projection source can be selected and is optionally set to selected event store.
 
-##### Sample projection model
+##### Sample projection
 ```csharp
 public record Order(string SourceId, OrderStatus Status, long Version);
 
@@ -146,18 +145,48 @@ public class OrderProjection : Projection<Order>
         order with { Status = OrderStatus.Confirmed, Version = orderConfirmed.Version };
 }
 ```
-
-##### Define an endpoint to project
+##### Sample Redis projection
 ```csharp
-app.MapGet("api/getorder/{orderId}",
+[Document(StorageType = StorageType.Json, Prefixes = ["OrderDocument"])]
+public class OrderDocument
+{
+    [RedisIdField][Indexed]
+    public string? SourceId { get; set; } = string.Empty;
+    // [Searchable]
+    public OrderStatus Status { get; set; }
+    public long Version { get; set; }
+}
+
+public class OrderDocumentProjection : Projection<OrderDocument>
+{
+    public static OrderDocument Project(OrderPlaced orderPlaced) => new()
+    {
+        SourceId = orderPlaced.SourceId?.ToString(),
+        Version = orderPlaced.Version,
+        Status = OrderStatus.Placed
+    };
+    public static OrderDocument Project(OrderDocument orderDocument, OrderConfirmed orderConfirmed)
+    {
+        orderDocument.Status = OrderStatus.Confirmed;
+        orderDocument.Version = orderConfirmed.Version;
+        return orderDocument;
+    }
+}
+```
+
+##### Define endpoints to project.
+```csharp
+app.MapGet("api/order/{orderId}",
 async(IEventStorage<OrderBookingAggregate> eventStorage, string orderId) =>
 {
     var order = await eventStorage.Project<Order>(orderId);
     return Results.Ok(order);
 });
+app.MapGet("api/orderDocument/{orderId}",
+    async(IEventStorage<OrderBookingAggregate> eventStorage, string orderId) =>
+    await eventStorage.Project<OrderDocument>(orderId)
+);
 ```
-
-Please notice, these are early moments of eventstorage and the framework doesn't yet offer full event sourcing functionality.
 
 ### Give us a ⭐
 If you are an event sourcer and love OSS, give [eventstorage](https://github.com/eventstorage/eventstorage) a star. :purple_heart:

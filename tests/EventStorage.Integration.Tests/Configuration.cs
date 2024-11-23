@@ -46,7 +46,7 @@ public class Configuration<T> where T : OrderAggregate
                 new EventStorage<T>(sp.GetRequiredKeyedService<IRepository<T>>(source), source));
         }
 
-        OrderProjection projection = new(){ Mode = ProjectionMode.Runtime, Configuration = new() };
+        OrderProjection projection = new(){ Mode = ProjectionMode.Transient, Configuration = new() };
         services.AddSingleton<IProjection>(projection);
         services.AddSingleton<IProjectionRestorer>(sp =>
         {
