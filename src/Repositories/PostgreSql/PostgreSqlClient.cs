@@ -170,9 +170,9 @@ public class PostgreSqlClient<T>(string conn, IServiceProvider sp)
             var sp = scope.CreateScope().ServiceProvider;
             var projections = sp.GetServices<IProjection>();
             var restorer = sp.GetRequiredService<IProjectionRestorer>();
-            var redis = sp.GetRequiredService<IRedisService>();
             if(projections.Any(x => x.Configuration.Store == ProjectionStore.Redis))
             {
+                var redis = sp.GetRequiredService<IRedisService>();
                 var ps = projections.Where(x => x.Configuration.Store == ProjectionStore.Redis);
                 await redis.RestoreProjections(source, ps, restorer);
             }

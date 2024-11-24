@@ -63,6 +63,7 @@ builder.Services.AddEventStorage(eventstorage =>
     {
         eventsource.Select(EventStore.PostgresSql, connectionString)
         .Project<OrderProjection>(ProjectionMode.Consistent)
+        .Project<OrderDetailProjection>(ProjectionMode.Async)
         .Project<OrderDocumentProjection>(ProjectionMode.Async, source => source.Redis(conn));
     });
 });
