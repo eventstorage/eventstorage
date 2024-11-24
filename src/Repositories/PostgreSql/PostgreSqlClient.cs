@@ -18,7 +18,7 @@ using StackExchange.Redis;
 namespace EventStorage.Repositories.PostgreSql;
 
 public class PostgreSqlClient<T>(string conn, IServiceProvider sp)
-    : ClientBase<T>(sp, EventStore.PostgresSql), IPostgreSqlClient<T> where T : IEventSource
+    : ClientBase<T>(sp), IPostgreSqlClient<T> where T : IEventSource
 {
     private readonly SemaphoreSlim _semaphore = new (1, 1);
     private readonly ILogger logger = sp.GetRequiredService<ILogger<PostgreSqlClient<T>>>();
@@ -31,15 +31,15 @@ public class PostgreSqlClient<T>(string conn, IServiceProvider sp)
             await using NpgsqlConnection sqlConnection = new(conn);
             await sqlConnection.OpenAsync();
             await using NpgsqlTransaction sqlTransaction = sqlConnection.BeginTransaction();
-            await using NpgsqlCommand sqlCommand = new(CreateSchemaIfNotExists, sqlConnection);
+            await using NpgsqlCommand sqlCommand = new(Schema.CreateSchemaIfNotExists, sqlConnection);
             sqlCommand.Transaction = sqlTransaction;
             await sqlCommand.ExecuteNonQueryAsync();
             foreach (var item in TProjections(x => true))
             {
-                sqlCommand.CommandText = CreateProjectionIfNotExists(item?.Name?? "");
+                sqlCommand.CommandText = Schema.CreateProjectionIfNotExists(item?.Name?? "");
                 await sqlCommand.ExecuteNonQueryAsync();
             }
-            sqlCommand.CommandText = CreateCheckpointIfNotExists;
+            sqlCommand.CommandText = Schema.CreateCheckpointIfNotExists;
             await sqlCommand.ExecuteNonQueryAsync();
             await sqlTransaction.CommitAsync();
             logger.LogInformation($"Finished initializing {nameof(PostgreSqlClient<T>)}.");
@@ -63,7 +63,7 @@ public class PostgreSqlClient<T>(string conn, IServiceProvider sp)
             IEnumerable<EventEnvelop> events = [];
             if(sourceId != null)
             {
-                sqlCommand.CommandText = LoadEventSourceCommand;
+                sqlCommand.CommandText = Schema.LoadEventSourceCommand(SourceTId.ToString());
                 object param = SourceTId == TId.LongSourceId ? long.Parse(sourceId) : Guid.Parse(sourceId);
                 sqlCommand.Parameters.Add(new NpgsqlParameter("sourceId", param));
                 events = await LoadEvents(() => sqlCommand);
@@ -230,7 +230,7 @@ public class PostgreSqlClient<T>(string conn, IServiceProvider sp)
         try
         {
             logger.LogInformation($"Starting {typeof(M).Name} projection.");
-            var projection = Sp.GetService<IProjection<M>>();
+            var projection = ServiceProvider.GetService<IProjection<M>>();
             if(projection == null)
                 return default;
 
@@ -244,18 +244,18 @@ public class PostgreSqlClient<T>(string conn, IServiceProvider sp)
             object id = SourceTId == TId.LongSourceId ? long.Parse(sourceId) : Guid.Parse(sourceId);
             if(projection.Mode != ProjectionMode.Transient)
             {
-                sqlCommand.CommandText = GetDocumentCommand<M>();
+                sqlCommand.CommandText = Schema.GetDocumentCommand<M>(SourceTId.ToString());
                 sqlCommand.Parameters.AddWithValue("@sourceId", id);
                 await using NpgsqlDataReader reader = await sqlCommand.ExecuteReaderAsync();
                 if(!await reader.ReadAsync())
                     return default;
-                var json = reader.GetString(EventSourceSchema.Data);
+                var json = reader.GetString(EventStorageSchema.Data);
                 var m = JsonSerializer.Deserialize<M>(json);
                 logger.LogInformation($"{typeof(M).Name} projection completed.");
                 return m;
             }
 
-            sqlCommand.CommandText = LoadEventSourceCommand;
+            sqlCommand.CommandText = Schema.LoadEventSourceCommand(SourceTId.ToString());
             sqlCommand.Parameters.Add(new NpgsqlParameter("sourceId", id));
             var events = await LoadEvents(() => sqlCommand);
             var model = ProjectionRestorer.Project<M>(events.Select(x => x.SourcedEvent));
@@ -287,7 +287,7 @@ public class PostgreSqlClient<T>(string conn, IServiceProvider sp)
         {
             await using NpgsqlConnection sqlConnection = new(conn);
             await sqlConnection.OpenAsync();
-            await using NpgsqlCommand sqlCommand = new (LoadCheckpointCommand, sqlConnection);
+            await using NpgsqlCommand sqlCommand = new (Schema.LoadCheckpointCommand, sqlConnection);
             sqlCommand.Parameters.AddWithValue("@type", (int)CheckpointType.Projection);
             sqlCommand.Parameters.AddWithValue("@sourceType", typeof(T).Name);
             NpgsqlDataReader reader = await sqlCommand.ExecuteReaderAsync();
@@ -299,7 +299,7 @@ public class PostgreSqlClient<T>(string conn, IServiceProvider sp)
                 await SaveCheckpoint(checkpoint, true);
 
             await reader.DisposeAsync();
-            sqlCommand.CommandText = GetMaxSequenceId;
+            sqlCommand.CommandText = Schema.GetMaxSequenceId;
             reader = await sqlCommand.ExecuteReaderAsync();
             await reader.ReadAsync();
             long maxSeq = reader.HasRows ? (long)reader.GetValue(0) : 0;
@@ -326,7 +326,7 @@ public class PostgreSqlClient<T>(string conn, IServiceProvider sp)
             await using NpgsqlConnection sqlConnection = new(conn);
             await sqlConnection.OpenAsync();
             await using NpgsqlCommand sqlCommand = sqlConnection.CreateCommand();
-            sqlCommand.CommandText = insert ? InsertCheckpointCommand : SaveCheckpointCommand;
+            sqlCommand.CommandText = insert ? Schema.InsertCheckpointCommand : Schema.SaveCheckpointCommand;
             sqlCommand.Parameters.AddWithValue("@sequence", checkpoint.Seq);
             sqlCommand.Parameters.AddWithValue("@type", (int)checkpoint.Type);
             sqlCommand.Parameters.AddWithValue("@sourceType", checkpoint.SourceType);
@@ -351,7 +351,7 @@ public class PostgreSqlClient<T>(string conn, IServiceProvider sp)
         {
             await using NpgsqlConnection sqlConnection = new(conn);
             await sqlConnection.OpenAsync();
-            await using NpgsqlCommand sqlCommand = new(LoadEventsPastCheckpointCommand, sqlConnection);
+            await using NpgsqlCommand sqlCommand = new(Schema.LoadEventsPastCheckpoint, sqlConnection);
             sqlCommand.Parameters.AddWithValue("@seq", c.Seq);
             sqlCommand.Parameters.AddWithValue("@maxSeq", c.MaxSeq);
             var events = await LoadEvents(() => sqlCommand);
@@ -382,7 +382,8 @@ public class PostgreSqlClient<T>(string conn, IServiceProvider sp)
         {
             await using NpgsqlConnection sqlConnection = new(conn);
             await sqlConnection.OpenAsync();
-            await using NpgsqlCommand sqlCommand = new(LoadEventSourceCommand, sqlConnection);
+            await using NpgsqlCommand sqlCommand = sqlConnection.CreateCommand();
+            sqlCommand.CommandText = Schema.LoadEventSourceCommand(SourceTId.ToString());
             sqlCommand.Parameters.AddWithValue("@sourceId", sourceId);
             var events = await LoadEvents(() => sqlCommand);
             return events;
