@@ -167,10 +167,10 @@ public class SqlServerClient<T>(string conn, IServiceProvider sp, EventStore sou
             logger.LogInformation($"Restoring projections for event source {source.LId}.");
             var sp = scope.CreateScope().ServiceProvider;
             var projections = sp.GetServices<IProjection>();
-            var redis = sp.GetRequiredService<IRedisService>();
             var restorer = sp.GetRequiredService<IProjectionRestorer>();
             if(projections.Any(x => x.Configuration.Store == ProjectionStore.Redis))
             {
+                var redis = sp.GetRequiredService<IRedisService>();
                 var ps = projections.Where(x => x.Configuration.Store == ProjectionStore.Redis);
                 await redis.RestoreProjections(source, ps, restorer);
             }
