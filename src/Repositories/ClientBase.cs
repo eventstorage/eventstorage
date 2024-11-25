@@ -14,22 +14,31 @@ using TDiscover;
 
 namespace EventStorage.Repositories;
 
-public abstract class ClientBase<T>(IServiceProvider sp)
+public abstract class ClientBase<T>(IServiceProvider sp) : IEventStorage<T>
 {
     public IServiceProvider ServiceProvider => sp;
     protected IEventStorageSchema Schema = sp.GetRequiredService<IEventStorageSchema>();
-    protected static JsonSerializerOptions SerializerOptions = new() { IncludeFields = true };
+    protected readonly static JsonSerializerOptions SerializerOptions = new() { IncludeFields = true };
     protected long LongSourceId { get; set; } = 0;
     protected Guid GuidSourceId { get; set; }
-    private static readonly Type? _genericTypeArg = typeof(T).BaseType?.GenericTypeArguments[0];
-    protected static TId SourceTId => _genericTypeArg != null &&
+    private readonly Type? _genericTypeArg = typeof(T).BaseType?.GenericTypeArguments[0];
+    protected TId SourceTId => _genericTypeArg != null &&
         _genericTypeArg.IsAssignableFrom(typeof(long)) ? TId.LongSourceId : TId.GuidSourceId;
-    protected static Type ResolveEventType(string typeName) => Td.FindByTypeName<SourcedEvent>(typeName)??
-        throw new Exception($"Couldn't determine event type while resolving {typeName}.");
     protected IRedisService Redis => ServiceProvider.GetRequiredService<IRedisService>();
     protected IProjectionRestorer ProjectionRestorer => sp.GetRequiredService<IProjectionRestorer>();
     protected IAsyncProjectionPool ProjectionPool => sp.GetRequiredService<IAsyncProjectionPool>();
     protected IEnumerable<IProjection> Projections => ServiceProvider.GetServices<IProjection>();
+    public abstract Task InitSource();
+    public abstract Task<T> CreateOrRestore(string? sourceId = null);
+    public abstract Task Commit(T t);
+    public abstract Task<M?> Project<M>(string sourceId) where M : class;
+    public abstract Task<IEnumerable<EventEnvelop>> LoadEventSource(long sourceId);
+    public abstract Task<Checkpoint> LoadCheckpoint();
+    public abstract Task SaveCheckpoint(Checkpoint checkpoint, bool insert = false);
+    public abstract Task<IEnumerable<EventEnvelop>> LoadEventsPastCheckpoint(Checkpoint c);
+    public abstract Task<long> RestoreProjections(EventSourceEnvelop source, IServiceScopeFactory scope);
+    protected Type ResolveEventType(string typeName) => Td.FindByTypeName<SourcedEvent>(typeName)??
+        throw new Exception($"Couldn't determine event type while resolving {typeName}.");
     #pragma warning disable CS8619
     protected IEnumerable<Type> TProjections(Func<IProjection, bool> predicate) =>
         Projections.Where(predicate)

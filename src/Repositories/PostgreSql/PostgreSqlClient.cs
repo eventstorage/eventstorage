@@ -17,17 +17,16 @@ using StackExchange.Redis;
 
 namespace EventStorage.Repositories.PostgreSql;
 
-public class PostgreSqlClient<T>(string conn, IServiceProvider sp)
-    : ClientBase<T>(sp), IPostgreSqlClient<T> where T : IEventSource
+public class PostgreSqlClient<T>(IServiceProvider sp, string conn) : ClientBase<T>(sp) where T : IEventSource
 {
     private readonly SemaphoreSlim _semaphore = new (1, 1);
     private readonly ILogger logger = sp.GetRequiredService<ILogger<PostgreSqlClient<T>>>();
-    public async Task Init()
+    public override async Task InitSource()
     {
-        logger.LogInformation($"Begin initializing {nameof(PostgreSqlClient<T>)}.");
-        _semaphore.Wait();
         try
         {
+            logger.LogInformation($"Begin initializing {nameof(PostgreSqlClient<T>)}.");
+            _semaphore.Wait();
             await using NpgsqlConnection sqlConnection = new(conn);
             await sqlConnection.OpenAsync();
             await using NpgsqlTransaction sqlTransaction = sqlConnection.BeginTransaction();
@@ -51,7 +50,7 @@ public class PostgreSqlClient<T>(string conn, IServiceProvider sp)
             throw;
         }
     }
-    public async Task<T> CreateOrRestore(string? sourceId = null)
+    public override async Task<T> CreateOrRestore(string? sourceId = null)
     {
         try
         {
@@ -97,7 +96,7 @@ public class PostgreSqlClient<T>(string conn, IServiceProvider sp)
             throw;
         }
     }
-    public async Task Commit(T aggregate)
+    public override async Task Commit(T aggregate)
     {
         var x = aggregate.PendingEvents.Count();
         logger.LogInformation($"Preparing to commit {x} pending event(s) for {typeof(T).Name}");
@@ -162,7 +161,7 @@ public class PostgreSqlClient<T>(string conn, IServiceProvider sp)
             throw;
         }
     }
-    public async Task<long> RestoreProjections(EventSourceEnvelop source, IServiceScopeFactory scope)
+    public override async Task<long> RestoreProjections(EventSourceEnvelop source, IServiceScopeFactory scope)
     {
         try
         {
@@ -225,7 +224,7 @@ public class PostgreSqlClient<T>(string conn, IServiceProvider sp)
             throw;
         }
     }
-    public async Task<M?> Project<M>(string sourceId) where M : class
+    public override async Task<M?> Project<M>(string sourceId) where M : class
     {
         try
         {
@@ -281,7 +280,7 @@ public class PostgreSqlClient<T>(string conn, IServiceProvider sp)
             throw;
         }
     }
-    public async Task<Checkpoint> LoadCheckpoint()
+    public override async Task<Checkpoint> LoadCheckpoint()
     {
         try
         {
@@ -319,7 +318,7 @@ public class PostgreSqlClient<T>(string conn, IServiceProvider sp)
             throw;
         }
     }
-    public async Task SaveCheckpoint(Checkpoint checkpoint, bool insert = false)
+    public override async Task SaveCheckpoint(Checkpoint checkpoint, bool insert = false)
     {
         try
         {
@@ -345,7 +344,7 @@ public class PostgreSqlClient<T>(string conn, IServiceProvider sp)
             throw;
         }
     }
-    public async Task<IEnumerable<EventEnvelop>> LoadEventsPastCheckpoint(Checkpoint c)
+    public override async Task<IEnumerable<EventEnvelop>> LoadEventsPastCheckpoint(Checkpoint c)
     {
         try
         {
@@ -376,7 +375,7 @@ public class PostgreSqlClient<T>(string conn, IServiceProvider sp)
             throw;
         }
     }
-    public async Task<IEnumerable<EventEnvelop>> LoadEventSource(long sourceId)
+    public override async Task<IEnumerable<EventEnvelop>> LoadEventSource(long sourceId)
     {
         try
         {
