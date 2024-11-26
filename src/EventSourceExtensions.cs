@@ -1,10 +1,8 @@
 ﻿using System.Reflection;
 using EventStorage.AggregateRoot;
 using EventStorage.Configurations;
+using EventStorage.Infrastructure;
 using EventStorage.Projections;
-using EventStorage.Repositories;
-using EventStorage.Repositories.PostgreSql;
-using EventStorage.Repositories.SqlServer;
 using EventStorage.Schema;
 using Microsoft.Extensions.DependencyInjection;
 using TDiscover;
@@ -35,8 +33,9 @@ public static class EventSourceExtensions
             EventStore.PostgresSql => postgresClientType,
             _ => mssqlClientType
         };
-        var storage = Activator.CreateInstance(client, configuration.Sp, connectionString)?? default!;
-        configuration.ServiceCollection.AddScoped(eventStorageType, sp => storage );
+        configuration.ServiceCollection.AddScoped(eventStorageType, sp =>
+            Activator.CreateInstance(client, sp, connectionString)?? default!
+        );
         configuration.ConnectionString = connectionString;
         configuration.Source = source;
         return configuration;
