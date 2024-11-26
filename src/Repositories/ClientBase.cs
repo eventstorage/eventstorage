@@ -14,42 +14,31 @@ using TDiscover;
 
 namespace EventStorage.Repositories;
 
-public abstract class ClientBase<T>(IServiceProvider sp, EventStore source)
+public abstract class ClientBase<T>(IServiceProvider sp) : IEventStorage<T>
 {
-    public IServiceProvider Sp => sp;
-    private readonly IEventSourceSchema _schema = GetEventSourceSchema(sp, source);
-    protected string LoadEventSourceCommand => _schema.LoadEventSourceCommand(SourceTId.ToString());
-    protected string GetDocumentCommand<Td>() => _schema.GetDocumentCommand<Td>(SourceTId.ToString());
-    protected string AddEventsCommand => _schema.AddEventsCommand;
-    protected string CreateSchemaIfNotExists => _schema.CreateSchemaIfNotExists;
-    protected string CreateProjectionIfNotExists(string projection) => _schema.CreateProjectionIfNotExists(projection);
-    protected string AddProjectionsCommand(string projection) => _schema.AddProjectionsCommand(projection);
-    protected string GetMaxSourceId => _schema.GetMaxSourceId;
-    protected string GetMaxSequenceId => _schema.GetMaxSequenceId;
-    protected string CreateCheckpointIfNotExists => _schema.CreateCheckpointIfNotExists;
-    protected string LoadCheckpointCommand => _schema.LoadCheckpointCommand;
-    protected string SaveCheckpointCommand => _schema.SaveCheckpointCommand;
-    protected string InsertCheckpointCommand => _schema.InsertCheckpointCommand;
-    protected string LoadEventsPastCheckpointCommand => _schema.LoadEventsPastCheckpoint;
-    protected static JsonSerializerOptions SerializerOptions => new() { IncludeFields = true };
-    
+    public IServiceProvider ServiceProvider => sp;
+    protected IEventStorageSchema Schema = sp.GetRequiredService<IEventStorageSchema>();
+    protected readonly static JsonSerializerOptions SerializerOptions = new() { IncludeFields = true };
     protected long LongSourceId { get; set; } = 0;
     protected Guid GuidSourceId { get; set; }
-    private static readonly Type? _genericTypeArg = typeof(T).BaseType?.GenericTypeArguments[0];
-    protected static TId SourceTId => _genericTypeArg != null &&
+    private readonly Type? _genericTypeArg = typeof(T).BaseType?.GenericTypeArguments[0];
+    protected TId SourceTId => _genericTypeArg != null &&
         _genericTypeArg.IsAssignableFrom(typeof(long)) ? TId.LongSourceId : TId.GuidSourceId;
-    protected static Type ResolveEventType(string typeName) =>
-        Td.FindByTypeName<SourcedEvent>(typeName) ??
-        throw new Exception($"Deserialize failure for event {typeName}, couldn't determine event type.");
-
-    private static IEventSourceSchema GetEventSourceSchema(IServiceProvider sp, EventStore source) =>
-        sp.GetRequiredKeyedService<Dictionary<EventStore, IEventSourceSchema>>("Schema")
-        .FirstOrDefault(x => x.Key == source).Value;
-
-    protected IRedisService Redis => Sp.GetRequiredService<IRedisService>();
+    protected IRedisService Redis => ServiceProvider.GetRequiredService<IRedisService>();
     protected IProjectionRestorer ProjectionRestorer => sp.GetRequiredService<IProjectionRestorer>();
     protected IAsyncProjectionPool ProjectionPool => sp.GetRequiredService<IAsyncProjectionPool>();
-    protected IEnumerable<IProjection> Projections => Sp.GetServices<IProjection>();
+    protected IEnumerable<IProjection> Projections => ServiceProvider.GetServices<IProjection>();
+    public abstract Task InitSource();
+    public abstract Task<T> CreateOrRestore(string? sourceId = null);
+    public abstract Task Commit(T t);
+    public abstract Task<M?> Project<M>(string sourceId) where M : class;
+    public abstract Task<IEnumerable<EventEnvelop>> LoadEventSource(long sourceId);
+    public abstract Task<Checkpoint> LoadCheckpoint();
+    public abstract Task SaveCheckpoint(Checkpoint checkpoint, bool insert = false);
+    public abstract Task<IEnumerable<EventEnvelop>> LoadEventsPastCheckpoint(Checkpoint c);
+    public abstract Task<long> RestoreProjections(EventSourceEnvelop source, IServiceScopeFactory scope);
+    protected Type ResolveEventType(string typeName) => Td.FindByTypeName<SourcedEvent>(typeName)??
+        throw new Exception($"Couldn't determine event type while resolving {typeName}.");
     #pragma warning disable CS8619
     protected IEnumerable<Type> TProjections(Func<IProjection, bool> predicate) =>
         Projections.Where(predicate)
@@ -60,7 +49,7 @@ public abstract class ClientBase<T>(IServiceProvider sp, EventStore source)
     // this needs optimistic locking
     protected async Task<string> GenerateSourceId(DbCommand command)
     {
-        command.CommandText = GetMaxSourceId;
+        command.CommandText = Schema.GetMaxSourceId;
         await using DbDataReader reader = await command.ExecuteReaderAsync();
         await reader.ReadAsync();
         long longId = 0;
@@ -74,17 +63,16 @@ public abstract class ClientBase<T>(IServiceProvider sp, EventStore source)
     protected async Task<IEnumerable<EventEnvelop>> LoadEvents(Func<DbCommand> command)
     {
         await using DbDataReader reader = await command().ExecuteReaderAsync();
-
         List<EventEnvelop> events = [];
         while(await reader.ReadAsync())
         {
             var sequence = reader.GetInt64("Sequence");
-            LongSourceId = reader.GetInt64(EventSourceSchema.LongSourceId);
-            GuidSourceId = reader.GetGuid(EventSourceSchema.GuidSourceId);
+            LongSourceId = reader.GetInt64(EventStorageSchema.LongSourceId);
+            GuidSourceId = reader.GetGuid(EventStorageSchema.GuidSourceId);
 
-            var typeName = reader.GetString(EventSourceSchema.Type);
+            var typeName = reader.GetString(EventStorageSchema.Type);
             var type = ResolveEventType(typeName);
-            var json = reader.GetString(EventSourceSchema.Data);
+            var json = reader.GetString(EventStorageSchema.Data);
             var sourcedEvent = JsonSerializer.Deserialize(json, type) as SourcedEvent?? default!;
             events.Add(new EventEnvelop(sequence, LongSourceId, GuidSourceId, sourcedEvent));
         }
@@ -101,8 +89,8 @@ public abstract class ClientBase<T>(IServiceProvider sp, EventStore source)
             DateTime.UtcNow, typeof(T).Name, e.TenantId?? "default", e.CorrelationId??
             "default", e.CausationId?? "default"];
             command.Parameters.Clear();
-            command.CommandText = AddEventsCommand;
-            command.Parameters.AddRange(parameters(_schema.EventStorageFields, values));
+            command.CommandText = Schema.AddEventsCommand;
+            command.Parameters.AddRange(parameters(Schema.EventStorageFields, values));
             await command.ExecuteNonQueryAsync();
         }
     }
@@ -122,8 +110,8 @@ public abstract class ClientBase<T>(IServiceProvider sp, EventStore source)
             var data = JsonSerializer.Serialize(record, type, SerializerOptions);
             object[] values = [source.LId, source.GId, data, type.Name, DateTime.UtcNow];
             command.Parameters.Clear();
-            command.Parameters.AddRange(parameters(_schema.ProjectionFields, values));
-            command.CommandText = AddProjectionsCommand(type.Name);
+            command.Parameters.AddRange(parameters(Schema.ProjectionFields, values));
+            command.CommandText = Schema.AddProjectionsCommand(type.Name);
             await command.ExecuteNonQueryAsync();
         }
     }

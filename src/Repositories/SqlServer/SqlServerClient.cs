@@ -16,29 +16,28 @@ using StackExchange.Redis;
 
 namespace EventStorage.Repositories.SqlServer;
 
-public class SqlServerClient<T>(string conn, IServiceProvider sp, EventStore source)
-    : ClientBase<T>(sp, source), ISqlServerClient<T> where T : IEventSource
+public class SqlServerClient<T>(IServiceProvider sp, string conn) : ClientBase<T>(sp) where T : IEventSource
 {
     private readonly SemaphoreSlim _semaphore = new (1, 1);
-    private readonly ILogger logger = sp.GetRequiredService<ILogger<SqlServerClient<T>>>();
-    public async Task Init()
+    private readonly ILogger logger = TLogger.Create<SqlServerClient<T>>();
+    public override async Task InitSource()
     {
-        logger.LogInformation($"Begin initializing {nameof(SqlServerClient<T>)}.");
-        _semaphore.Wait();
         try
         {
+            logger.LogInformation($"Begin initializing {nameof(SqlServerClient<T>)}.");
+            _semaphore.Wait();
             await using SqlConnection sqlConnection = new(conn);
             await sqlConnection.OpenAsync();
             await using SqlTransaction sqlTransaction = sqlConnection.BeginTransaction();
-            await using SqlCommand command = new(CreateSchemaIfNotExists, sqlConnection);
+            await using SqlCommand command = new(Schema.CreateSchemaIfNotExists, sqlConnection);
             command.Transaction = sqlTransaction;
             await command.ExecuteNonQueryAsync();
             foreach (var item in TProjections(t => true))
             {
-                command.CommandText = CreateProjectionIfNotExists(item?.Name?? "");
+                command.CommandText = Schema.CreateProjectionIfNotExists(item?.Name?? "");
                 await command.ExecuteNonQueryAsync();
             }
-            command.CommandText = CreateCheckpointIfNotExists;
+            command.CommandText = Schema.CreateCheckpointIfNotExists;
             await command.ExecuteNonQueryAsync();
             await sqlTransaction.CommitAsync();
             logger.LogInformation($"Finished initializing {nameof(SqlServerClient<T>)}.");
@@ -50,7 +49,7 @@ public class SqlServerClient<T>(string conn, IServiceProvider sp, EventStore sou
             throw;
         }
     }
-    public async Task<T> CreateOrRestore(string? sourceId = null)
+    public override async Task<T> CreateOrRestore(string? sourceId = null)
     {
         try
         {
@@ -62,7 +61,7 @@ public class SqlServerClient<T>(string conn, IServiceProvider sp, EventStore sou
             IEnumerable<EventEnvelop> events = [];
             if(sourceId != null)
             {
-                sqlCommand.CommandText = LoadEventSourceCommand;
+                sqlCommand.CommandText = Schema.LoadEventSourceCommand(SourceTId.ToString());
                 sqlCommand.Parameters.Add(new SqlParameter("sourceId", sourceId));
                 events = await LoadEvents(() => sqlCommand);
                 if(!events.Any())
@@ -95,7 +94,7 @@ public class SqlServerClient<T>(string conn, IServiceProvider sp, EventStore sou
             throw;
         }
     }
-    public async Task Commit(T aggregate)
+    public override async Task Commit(T aggregate)
     {
         var x = aggregate.PendingEvents.Count();
         logger.LogInformation($"Preparing to commit {x} pending event(s) for {typeof(T).Name}");
@@ -160,7 +159,7 @@ public class SqlServerClient<T>(string conn, IServiceProvider sp, EventStore sou
             throw;
         }
     }
-    public async Task<long> RestoreProjections(EventSourceEnvelop source, IServiceScopeFactory scope)
+    public override async Task<long> RestoreProjections(EventSourceEnvelop source, IServiceScopeFactory scope)
     {
         try
         {
@@ -223,12 +222,12 @@ public class SqlServerClient<T>(string conn, IServiceProvider sp, EventStore sou
             throw;
         }
     }
-    public async Task<M?> Project<M>(string sourceId) where M : class
+    public override async Task<M?> Project<M>(string sourceId) where M : class
     {
         try
         {
             logger.LogInformation($"Starting {typeof(M).Name} projection.");
-            var projection = Sp.GetService<IProjection<M>>();
+            var projection = ServiceProvider.GetService<IProjection<M>>();
             if(projection == null)
                 return default;
                 
@@ -241,18 +240,18 @@ public class SqlServerClient<T>(string conn, IServiceProvider sp, EventStore sou
 
             if(projection.Mode != ProjectionMode.Transient)
             {
-                command.CommandText = GetDocumentCommand<M>();
+                command.CommandText = Schema.GetDocumentCommand<M>(SourceTId.ToString());
                 command.Parameters.AddWithValue("@sourceId", sourceId);
                 await using SqlDataReader reader = await command.ExecuteReaderAsync();
                 if(!await reader.ReadAsync())
                     return default;
-                var json = reader.GetString(EventSourceSchema.Data);
+                var json = reader.GetString(EventStorageSchema.Data);
                 var m = JsonSerializer.Deserialize<M>(json);
                 logger.LogInformation($"{typeof(M).Name} projection completed.");
                 return m;
             }
 
-            command.CommandText = LoadEventSourceCommand;
+            command.CommandText = Schema.LoadEventSourceCommand(SourceTId.ToString());
             command.Parameters.Add(new SqlParameter("sourceId", sourceId));
             var events = await LoadEvents(() => command);
             var model = ProjectionRestorer.Project<M>(events.Select(x => x.SourcedEvent));
@@ -278,13 +277,13 @@ public class SqlServerClient<T>(string conn, IServiceProvider sp, EventStore sou
             throw;
         }
     }
-    public async Task<Checkpoint> LoadCheckpoint()
+    public override async Task<Checkpoint> LoadCheckpoint()
     {
         try
         {
             await using SqlConnection sqlConnection = new(conn);
             await sqlConnection.OpenAsync();
-            await using SqlCommand sqlCommand = new (LoadCheckpointCommand, sqlConnection);
+            await using SqlCommand sqlCommand = new (Schema.LoadCheckpointCommand, sqlConnection);
             sqlCommand.Parameters.AddWithValue("@type", CheckpointType.Projection);
             sqlCommand.Parameters.AddWithValue("@sourceType", typeof(T).Name);
             SqlDataReader reader = await sqlCommand.ExecuteReaderAsync();
@@ -296,7 +295,7 @@ public class SqlServerClient<T>(string conn, IServiceProvider sp, EventStore sou
                 await SaveCheckpoint(checkpoint, true);
 
             await reader.DisposeAsync();
-            sqlCommand.CommandText = GetMaxSequenceId;
+            sqlCommand.CommandText = Schema.GetMaxSequenceId;
             reader = await sqlCommand.ExecuteReaderAsync();
             await reader.ReadAsync();
             long maxSeq = reader.HasRows ? (long)reader.GetValue(0) : 0;
@@ -316,14 +315,14 @@ public class SqlServerClient<T>(string conn, IServiceProvider sp, EventStore sou
             throw;
         }
     }
-    public async Task SaveCheckpoint(Checkpoint checkpoint, bool insert = false)
+    public override async Task SaveCheckpoint(Checkpoint checkpoint, bool insert = false)
     {
         try
         {
             await using SqlConnection sqlConnection = new(conn);
             await sqlConnection.OpenAsync();
             await using SqlCommand sqlCommand = sqlConnection.CreateCommand();
-            sqlCommand.CommandText = insert ? InsertCheckpointCommand : SaveCheckpointCommand;
+            sqlCommand.CommandText = insert ? Schema.InsertCheckpointCommand : Schema.SaveCheckpointCommand;
             sqlCommand.Parameters.AddWithValue("@sequence", checkpoint.Seq);
             sqlCommand.Parameters.AddWithValue("@type", checkpoint.Type);
             sqlCommand.Parameters.AddWithValue("@sourceType", checkpoint.SourceType);
@@ -342,13 +341,13 @@ public class SqlServerClient<T>(string conn, IServiceProvider sp, EventStore sou
             throw;
         }
     }
-    public async Task<IEnumerable<EventEnvelop>> LoadEventsPastCheckpoint(Checkpoint c)
+    public override async Task<IEnumerable<EventEnvelop>> LoadEventsPastCheckpoint(Checkpoint c)
     {
         try
         {
             await using SqlConnection sqlConnection = new(conn);
             await sqlConnection.OpenAsync();
-            await using SqlCommand sqlCommand = new(LoadEventsPastCheckpointCommand, sqlConnection);
+            await using SqlCommand sqlCommand = new(Schema.LoadEventsPastCheckpoint, sqlConnection);
             sqlCommand.Parameters.AddWithValue("@seq", c.Seq);
             sqlCommand.Parameters.AddWithValue("@maxSeq", c.MaxSeq);
             var events = await LoadEvents(() => sqlCommand);
@@ -373,13 +372,14 @@ public class SqlServerClient<T>(string conn, IServiceProvider sp, EventStore sou
             throw;
         }
     }
-    public async Task<IEnumerable<EventEnvelop>> LoadEventSource(long sourceId)
+    public override async Task<IEnumerable<EventEnvelop>> LoadEventSource(long sourceId)
     {
         try
         {
             await using SqlConnection sqlConnection = new(conn);
             await sqlConnection.OpenAsync();
-            await using SqlCommand sqlCommand = new(LoadEventSourceCommand, sqlConnection);
+            await using SqlCommand sqlCommand = sqlConnection.CreateCommand();
+            sqlCommand.CommandText = Schema.LoadEventSourceCommand(SourceTId.ToString());
             sqlCommand.Parameters.AddWithValue("@sourceId", sourceId);
             var events = await LoadEvents(() => sqlCommand);
             return events;

@@ -12,7 +12,7 @@ public class AsyncProjectionEngine<T> : BackgroundService
     private readonly IServiceScopeFactory _scope;
     private IServiceProvider _sp => _scope.CreateScope().ServiceProvider;
     private ILogger _logger => _sp.GetRequiredService<ILogger<AsyncProjectionEngine<T>>>();
-    private IAsyncProjectionPool _poll => _sp.GetRequiredService<IAsyncProjectionPool>();
+    private IAsyncProjectionPool _pool => _sp.GetRequiredService<IAsyncProjectionPool>();
     private IEventStorage<T> _storage => _sp.GetRequiredService<IEventStorage<T>>();
     public AsyncProjectionEngine(IServiceScopeFactory scope)
     {
@@ -81,13 +81,13 @@ public class AsyncProjectionEngine<T> : BackgroundService
     }
     public async Task StartPolling(CancellationToken stoppingToken)
     {
-        await _poll.PollAsync(stoppingToken);
+        await _pool.PollAsync(stoppingToken);
 
-        var x = _poll.QueuedProjections.Count;
+        var x = _pool.QueuedProjections.Count;
         _logger.LogInformation($"Executing {x} pending projection task(s).");
         while(!stoppingToken.IsCancellationRequested)
         {
-            var projectTask = _poll.Peek();
+            var projectTask = _pool.Peek();
             if(projectTask == null)
                 break;
             try
@@ -96,7 +96,7 @@ public class AsyncProjectionEngine<T> : BackgroundService
                 var source = await _storage.LoadEventSource(sourceId);
                 Checkpoint c = new(0, source.Last().Seq, CheckpointType.Projection, typeof(T).Name);
                 await _storage.SaveCheckpoint(c);
-                _poll.Dequeue();
+                _pool.Dequeue();
                 _logger.LogInformation($"Done executing projection task for source id {sourceId}.");
             }
             catch

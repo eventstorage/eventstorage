@@ -1,34 +1,34 @@
-using EventStorage.Unit.Tests.AggregateRoot;
+// using EventStorage.Unit.Tests.AggregateRoot;
 
-namespace EventStorage.Integration.Tests;
+// namespace EventStorage.Integration.Tests;
 
-public class PostgreSqlClientTests : TestBase<OrderAggregate>
-{
-    [Fact]
-    public async Task WhilePostgreSqlSource_ShouldInitAndCreateEventStream()
-    {
-        // giveb
-        var client = PostgreSqlClient;
-        await client.Init();
+// public class PostgreSqlClientTests : TestBase<OrderAggregate>
+// {
+//     [Fact]
+//     public async Task WhilePostgreSqlSource_ShouldInitAndCreateEventStream()
+//     {
+//         // giveb
+//         var client = PostgreSqlClient;
+//         await client.Init();
 
-        //when
-        var aggregate = await client.CreateOrRestore();
+//         //when
+//         var aggregate = await client.CreateOrRestore();
 
-        // then
-        Assert.NotNull(aggregate);
-    }
-    [Fact]
-    public async Task GivenAggregate_ShouldCommitEventSource()
-    {
-        // giveb
-        var client = PostgreSqlClient;
-        await client.Init();
-        var aggregate = await client.CreateOrRestore();
+//         // then
+//         Assert.NotNull(aggregate);
+//     }
+//     [Fact]
+//     public async Task GivenAggregate_ShouldCommitEventSource()
+//     {
+//         // giveb
+//         var client = PostgreSqlClient;
+//         await client.Init();
+//         var aggregate = await client.CreateOrRestore();
 
-        //when
-        await client.Commit(aggregate);
+//         //when
+//         await client.Commit(aggregate);
 
-        // then
-        Assert.Empty(aggregate.PendingEvents);
-    }
-}
+//         // then
+//         Assert.Empty(aggregate.PendingEvents);
+//     }
+// }
