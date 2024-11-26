@@ -2,7 +2,7 @@ using EventStorage.Events;
 using EventStorage.Projections;
 using Microsoft.Extensions.DependencyInjection;
 
-namespace EventStorage.Repositories;
+namespace EventStorage.Infrastructure;
 
 public interface IEventStorage<T>
 {

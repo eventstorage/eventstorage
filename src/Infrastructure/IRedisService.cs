@@ -1,7 +1,7 @@
 using EventStorage.Events;
 using EventStorage.Projections;
 
-namespace EventStorage.Repositories.Redis;
+namespace EventStorage.Infrastructure;
 
 public interface IRedisService
 {

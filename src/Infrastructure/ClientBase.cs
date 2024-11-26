@@ -1,18 +1,14 @@
 using System.Data;
 using System.Data.Common;
-using System.Runtime.Serialization;
 using System.Text.Json;
-using EventStorage.Configurations;
 using EventStorage.Events;
 using EventStorage.Projections;
-using EventStorage.Repositories.Redis;
 using EventStorage.Schema;
 using EventStorage.Workers;
-using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.DependencyInjection;
 using TDiscover;
 
-namespace EventStorage.Repositories;
+namespace EventStorage.Infrastructure;
 
 public abstract class ClientBase<T>(IServiceProvider sp) : IEventStorage<T>
 {

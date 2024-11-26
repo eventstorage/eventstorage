@@ -1,51 +1,50 @@
 using System.Data;
-using System.Data.Common;
 using System.Runtime.Serialization;
 using System.Text.Json;
 using EventStorage.AggregateRoot;
-using EventStorage.Configurations;
 using EventStorage.Events;
 using EventStorage.Extensions;
 using EventStorage.Projections;
-using EventStorage.Repositories.Redis;
 using EventStorage.Schema;
-using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using Npgsql;
+using NpgsqlTypes;
 using StackExchange.Redis;
 
-namespace EventStorage.Repositories.SqlServer;
+namespace EventStorage.Infrastructure;
 
-public class SqlServerClient<T>(IServiceProvider sp, string conn) : ClientBase<T>(sp) where T : IEventSource
+public class PostgreSqlClient<T>(IServiceProvider sp, string conn) : ClientBase<T>(sp) where T : IEventSource
 {
     private readonly SemaphoreSlim _semaphore = new (1, 1);
-    private readonly ILogger logger = TLogger.Create<SqlServerClient<T>>();
+    private readonly ILogger logger = TLogger.Create<PostgreSqlClient<T>>();
     public override async Task InitSource()
     {
         try
         {
-            logger.LogInformation($"Begin initializing {nameof(SqlServerClient<T>)}.");
+            logger.LogInformation($"Begin initializing {nameof(PostgreSqlClient<T>)}.");
             _semaphore.Wait();
-            await using SqlConnection sqlConnection = new(conn);
+            await using NpgsqlConnection sqlConnection = new(conn);
             await sqlConnection.OpenAsync();
-            await using SqlTransaction sqlTransaction = sqlConnection.BeginTransaction();
-            await using SqlCommand command = new(Schema.CreateSchemaIfNotExists, sqlConnection);
-            command.Transaction = sqlTransaction;
-            await command.ExecuteNonQueryAsync();
-            foreach (var item in TProjections(t => true))
+            await using NpgsqlTransaction sqlTransaction = sqlConnection.BeginTransaction();
+            await using NpgsqlCommand sqlCommand = new(Schema.CreateSchemaIfNotExists, sqlConnection);
+            sqlCommand.Transaction = sqlTransaction;
+            await sqlCommand.ExecuteNonQueryAsync();
+            var ps = Projections;
+            foreach (var item in TProjections(x => true))
             {
-                command.CommandText = Schema.CreateProjectionIfNotExists(item?.Name?? "");
-                await command.ExecuteNonQueryAsync();
+                sqlCommand.CommandText = Schema.CreateProjectionIfNotExists(item?.Name?? "");
+                await sqlCommand.ExecuteNonQueryAsync();
             }
-            command.CommandText = Schema.CreateCheckpointIfNotExists;
-            await command.ExecuteNonQueryAsync();
+            sqlCommand.CommandText = Schema.CreateCheckpointIfNotExists;
+            await sqlCommand.ExecuteNonQueryAsync();
             await sqlTransaction.CommitAsync();
-            logger.LogInformation($"Finished initializing {nameof(SqlServerClient<T>)}.");
+            logger.LogInformation($"Finished initializing {nameof(PostgreSqlClient<T>)}.");
             _semaphore.Release();
         }
-        catch(SqlException e)
+        catch (NpgsqlException e)
         {
-            logger.LogInformation($"Failed initializing {nameof(SqlServerClient<T>)}. {e.Message}");
+            logger.LogInformation($"Failed initializing {nameof(PostgreSqlClient<T>)}. {e.Message}");
             throw;
         }
     }
@@ -54,15 +53,16 @@ public class SqlServerClient<T>(IServiceProvider sp, string conn) : ClientBase<T
         try
         {
             logger.LogInformation($"Restoring aggregate {typeof(T).Name} started.");
-            await using SqlConnection sqlConnection = new(conn);
+            await using NpgsqlConnection sqlConnection = new(conn);
             await sqlConnection.OpenAsync();
-            await using SqlCommand sqlCommand = sqlConnection.CreateCommand();
-
+            await using NpgsqlCommand sqlCommand = sqlConnection.CreateCommand();
+            
             IEnumerable<EventEnvelop> events = [];
             if(sourceId != null)
             {
                 sqlCommand.CommandText = Schema.LoadEventSourceCommand(SourceTId.ToString());
-                sqlCommand.Parameters.Add(new SqlParameter("sourceId", sourceId));
+                object param = SourceTId == TId.LongSourceId ? long.Parse(sourceId) : Guid.Parse(sourceId);
+                sqlCommand.Parameters.Add(new NpgsqlParameter("sourceId", param));
                 events = await LoadEvents(() => sqlCommand);
                 if(!events.Any())
                     throw new Exception("No such event source with this id exists.");
@@ -75,7 +75,7 @@ public class SqlServerClient<T>(IServiceProvider sp, string conn) : ClientBase<T
 
             return aggregate;
         }
-        catch(SqlException e)
+        catch(NpgsqlException e)
         {
             if(logger.IsEnabled(LogLevel.Error))
                 logger.LogError($"Failed restoring aggregate {typeof(T).Name}. {e.Message}");
@@ -99,34 +99,34 @@ public class SqlServerClient<T>(IServiceProvider sp, string conn) : ClientBase<T
         var x = aggregate.PendingEvents.Count();
         logger.LogInformation($"Preparing to commit {x} pending event(s) for {typeof(T).Name}");
         
-        await using SqlConnection sqlConnection = new(conn);
+        await using NpgsqlConnection sqlConnection = new(conn);
         await sqlConnection.OpenAsync();
-        await using SqlTransaction sqlTransaction = sqlConnection.BeginTransaction();
-        await using SqlCommand sqlCommand = sqlConnection.CreateCommand();
+        await using NpgsqlTransaction sqlTransaction = sqlConnection.BeginTransaction();
+        await using NpgsqlCommand sqlCommand = sqlConnection.CreateCommand();
         sqlCommand.Transaction = sqlTransaction;
         try
         {
             // add event source to event storage
             if(aggregate.PendingEvents.Any())
             {
-                await PrepareSourceCommand((names, values) => names.Select((x, i) => new SqlParameter
+                await PrepareSourceCommand((names, values) => names.Select((x, i) => new NpgsqlParameter
                 {
                     ParameterName = x.Key,
-                    SqlDbType = (SqlDbType)x.Value,
-                    SqlValue = values[i]
+                    NpgsqlDbType = (NpgsqlDbType) x.Value,
+                    NpgsqlValue = values[i]
                 }).ToArray(), sqlCommand, aggregate.PendingEvents.ToArray());
             }
-
+            
             // apply consistent projections if any
             var pending = aggregate.FlushPendingEvents();
             await PrepareProjectionCommand(p =>
                 // does projection subscribes or reprojection wanted
                 !ProjectionRestorer.Subscribes(pending, p) && pending.Any(),
-                (names, values) => names.Select((x, i) => new SqlParameter
+                (names, values) => names.Select((x, i) => new NpgsqlParameter
                 {
                     ParameterName = x.Key,
-                    SqlDbType = (SqlDbType)x.Value,
-                    SqlValue = values[i]
+                    NpgsqlDbType = (NpgsqlDbType)x.Value,
+                    NpgsqlValue = values[i]
                 }).ToArray(),
                 sqlCommand, new(LongSourceId, GuidSourceId, aggregate.EventStream),
                 Projections.Where(x => x.Mode == ProjectionMode.Consistent)
@@ -139,23 +139,23 @@ public class SqlServerClient<T>(IServiceProvider sp, string conn) : ClientBase<T
             if(Projections.Any(x => x.Mode == ProjectionMode.Async))
                 ProjectionPool.Release((scope, ct) => RestoreProjections(envelop, scope));
         }
-        catch(SqlException e)
+        catch(NpgsqlException e)
         {
             await sqlTransaction.RollbackAsync();
             if(logger.IsEnabled(LogLevel.Error))
-                logger.LogError($"Commit failure for {typeof(T).Name}. {e.Message}");
+                logger.LogError($"Commit failure for {aggregate.GetType().Name}. {e.Message}");
             throw;
         }
         catch(SerializationException e)
         {
             if(logger.IsEnabled(LogLevel.Error))
-                logger.LogError($"Commit failure for {typeof(T).Name}. {e.Message}");
+                logger.LogError($"Commit failure for {aggregate.GetType().Name}. {e.Message}");
             throw;
         }
         catch (Exception e)
         {
             if(logger.IsEnabled(LogLevel.Error))
-                logger.LogError($"Commit failure for {typeof(T).Name}. {e.Message}");
+                logger.LogError($"Commit failure for {aggregate.GetType().Name}. {e.Message}");
             throw;
         }
     }
@@ -175,18 +175,18 @@ public class SqlServerClient<T>(IServiceProvider sp, string conn) : ClientBase<T
             }
             if(projections.Any(x => x.Configuration.Store == ProjectionStore.Selected))
             {
-                await using SqlConnection sqlConnection = new(conn);
+                await using NpgsqlConnection sqlConnection = new(conn);
                 await sqlConnection.OpenAsync();
-                await using SqlTransaction sqlTransaction = sqlConnection.BeginTransaction();
-                await using SqlCommand sqlCommand = sqlConnection.CreateCommand();
+                await using NpgsqlTransaction sqlTransaction = sqlConnection.BeginTransaction();
+                await using NpgsqlCommand sqlCommand = sqlConnection.CreateCommand();
                 sqlCommand.Transaction = sqlTransaction;
 
                 await PrepareProjectionCommand((p) => !restorer.Subscribes(source.SourcedEvents, p),
-                    (names, values) => names.Select((x, i) => new SqlParameter
+                    (names, values) => names.Select((x, i) => new NpgsqlParameter
                     {
                         ParameterName = x.Key,
-                        SqlDbType = (SqlDbType)x.Value,
-                        SqlValue = values[i]
+                        NpgsqlDbType = (NpgsqlDbType)x.Value,
+                        NpgsqlValue = values[i]
                     }).ToArray(),
                     sqlCommand, source,
                     projections.Where(x => x.Configuration.Store == ProjectionStore.Selected), restorer
@@ -203,22 +203,22 @@ public class SqlServerClient<T>(IServiceProvider sp, string conn) : ClientBase<T
                 logger.LogError($"Commit failure for {typeof(T).Name}. {e.Message}");
             throw;
         }
-        catch(SqlException e)
+        catch(NpgsqlException e)
         {
             if(logger.IsEnabled(LogLevel.Error))
-                logger.LogError($"Commit failure restoring projections for source {source.LId}. {e.Message}");
+                logger.LogError($"Commit failure for {typeof(T).Name}. {e.Message}");
             throw;
         }
         catch(SerializationException e)
         {
             if(logger.IsEnabled(LogLevel.Error))
-                logger.LogError($"Commit failure restoring projections for source {source.LId}. {e.Message}");
+                logger.LogError($"Commit failure for {typeof(T).Name}. {e.Message}");
             throw;
         }
         catch (Exception e)
         {
             if(logger.IsEnabled(LogLevel.Error))
-                logger.LogError($"Commit failure restoring projections for source {source.LId}. {e.Message}");
+                logger.LogError($"Commit failure for {typeof(T).Name}. {e.Message}");
             throw;
         }
     }
@@ -230,19 +230,20 @@ public class SqlServerClient<T>(IServiceProvider sp, string conn) : ClientBase<T
             var projection = ServiceProvider.GetService<IProjection<M>>();
             if(projection == null)
                 return default;
-                
+
             if(projection.Configuration.Store == ProjectionStore.Redis)
                 return await Redis.GetDocument<M>(sourceId);
-
-            await using SqlConnection sqlConnection = new(conn);
+            
+            await using NpgsqlConnection sqlConnection = new(conn);
             await sqlConnection.OpenAsync();
-            await using SqlCommand command = sqlConnection.CreateCommand();
+            await using NpgsqlCommand sqlCommand = sqlConnection.CreateCommand();
 
+            object id = SourceTId == TId.LongSourceId ? long.Parse(sourceId) : Guid.Parse(sourceId);
             if(projection.Mode != ProjectionMode.Transient)
             {
-                command.CommandText = Schema.GetDocumentCommand<M>(SourceTId.ToString());
-                command.Parameters.AddWithValue("@sourceId", sourceId);
-                await using SqlDataReader reader = await command.ExecuteReaderAsync();
+                sqlCommand.CommandText = Schema.GetDocumentCommand<M>(SourceTId.ToString());
+                sqlCommand.Parameters.AddWithValue("@sourceId", id);
+                await using NpgsqlDataReader reader = await sqlCommand.ExecuteReaderAsync();
                 if(!await reader.ReadAsync())
                     return default;
                 var json = reader.GetString(EventStorageSchema.Data);
@@ -251,14 +252,14 @@ public class SqlServerClient<T>(IServiceProvider sp, string conn) : ClientBase<T
                 return m;
             }
 
-            command.CommandText = Schema.LoadEventSourceCommand(SourceTId.ToString());
-            command.Parameters.Add(new SqlParameter("sourceId", sourceId));
-            var events = await LoadEvents(() => command);
+            sqlCommand.CommandText = Schema.LoadEventSourceCommand(SourceTId.ToString());
+            sqlCommand.Parameters.Add(new NpgsqlParameter("sourceId", id));
+            var events = await LoadEvents(() => sqlCommand);
             var model = ProjectionRestorer.Project<M>(events.Select(x => x.SourcedEvent));
             logger.LogInformation($"{typeof(M).Name} projection completed.");
             return model;
         }
-        catch(SqlException e)
+        catch(NpgsqlException e)
         {
             if(logger.IsEnabled(LogLevel.Error))
                 logger.LogError($"Projection failure for {typeof(M).Name}. {e.Message}");
@@ -281,12 +282,12 @@ public class SqlServerClient<T>(IServiceProvider sp, string conn) : ClientBase<T
     {
         try
         {
-            await using SqlConnection sqlConnection = new(conn);
+            await using NpgsqlConnection sqlConnection = new(conn);
             await sqlConnection.OpenAsync();
-            await using SqlCommand sqlCommand = new (Schema.LoadCheckpointCommand, sqlConnection);
-            sqlCommand.Parameters.AddWithValue("@type", CheckpointType.Projection);
+            await using NpgsqlCommand sqlCommand = new (Schema.LoadCheckpointCommand, sqlConnection);
+            sqlCommand.Parameters.AddWithValue("@type", (int)CheckpointType.Projection);
             sqlCommand.Parameters.AddWithValue("@sourceType", typeof(T).Name);
-            SqlDataReader reader = await sqlCommand.ExecuteReaderAsync();
+            NpgsqlDataReader reader = await sqlCommand.ExecuteReaderAsync();
             Checkpoint checkpoint = new(0, 0, CheckpointType.Projection, typeof(T).Name);
             long seq = 0;
             if(await reader.ReadAsync())
@@ -302,7 +303,7 @@ public class SqlServerClient<T>(IServiceProvider sp, string conn) : ClientBase<T
             await reader.DisposeAsync();
             return checkpoint with { MaxSeq = maxSeq, Seq = seq};
         }
-        catch(SqlException e)
+        catch(NpgsqlException e)
         {
             if(logger.IsEnabled(LogLevel.Error))
                 logger.LogError($"Checkpoint load failure for {typeof(T).Name}. {e.Message}");
@@ -319,16 +320,16 @@ public class SqlServerClient<T>(IServiceProvider sp, string conn) : ClientBase<T
     {
         try
         {
-            await using SqlConnection sqlConnection = new(conn);
+            await using NpgsqlConnection sqlConnection = new(conn);
             await sqlConnection.OpenAsync();
-            await using SqlCommand sqlCommand = sqlConnection.CreateCommand();
+            await using NpgsqlCommand sqlCommand = sqlConnection.CreateCommand();
             sqlCommand.CommandText = insert ? Schema.InsertCheckpointCommand : Schema.SaveCheckpointCommand;
             sqlCommand.Parameters.AddWithValue("@sequence", checkpoint.Seq);
-            sqlCommand.Parameters.AddWithValue("@type", checkpoint.Type);
+            sqlCommand.Parameters.AddWithValue("@type", (int)checkpoint.Type);
             sqlCommand.Parameters.AddWithValue("@sourceType", checkpoint.SourceType);
             await sqlCommand.ExecuteNonQueryAsync();
         }
-        catch(SqlException e)
+        catch(NpgsqlException e)
         {
             if(logger.IsEnabled(LogLevel.Error))
                 logger.LogError($"Save checkpoint failure for {typeof(T).Name}. {e.Message}");
@@ -345,15 +346,15 @@ public class SqlServerClient<T>(IServiceProvider sp, string conn) : ClientBase<T
     {
         try
         {
-            await using SqlConnection sqlConnection = new(conn);
+            await using NpgsqlConnection sqlConnection = new(conn);
             await sqlConnection.OpenAsync();
-            await using SqlCommand sqlCommand = new(Schema.LoadEventsPastCheckpoint, sqlConnection);
+            await using NpgsqlCommand sqlCommand = new(Schema.LoadEventsPastCheckpoint, sqlConnection);
             sqlCommand.Parameters.AddWithValue("@seq", c.Seq);
             sqlCommand.Parameters.AddWithValue("@maxSeq", c.MaxSeq);
             var events = await LoadEvents(() => sqlCommand);
             return events;
         }
-        catch(SqlException e)
+        catch(NpgsqlException e)
         {
             if(logger.IsEnabled(LogLevel.Error))
                 logger.LogError($"Loading events failure for {typeof(T).Name}. {e.Message}");
@@ -376,15 +377,15 @@ public class SqlServerClient<T>(IServiceProvider sp, string conn) : ClientBase<T
     {
         try
         {
-            await using SqlConnection sqlConnection = new(conn);
+            await using NpgsqlConnection sqlConnection = new(conn);
             await sqlConnection.OpenAsync();
-            await using SqlCommand sqlCommand = sqlConnection.CreateCommand();
+            await using NpgsqlCommand sqlCommand = sqlConnection.CreateCommand();
             sqlCommand.CommandText = Schema.LoadEventSourceCommand(SourceTId.ToString());
             sqlCommand.Parameters.AddWithValue("@sourceId", sourceId);
             var events = await LoadEvents(() => sqlCommand);
             return events;
         }
-        catch(SqlException e)
+        catch(NpgsqlException e)
         {
             if(logger.IsEnabled(LogLevel.Error))
                 logger.LogError($"Loading events failure for {typeof(T).Name}. {e.Message}");

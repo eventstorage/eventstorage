@@ -1,12 +1,10 @@
-using System.Text.Json;
 using EventStorage.Events;
 using EventStorage.Projections;
 using Microsoft.Extensions.DependencyInjection;
 using Redis.OM;
 using Redis.OM.Searching;
-using StackExchange.Redis;
 
-namespace EventStorage.Repositories.Redis;
+namespace EventStorage.Infrastructure;
 
 public class RedisService(IServiceProvider sp) : IRedisService
 {

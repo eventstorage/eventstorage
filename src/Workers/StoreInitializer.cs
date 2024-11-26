@@ -1,6 +1,5 @@
-using EventStorage.AggregateRoot;
+using EventStorage.Infrastructure;
 using EventStorage.Projections;
-using EventStorage.Repositories;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Redis.OM;

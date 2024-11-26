@@ -1,10 +1,8 @@
 using System.Reflection;
 using EventStorage.AggregateRoot;
-using EventStorage.Events;
 using EventStorage.Extensions;
+using EventStorage.Infrastructure;
 using EventStorage.Projections;
-using EventStorage.Repositories;
-using EventStorage.Repositories.Redis;
 using EventStorage.Workers;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
