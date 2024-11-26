@@ -19,7 +19,7 @@ namespace EventStorage.Repositories.SqlServer;
 public class SqlServerClient<T>(IServiceProvider sp, string conn) : ClientBase<T>(sp) where T : IEventSource
 {
     private readonly SemaphoreSlim _semaphore = new (1, 1);
-    private readonly ILogger logger = sp.GetRequiredService<ILogger<SqlServerClient<T>>>();
+    private readonly ILogger logger = TLogger.Create<SqlServerClient<T>>();
     public override async Task InitSource()
     {
         try

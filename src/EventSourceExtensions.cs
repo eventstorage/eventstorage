@@ -35,9 +35,8 @@ public static class EventSourceExtensions
             EventStore.PostgresSql => postgresClientType,
             _ => mssqlClientType
         };
-        configuration.ServiceCollection.AddScoped(eventStorageType, sp =>
-            Activator.CreateInstance(client, sp, connectionString)?? default!
-        );
+        var storage = Activator.CreateInstance(client, configuration.Sp, connectionString)?? default!;
+        configuration.ServiceCollection.AddScoped(eventStorageType, sp => storage );
         configuration.ConnectionString = connectionString;
         configuration.Source = source;
         return configuration;
