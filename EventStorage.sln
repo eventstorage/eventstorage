@@ -13,6 +13,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "EventStorage.Benchmarks.Pro
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "EventStorage.Benchmarks.Aggregate", "benchmarks\EventStorage.Benchmarks.Aggregate\EventStorage.Benchmarks.Aggregate.csproj", "{48BD2C65-BD22-4B17-BA47-B76AE4F19BAD}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "EventStorage.Benchmarks", "benchmarks\EventStorage.Benchmarks\EventStorage.Benchmarks.csproj", "{427C8264-E1A9-4D8B-A38C-E4BF1F4E75AC}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -42,5 +44,9 @@ Global
 		{48BD2C65-BD22-4B17-BA47-B76AE4F19BAD}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{48BD2C65-BD22-4B17-BA47-B76AE4F19BAD}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{48BD2C65-BD22-4B17-BA47-B76AE4F19BAD}.Release|Any CPU.Build.0 = Release|Any CPU
+		{427C8264-E1A9-4D8B-A38C-E4BF1F4E75AC}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{427C8264-E1A9-4D8B-A38C-E4BF1F4E75AC}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{427C8264-E1A9-4D8B-A38C-E4BF1F4E75AC}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{427C8264-E1A9-4D8B-A38C-E4BF1F4E75AC}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal
