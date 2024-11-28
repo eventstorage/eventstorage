@@ -22,7 +22,7 @@ public abstract class ClientBase<T>(IServiceProvider sp) : IEventStorage<T>
         _genericTypeArg.IsAssignableFrom(typeof(long)) ? TId.LongSourceId : TId.GuidSourceId;
     protected IRedisService Redis => ServiceProvider.GetRequiredService<IRedisService>();
     protected IProjectionRestorer ProjectionRestorer => sp.GetRequiredService<IProjectionRestorer>();
-    protected IAsyncProjectionPool ProjectionPool => sp.GetRequiredService<IAsyncProjectionPool>();
+    protected IAsyncProjectionPool<T> ProjectionPool => sp.GetRequiredService<IAsyncProjectionPool<T>>();
     protected IEnumerable<IProjection> Projections => ServiceProvider.GetServices<IProjection>();
     public abstract Task InitSource();
     public abstract Task<T> CreateOrRestore(string? sourceId = null);

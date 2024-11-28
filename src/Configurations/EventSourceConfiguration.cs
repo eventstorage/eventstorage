@@ -14,9 +14,6 @@ namespace EventStorage.Configurations;
 public class EventSourceConfiguration<T>(IServiceCollection services, string? schema = null, string? conn = null)
     : EventStorageConfiguration(services, schema, conn) where T : IEventSource
 {
-    // internal EventStore Store { get; set; }
-    // public override string Schema { get; set; }
-    // public override string ConnectionString { get; set; }
     internal override List<IProjection> Projections { get; set; } = [];
 
     // initialize stores while app spins up
@@ -28,10 +25,8 @@ public class EventSourceConfiguration<T>(IServiceCollection services, string? sc
             ServiceCollection.AddSingleton(new RedisConnectionProvider(p.Configuration.ConnectionString));
         }
         ServiceCollection.AddSingleton<IRedisService, RedisService>();
-        var sourceType = Td.FindByType<IEventSource>()?? typeof(IEventSource);
-        var initializerType = typeof(StoreInitializer<>).MakeGenericType(sourceType);
-        ServiceCollection.AddSingleton(typeof(IHostedService), sp =>
-            Activator.CreateInstance(initializerType, sp, Projections)?? default!);
+
+        ServiceCollection.AddSingleton(typeof(IHostedService), sp => new StoreInitializer<T>(sp, Projections));
         return this;
     }
     // pre-compiling projections for future use if more perf needed
@@ -48,10 +43,8 @@ public class EventSourceConfiguration<T>(IServiceCollection services, string? sc
     }
     public EventSourceConfiguration<T> RunAsyncProjectionEngine()
     {
-        ServiceCollection.AddSingleton<IAsyncProjectionPool, AsyncProjectionPool>();
-        var sourceType = Td.FindByType<IEventSource>()?? typeof(IEventSource);
-        var engineType = typeof(AsyncProjectionEngine<>).MakeGenericType(sourceType);
-        ServiceCollection.AddSingleton(typeof(IHostedService), engineType);
+        ServiceCollection.AddSingleton<IAsyncProjectionPool<T>, AsyncProjectionPool<T>>();
+        ServiceCollection.AddHostedService<AsyncProjectionEngine<T>>();
         return this;
     }
 }

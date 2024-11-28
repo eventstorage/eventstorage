@@ -12,15 +12,16 @@ namespace EventStorage;
 public static class EventSourceExtensions
 {
     public static EventStorageConfiguration Select(
-        this EventStorageConfiguration configuration,
-        EventStore store,
-        string? connectionString = null)
+        this EventStorageConfiguration configuration, EventStore store, string? connectionString = null)
     {
         Type? aggregateType = null;
         if(configuration.GetType().GenericTypeArguments[0].Name != "IEventSource")
             aggregateType = configuration.GetType().GenericTypeArguments[0];
         aggregateType ??= Td.FindByCallingAsse<IEventSource>(Assembly.GetCallingAssembly());
         ArgumentNullException.ThrowIfNull(aggregateType);
+
+        configuration.ConnectionString ??= connectionString;
+        configuration.Store = store;
         
         EventStorageSchema clientSchema = store switch
         {
@@ -38,8 +39,6 @@ public static class EventSourceExtensions
             EventStore.PostgresSql => postgresClientType,
             _ => mssqlClientType
         };
-        configuration.ConnectionString ??= connectionString;
-        configuration.Store = store;
         
         configuration.ServiceCollection.AddScoped(eventStorageType, sp =>
             Activator.CreateInstance(client, sp, configuration.ConnectionString)?? default!
