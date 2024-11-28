@@ -1,4 +1,6 @@
-﻿using EventStorage.Configurations;
+﻿using EventStorage.AggregateRoot;
+using EventStorage.Configurations;
+using EventStorage.Events;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace EventStorage;
@@ -9,15 +11,33 @@ public static class EventStorageExtensions
         this IServiceCollection services,
         Action<EventStorageConfiguration> configure)
     {
-        EventStorageConfiguration eventStorageConfiguration = new(services);
-        configure(eventStorageConfiguration);
+        EventStorageConfiguration config = new EventSourceConfiguration<IEventSource>(services);
+        configure(config);
         return services;
     }
-    public static EventSourceConfiguration AddEventSource(
+    public static EventStorageConfiguration AddEventSource(
         this EventStorageConfiguration config,
-        Action<EventSourceConfiguration> configure)
+        Action<EventSourceConfiguration<IEventSource>> configure)
     {
-        EventSourceConfiguration eventsource = new(config.ServiceCollection, config.Schema);
+        EventSourceConfiguration<IEventSource> eventsource = new(
+            config.ServiceCollection,
+            config.Schema,
+            config.ConnectionString);
+        
+        configure(eventsource);
+        return eventsource.Initialize()
+            .ConfigureProjectionRestorer()
+            .RunAsyncProjectionEngine();
+    }
+    public static EventSourceConfiguration<T> AddEventSource<T>(
+        this EventStorageConfiguration config,
+        Action<EventSourceConfiguration<T>> configure) where T : IEventSource
+    {
+        EventSourceConfiguration<T> eventsource = new(
+            config.ServiceCollection,
+            config.Schema,
+            config.ConnectionString);
+        
         configure(eventsource);
         return eventsource.Initialize()
             .ConfigureProjectionRestorer()
@@ -28,7 +48,7 @@ public static class EventStorageExtensions
         MessageBus messageBus,
         string busConnection)
     {
-        var eventSourceConfiguration = new EventSourceConfiguration(config.ServiceCollection, "");
+        EventSourceConfiguration<IEventSource> eventSourceConfiguration = new(config.ServiceCollection);
         // configure(eventSourceConfiguration);
     }
 }
