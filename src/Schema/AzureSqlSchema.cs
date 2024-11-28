@@ -47,8 +47,7 @@ public class AzureSqlSchema(string schema) : EventStorageSchema(schema)
         [Sequence] [bigint] NOT NULL,
         [Type] [tinyint] NOT NULL,
         [SourceType] [nvarchar](25) NOT NULL,
-        CONSTRAINT [Pk_Checkpoints_Sequence] PRIMARY KEY ([Sequence]),
-        INDEX [IX_Checkpoints_Type] NONCLUSTERED (Type))";
+        INDEX [IX_Checkpoints_Sequence] NONCLUSTERED (Sequence))";
     public override string LoadEventsPastCheckpoint => @$"SELECT TOP 2 Sequence, LongSourceId,
     GuidSourceId, Data, Type FROM {Schema}.EventSources WHERE Sequence > @seq and Sequence <= @maxSeq";
 }
