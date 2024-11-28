@@ -2,7 +2,7 @@ using System.Data;
 
 namespace EventStorage.Schema;
 
-public abstract class EventStorageSchema(string schema) : IEventStorageSchema
+public abstract class EventStorageSchema<T>(string schema) : IEventStorageSchema<T>
 {
     protected string Schema => schema;
     public static string Sequence => "Sequence";

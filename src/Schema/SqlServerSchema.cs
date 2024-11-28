@@ -2,7 +2,7 @@ using System.Data;
 
 namespace EventStorage.Schema;
 
-public class SqlServerSchema(string schema) : EventStorageSchema(schema)
+public class SqlServerSchema<T>(string schema) : EventStorageSchema<T>(schema)
 {
     public override string CreateSchemaIfNotExists =>
         @$"IF SCHEMA_ID('{Schema}') IS NULL

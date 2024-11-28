@@ -23,26 +23,24 @@ public static class EventSourceExtensions
         configuration.ConnectionString ??= connectionString;
         configuration.Store = store;
         
-        EventStorageSchema clientSchema = store switch
+        var storageSchema = typeof(IEventStorageSchema<>).MakeGenericType(aggregateType);
+        configuration.ServiceCollection.AddSingleton(storageSchema, sp => store switch
         {
-            EventStore.PostgresSql => new PostgreSqlSchema(configuration.Schema),
-            EventStore.AzureSql => new AzureSqlSchema(configuration.Schema),
-            _ => new SqlServerSchema(configuration.Schema)
-        };
-        configuration.ServiceCollection.AddSingleton(typeof(IEventStorageSchema), clientSchema);
+            EventStore.PostgresSql => typeof(PostgreSqlSchema<>).MakeGenericType(aggregateType),
+            EventStore.AzureSql => typeof(AzureSqlSchema<>).MakeGenericType(aggregateType),
+            _ => typeof(SqlServerSchema<>).MakeGenericType(aggregateType)
+        });
 
-        var eventStorageType = typeof(IEventStorage<>).MakeGenericType(aggregateType);
-        var postgresClientType = typeof(PostgreSqlClient<>).MakeGenericType(aggregateType);
-        var mssqlClientType = typeof(SqlServerClient<>).MakeGenericType(aggregateType);
+        var eventStorage = typeof(IEventStorage<>).MakeGenericType(aggregateType);
         var client = store switch
         {
-            EventStore.PostgresSql => postgresClientType,
-            _ => mssqlClientType
+            EventStore.PostgresSql => typeof(PostgreSqlClient<>).MakeGenericType(aggregateType),
+            _ => typeof(SqlServerClient<>).MakeGenericType(aggregateType)
         };
-        
-        configuration.ServiceCollection.AddScoped(eventStorageType, sp =>
+        configuration.ServiceCollection.AddScoped(eventStorage, sp =>
             Activator.CreateInstance(client, sp, configuration.ConnectionString)?? default!
         );
+        
         return configuration;
     }
     public static EventStorageConfiguration Project<TProjection>(
