@@ -11,13 +11,18 @@ namespace EventStorage;
 
 public static class EventSourceExtensions
 {
-    public static EventSourceConfiguration Select(
-        this EventSourceConfiguration configuration, EventStore source, string connectionString)
+    public static EventStorageConfiguration Select(
+        this EventStorageConfiguration configuration,
+        EventStore store,
+        string? connectionString = null)
     {
-        Type? aggregateType = Td.FindByCallingAsse<IEventSource>(Assembly.GetCallingAssembly());
+        Type? aggregateType = null;
+        if(configuration.GetType().GenericTypeArguments[0].Name != "IEventSource")
+            aggregateType = configuration.GetType().GenericTypeArguments[0];
+        aggregateType ??= Td.FindByCallingAsse<IEventSource>(Assembly.GetCallingAssembly());
         ArgumentNullException.ThrowIfNull(aggregateType);
         
-        EventStorageSchema clientSchema = source switch
+        EventStorageSchema clientSchema = store switch
         {
             EventStore.PostgresSql => new PostgreSqlSchema(configuration.Schema),
             EventStore.AzureSql => new AzureSqlSchema(configuration.Schema),
@@ -28,20 +33,21 @@ public static class EventSourceExtensions
         var eventStorageType = typeof(IEventStorage<>).MakeGenericType(aggregateType);
         var postgresClientType = typeof(PostgreSqlClient<>).MakeGenericType(aggregateType);
         var mssqlClientType = typeof(SqlServerClient<>).MakeGenericType(aggregateType);
-        var client = source switch
+        var client = store switch
         {
             EventStore.PostgresSql => postgresClientType,
             _ => mssqlClientType
         };
+        configuration.ConnectionString ??= connectionString;
+        configuration.Store = store;
+        
         configuration.ServiceCollection.AddScoped(eventStorageType, sp =>
-            Activator.CreateInstance(client, sp, connectionString)?? default!
+            Activator.CreateInstance(client, sp, configuration.ConnectionString)?? default!
         );
-        configuration.ConnectionString = connectionString;
-        configuration.Source = source;
         return configuration;
     }
-    public static EventSourceConfiguration Project<TProjection>(
-        this EventSourceConfiguration configuration,
+    public static EventStorageConfiguration Project<TProjection>(
+        this EventStorageConfiguration configuration,
         ProjectionMode mode = ProjectionMode.Async,
         Func<ProjectionConfiguration, ProjectionConfiguration> source = default!)
         where TProjection : Projection, new()

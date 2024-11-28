@@ -11,15 +11,16 @@ using TDiscover;
 
 namespace EventStorage.Configurations;
 
-public class EventSourceConfiguration(IServiceCollection services, string schema) 
-    : EventStorageConfiguration(services, schema)
+public class EventSourceConfiguration<T>(IServiceCollection services, string? schema = null, string? conn = null)
+    : EventStorageConfiguration(services, schema, conn) where T : IEventSource
 {
-    public EventStore Source { get; set; }
-    public string ConnectionString { get; set; } = string.Empty;
-    public List<IProjection> Projections = [];
+    // internal EventStore Store { get; set; }
+    // public override string Schema { get; set; }
+    // public override string ConnectionString { get; set; }
+    internal override List<IProjection> Projections { get; set; } = [];
 
     // initialize stores while app spins up
-    public EventSourceConfiguration Initialize()
+    public EventSourceConfiguration<T> Initialize()
     {
         if(Projections.Any(x => x.Configuration.Store == ProjectionStore.Redis))
         {
@@ -34,7 +35,7 @@ public class EventSourceConfiguration(IServiceCollection services, string schema
         return this;
     }
     // pre-compiling projections for future use if more perf needed
-    public EventSourceConfiguration ConfigureProjectionRestorer()
+    public EventSourceConfiguration<T> ConfigureProjectionRestorer()
     {
         Dictionary<IProjection, List<MethodInfo>> projections = [];
         foreach (var projection in Projections)
@@ -45,7 +46,7 @@ public class EventSourceConfiguration(IServiceCollection services, string schema
         ServiceCollection.AddSingleton<IProjectionRestorer>(sp => new ProjectionRestorer(sp, projections));
         return this;
     }
-    public EventSourceConfiguration RunAsyncProjectionEngine()
+    public EventSourceConfiguration<T> RunAsyncProjectionEngine()
     {
         ServiceCollection.AddSingleton<IAsyncProjectionPool, AsyncProjectionPool>();
         var sourceType = Td.FindByType<IEventSource>()?? typeof(IEventSource);

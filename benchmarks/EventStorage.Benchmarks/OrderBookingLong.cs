@@ -1,10 +1,9 @@
 ﻿using EventStorage.AggregateRoot;
-using EventStorage.Benchmarks.Projections;
-using EventStorage.Events;
-using EventStorage.Extensions;
+using EventStorage.Benchmarks.Commands;
+using EventStorage.Benchmarks.Events;
 
-namespace EventStorage.Benchmarks.Projections;
-public class OrderBooking : EventSource<long>
+namespace EventStorage.Benchmarks;
+public class OrderBookingLong : EventSource<long>
 {
     public OrderStatus OrderStatus { get; private set; }
     public void Apply(OrderPlaced e)
