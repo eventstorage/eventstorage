@@ -12,38 +12,35 @@ namespace EventStorage;
 public static class EventSourceExtensions
 {
     public static EventStorageConfiguration Select(
-        this EventStorageConfiguration configuration,
-        EventStore store,
-        string? connectionString = null)
+        this EventStorageConfiguration configuration, EventStore store, string? connectionString = null)
     {
         Type? aggregateType = null;
         if(configuration.GetType().GenericTypeArguments[0].Name != "IEventSource")
             aggregateType = configuration.GetType().GenericTypeArguments[0];
         aggregateType ??= Td.FindByCallingAsse<IEventSource>(Assembly.GetCallingAssembly());
         ArgumentNullException.ThrowIfNull(aggregateType);
-        
-        EventStorageSchema clientSchema = store switch
-        {
-            EventStore.PostgresSql => new PostgreSqlSchema(configuration.Schema),
-            EventStore.AzureSql => new AzureSqlSchema(configuration.Schema),
-            _ => new SqlServerSchema(configuration.Schema)
-        };
-        configuration.ServiceCollection.AddSingleton(typeof(IEventStorageSchema), clientSchema);
 
-        var eventStorageType = typeof(IEventStorage<>).MakeGenericType(aggregateType);
-        var postgresClientType = typeof(PostgreSqlClient<>).MakeGenericType(aggregateType);
-        var mssqlClientType = typeof(SqlServerClient<>).MakeGenericType(aggregateType);
-        var client = store switch
-        {
-            EventStore.PostgresSql => postgresClientType,
-            _ => mssqlClientType
-        };
         configuration.ConnectionString ??= connectionString;
         configuration.Store = store;
         
-        configuration.ServiceCollection.AddScoped(eventStorageType, sp =>
+        var storageSchema = typeof(IEventStorageSchema<>).MakeGenericType(aggregateType);
+        configuration.ServiceCollection.AddSingleton(storageSchema, sp => store switch
+        {
+            EventStore.PostgresSql => typeof(PostgreSqlSchema<>).MakeGenericType(aggregateType),
+            EventStore.AzureSql => typeof(AzureSqlSchema<>).MakeGenericType(aggregateType),
+            _ => typeof(SqlServerSchema<>).MakeGenericType(aggregateType)
+        });
+
+        var eventStorage = typeof(IEventStorage<>).MakeGenericType(aggregateType);
+        var client = store switch
+        {
+            EventStore.PostgresSql => typeof(PostgreSqlClient<>).MakeGenericType(aggregateType),
+            _ => typeof(SqlServerClient<>).MakeGenericType(aggregateType)
+        };
+        configuration.ServiceCollection.AddScoped(eventStorage, sp =>
             Activator.CreateInstance(client, sp, configuration.ConnectionString)?? default!
         );
+        
         return configuration;
     }
     public static EventStorageConfiguration Project<TProjection>(

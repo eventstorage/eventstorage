@@ -1,7 +1,7 @@
 using NpgsqlTypes;
 namespace EventStorage.Schema;
 
-public class PostgreSqlSchema(string schema) : EventStorageSchema(schema)
+public class PostgreSqlSchema<T>(string schema) : EventStorageSchema<T>(schema)
 {
     public override string CreateSchemaIfNotExists =>
         @$"CREATE SCHEMA IF NOT EXISTS {Schema};
@@ -44,9 +44,9 @@ public class PostgreSqlSchema(string schema) : EventStorageSchema(schema)
         @$"CREATE TABLE IF NOT EXISTS {Schema}.Checkpoints(
             Sequence bigint NOT NULL,
             Type smallint NOT NULL,
-            SourceType text NOT NULL,
-            CONSTRAINT Pk_Checkpoints_Sequence PRIMARY KEY (Sequence)
-        );";
+            SourceType text NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS Idx_Checkpoints_Sequence on {Schema}.Checkpoints (Sequence);";
     public override string LoadEventsPastCheckpoint => @$"SELECT Sequence, LongSourceId, GuidSourceId,
         Data, Type FROM {Schema}.EventSources WHERE Sequence > @seq and Sequence <= @maxSeq LIMIT 2";
 }

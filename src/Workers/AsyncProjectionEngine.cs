@@ -7,17 +7,13 @@ using Microsoft.Extensions.Logging;
 
 namespace EventStorage.Workers;
 
-public class AsyncProjectionEngine<T> : BackgroundService
+public class AsyncProjectionEngine<T>(IServiceScopeFactory scope) : BackgroundService
 {
-    private readonly IServiceScopeFactory _scope;
-    private IServiceProvider _sp => _scope.CreateScope().ServiceProvider;
+    private readonly IServiceProvider _sp = scope.CreateScope().ServiceProvider;
     private ILogger _logger => _sp.GetRequiredService<ILogger<AsyncProjectionEngine<T>>>();
-    private IAsyncProjectionPool _pool => _sp.GetRequiredService<IAsyncProjectionPool>();
+    private IAsyncProjectionPool<T> _pool => _sp.GetRequiredService<IAsyncProjectionPool<T>>();
     private IEventStorage<T> _storage => _sp.GetRequiredService<IEventStorage<T>>();
-    public AsyncProjectionEngine(IServiceScopeFactory scope)
-    {
-        _scope = scope;
-    }
+
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         _logger.LogInformation("Started projection engine, restoring projections...");
@@ -53,7 +49,7 @@ public class AsyncProjectionEngine<T> : BackgroundService
                 foreach (var source in groupedBySource)
                 {
                     EventSourceEnvelop envelop = await CheckEventSourceIntegrity(source);
-                    restores.Add(Task.Run(() => _storage.RestoreProjections(envelop, _scope), ct));
+                    restores.Add(Task.Run(() => _storage.RestoreProjections(envelop, scope), ct));
                 }
                 Task.WaitAll(restores.ToArray(), ct);
 
@@ -92,7 +88,7 @@ public class AsyncProjectionEngine<T> : BackgroundService
                 break;
             try
             {
-                long sourceId = await projectTask(_scope, stoppingToken);
+                long sourceId = await projectTask(scope, stoppingToken);
                 var source = await _storage.LoadEventSource(sourceId);
                 Checkpoint c = new(0, source.Last().Seq, CheckpointType.Projection, typeof(T).Name);
                 await _storage.SaveCheckpoint(c);

@@ -2,7 +2,7 @@ using System.Data;
 
 namespace EventStorage.Schema;
 
-public class SqlServerSchema(string schema) : EventStorageSchema(schema)
+public class SqlServerSchema<T>(string schema) : EventStorageSchema<T>(schema)
 {
     public override string CreateSchemaIfNotExists =>
         @$"IF SCHEMA_ID('{Schema}') IS NULL
@@ -47,8 +47,7 @@ public class SqlServerSchema(string schema) : EventStorageSchema(schema)
         [Sequence] [bigint] NOT NULL,
         [Type] [tinyint] NOT NULL,
         [SourceType] [nvarchar](50) NOT NULL,
-        CONSTRAINT [Pk_Checkpoints_Sequence] PRIMARY KEY ([Sequence]),
-        INDEX [IX_Checkpoints_Type] NONCLUSTERED (Type))";
+        INDEX [IX_Checkpoints_Sequence] NONCLUSTERED (Sequence))";
     public override string LoadEventsPastCheckpoint => @$"SELECT TOP 2 Sequence, LongSourceId,
         GuidSourceId, Data, Type FROM {Schema}.EventSources WHERE Sequence > @seq and Sequence <= @maxSeq";
 }

@@ -1,6 +1,6 @@
 namespace EventStorage.Schema;
 
-public interface IEventStorageSchema
+public interface IEventStorageSchema<T>
 {
     string CreateSchemaIfNotExists { get; }
     string CreateProjectionIfNotExists(string projection);
