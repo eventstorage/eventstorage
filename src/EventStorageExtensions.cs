@@ -1,7 +1,10 @@
-﻿using EventStorage.AggregateRoot;
+﻿using System.Reflection;
+using System.Security.Cryptography.X509Certificates;
+using EventStorage.AggregateRoot;
 using EventStorage.Configurations;
 using EventStorage.Events;
 using Microsoft.Extensions.DependencyInjection;
+using TDiscover;
 
 namespace EventStorage;
 
@@ -15,19 +18,25 @@ public static class EventStorageExtensions
         configure(config);
         return services;
     }
-    public static EventStorageConfiguration AddEventSource(
+    internal static EventStorageConfiguration AddEventSource(
         this EventStorageConfiguration config,
         Action<EventSourceConfiguration<IEventSource>> configure)
     {
-        EventSourceConfiguration<IEventSource> eventsource = new(
-            config.ServiceCollection,
-            config.Schema,
-            config.ConnectionString);
-        
-        configure(eventsource);
-        return eventsource.Initialize()
-            .ConfigureProjectionRestorer()
-            .RunAsyncProjectionEngine();
+        // EventSourceConfiguration<IEventSource> eventsource = new(
+        //     config.ServiceCollection,
+        //     config.Schema,
+        //     config.ConnectionString);
+        var aggregate = Td.FindByCallingAsse<IEventSource>(Assembly.GetCallingAssembly());
+        ArgumentNullException.ThrowIfNull(aggregate);
+
+        var method = typeof(EventStorageExtensions).GetMethods()
+            .First(x => x.Name == "AddEventSource" && x.IsGenericMethod).MakeGenericMethod(aggregate);
+        method.Invoke(config, [configure.Clone()]);
+        return config;
+        // configure(eventsource);
+        // return s.Initialize()
+        //     .ConfigureProjectionRestorer()
+        //     .RunAsyncProjectionEngine();
     }
     public static EventSourceConfiguration<T> AddEventSource<T>(
         this EventStorageConfiguration config,

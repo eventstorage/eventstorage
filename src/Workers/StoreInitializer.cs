@@ -7,7 +7,7 @@ using Redis.OM;
 namespace EventStorage.Workers;
 
 internal class StoreInitializer<T>(
-    IServiceProvider sp, IEnumerable<IProjection> projections) : IHostedService
+    IServiceProvider sp, IEnumerable<Projection> projections) : IHostedService
 {
     private readonly IEventStorage<T> _storage = sp.CreateScope().ServiceProvider.GetRequiredService<IEventStorage<T>>();
     public async Task StartAsync(CancellationToken cancellationToken)

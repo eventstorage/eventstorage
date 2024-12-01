@@ -1,3 +1,4 @@
+using EventStorage.AggregateRoot;
 using EventStorage.Events;
 using EventStorage.Projections;
 using Microsoft.Extensions.DependencyInjection;
@@ -6,20 +7,20 @@ using Redis.OM.Searching;
 
 namespace EventStorage.Infrastructure;
 
-public class RedisService(IServiceProvider sp) : IRedisService
+public class RedisService<T>(IServiceProvider sp) : IRedisService<T> where T : IEventSource
 {
     private readonly RedisConnectionProvider _provider = sp.GetRequiredService<RedisConnectionProvider>();
-    private IRedisCollection<T> Collection<T>() where T : notnull => _provider.RedisCollection<T>();
-    public async Task<T?> GetDocument<T>(string sourceId) where T : notnull =>
-        await Collection<T>().FindByIdAsync(sourceId);
-    private async Task AddDocument<T>(T document) where T : notnull =>
-        await Collection<T>().InsertAsync(document);
+    private IRedisCollection<Td> Collection<Td>() where Td : notnull => _provider.RedisCollection<Td>();
+    public async Task<Td?> GetDocument<Td>(string sourceId) where Td : notnull =>
+        await Collection<Td>().FindByIdAsync(sourceId);
+    private async Task AddDocument<Td>(Td document) where Td : notnull =>
+        await Collection<Td>().InsertAsync(document);
     private async Task AddDocument(object document) =>
-        await _provider.Connection.SetAsync(document);
+        await _provider.Connection.JsonSetAsync("","$",document);
     public async Task RestoreProjections(
         EventSourceEnvelop source,
-        IEnumerable<IProjection> projections,
-        IProjectionRestorer restorer)
+        IEnumerable<IProjection<T>> projections,
+        IProjectionRestorer<T> restorer)
     {
         foreach (var projection in projections)
         {
