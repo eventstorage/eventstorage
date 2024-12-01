@@ -21,7 +21,7 @@ public class EventStorageBenchmarks
         await StorageGuid.InitSource();
     }
     [Benchmark]
-    public async Task PlaceAndConfirmOrder_Long()
+    public async Task PlaceAndConfirmOrder()
     {
         var aggregate = await StorageLong.CreateOrRestore();
         aggregate.PlaceOrder(new PlaceOrder("", 0, ""));
@@ -30,22 +30,13 @@ public class EventStorageBenchmarks
         LongId = aggregate.SourceId;
     }
     [Benchmark]
-    public async Task PlaceAndConfirmOrder_Guid()
-    {
-        var aggregate = await StorageGuid.CreateOrRestore();
-        aggregate.PlaceOrder(new PlaceOrder("", 0, ""));
-        aggregate.ConfirmOrder(new ConfirmOrder());
-        await StorageGuid.Commit(aggregate);
-        GuidId = aggregate.SourceId;
-    }
-    [Benchmark]
     public async Task GetOrderByLong()
     {
-        var order = await StorageLong.Project<Order>(LongId.ToString());
+        var order = await StorageLong.Project<Order>("");
     }
     [Benchmark]
     public async Task GetOrderByGuid()
     {
-        var order = await StorageGuid.Project<Order>(GuidId.ToString());
+        var order = await StorageGuid.Project<OrderDetail>("");
     }
 }

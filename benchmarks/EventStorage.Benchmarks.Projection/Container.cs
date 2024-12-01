@@ -17,7 +17,7 @@ public static class Container
 
         services.AddEventStorage(eventstorage =>
         {
-            eventstorage.AddEventSource(eventsource =>
+            eventstorage.AddEventSource<OrderBooking>(eventsource =>
             {
                 eventsource.Project<OrderProjection>(ProjectionMode.Consistent)
                 .Project<OrderDetailProjection>(ProjectionMode.Consistent);

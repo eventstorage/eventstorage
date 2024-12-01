@@ -19,10 +19,17 @@ public static class Container
 
         services.AddEventStorage(eventstorage =>
         {
-            eventstorage.AddEventSource(eventsource =>
+            eventstorage.AddEventSource<OrderBookingLong>(eventsource =>
             {
+                eventsource.Schema = "longschema";
                 eventsource.Select(EventStore.PostgresSql, configuration["postgresqlsecret"]?? "")
                 .Project<OrderProjection>(ProjectionMode.Async);
+            });
+            eventstorage.AddEventSource<OrderBookingGuid>(eventsource =>
+            {
+                eventsource.Schema = "guidschema";
+                eventsource.Select(EventStore.PostgresSql, configuration["postgresqlsecret"]?? "")
+                .Project<OrderDetailProjection>(ProjectionMode.Async);
             });
         });
 

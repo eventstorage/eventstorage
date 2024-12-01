@@ -27,6 +27,7 @@ public static class EventStorageExtensions
         //     config.Schema,
         //     config.ConnectionString);
         var aggregate = Td.FindByCallingAsse<IEventSource>(Assembly.GetCallingAssembly());
+        ArgumentNullException.ThrowIfNull(aggregate);
 
         var method = typeof(EventStorageExtensions).GetMethods()
             .First(x => x.Name == "AddEventSource" && x.IsGenericMethod).MakeGenericMethod(aggregate);

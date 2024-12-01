@@ -27,7 +27,7 @@ public class Configuration<T> where T : OrderAggregate
     private static ServiceProvider BuildContainer(EventStore store) =>  new ServiceCollection()
     .AddEventStorage(storage =>
     {
-        storage.AddEventSource(eventSource =>
+        storage.AddEventSource<OrderAggregate>(eventSource =>
         {
             eventSource.Select(store, GetConnection(store))
             .Project<OrderProjection>(ProjectionMode.Transient);
