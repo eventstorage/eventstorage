@@ -12,7 +12,7 @@ namespace EventStorage.Benchmarks.Projections;
 public class ProjectionBenchmarks
 {
     private static readonly IServiceProvider _sp = Container.Build();
-    private readonly IProjectionRestorer _projection = _sp.GetRequiredService<IProjectionRestorer>();
+    private readonly IProjectionRestorer<OrderBooking> _projection = _sp.GetRequiredService<IProjectionRestorer<OrderBooking>>();
     private readonly List<SourcedEvent> _events = [];
     [GlobalSetup]
     public void Setup()
@@ -24,6 +24,6 @@ public class ProjectionBenchmarks
     }
     [Benchmark]
     public void Project() => _projection.Project<Order>(_events);
-    [Benchmark]
-    public void ProjectOptimized() => _projection.ProjectOptimized<Order>(_events);
+    // [Benchmark]
+    // public void ProjectOptimized() => _projection.ProjectOptimized<Order>(_events);
 }

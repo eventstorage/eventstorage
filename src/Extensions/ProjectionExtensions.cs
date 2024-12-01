@@ -6,7 +6,7 @@ namespace EventStorage.Extensions;
 
 public static class ProjectionExtensions
 {
-    public static IEnumerable<MethodInfo> GetMethods(this IProjection projection)
+    public static IEnumerable<MethodInfo> GetMethods(this Projection projection)
     {
         var initMethod = projection.GetType().GetMethods()
             .Where(m => m.Name == "Project" && m.GetParameters().Length == 1)

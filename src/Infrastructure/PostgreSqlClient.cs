@@ -165,11 +165,11 @@ public class PostgreSqlClient<T>(IServiceProvider sp, string conn) : ClientBase<
         {
             logger.LogInformation($"Restoring projections for event source {source.LId}.");
             var sp = scope.CreateScope().ServiceProvider;
-            var projections = sp.GetServices<IProjection>();
-            var restorer = sp.GetRequiredService<IProjectionRestorer>();
+            var projections = sp.GetServices<IProjection<T>>();
+            var restorer = sp.GetRequiredService<IProjectionRestorer<T>>();
             if(projections.Any(x => x.Configuration.Store == ProjectionStore.Redis))
             {
-                var redis = sp.GetRequiredService<IRedisService>();
+                var redis = sp.GetRequiredService<IRedisService<T>>();
                 var ps = projections.Where(x => x.Configuration.Store == ProjectionStore.Redis);
                 await redis.RestoreProjections(source, ps, restorer);
             }
@@ -227,7 +227,7 @@ public class PostgreSqlClient<T>(IServiceProvider sp, string conn) : ClientBase<
         try
         {
             logger.LogInformation($"Starting {typeof(M).Name} projection.");
-            var projection = ServiceProvider.GetService<IProjection<M>>();
+            var projection = ServiceProvider.GetService<IProjection<M,T>>();
             if(projection == null)
                 return default;
 
@@ -246,7 +246,7 @@ public class PostgreSqlClient<T>(IServiceProvider sp, string conn) : ClientBase<
                 await using NpgsqlDataReader reader = await sqlCommand.ExecuteReaderAsync();
                 if(!await reader.ReadAsync())
                     return default;
-                var json = reader.GetString(EventStorageSchema.Data);
+                var json = reader.GetString(EventStorageSchema<T>.Data);
                 var m = JsonSerializer.Deserialize<M>(json);
                 logger.LogInformation($"{typeof(M).Name} projection completed.");
                 return m;
@@ -380,7 +380,7 @@ public class PostgreSqlClient<T>(IServiceProvider sp, string conn) : ClientBase<
             await using NpgsqlConnection sqlConnection = new(conn);
             await sqlConnection.OpenAsync();
             await using NpgsqlCommand sqlCommand = sqlConnection.CreateCommand();
-            sqlCommand.CommandText = Schema.LoadEventSourceCommand(SourceTId.ToString());
+            sqlCommand.CommandText = Schema.LoadEventSourceCommand(TId.LongSourceId.ToString());
             sqlCommand.Parameters.AddWithValue("@sourceId", sourceId);
             var events = await LoadEvents(() => sqlCommand);
             return events;

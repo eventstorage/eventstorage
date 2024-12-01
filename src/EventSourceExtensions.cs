@@ -14,33 +14,31 @@ public static class EventSourceExtensions
     public static EventStorageConfiguration Select(
         this EventStorageConfiguration configuration, EventStore store, string? connectionString = null)
     {
-        Type? aggregateType = null;
-        if(configuration.GetType().GenericTypeArguments[0].Name != "IEventSource")
-            aggregateType = configuration.GetType().GenericTypeArguments[0];
-        aggregateType ??= Td.FindByCallingAsse<IEventSource>(Assembly.GetCallingAssembly());
-        ArgumentNullException.ThrowIfNull(aggregateType);
+        Type aggregateType = configuration.GetType().GenericTypeArguments[0];
 
         configuration.ConnectionString ??= connectionString;
         configuration.Store = store;
         
-        var storageSchema = typeof(IEventStorageSchema<>).MakeGenericType(aggregateType);
-        configuration.ServiceCollection.AddSingleton(storageSchema, sp => store switch
+        var clientSchema = store switch
         {
             EventStore.PostgresSql => typeof(PostgreSqlSchema<>).MakeGenericType(aggregateType),
             EventStore.AzureSql => typeof(AzureSqlSchema<>).MakeGenericType(aggregateType),
             _ => typeof(SqlServerSchema<>).MakeGenericType(aggregateType)
-        });
+        };
+        var storageSchema = typeof(IEventStorageSchema<>).MakeGenericType(aggregateType);
+        configuration.ServiceCollection.AddSingleton(storageSchema, sp =>
+            Activator.CreateInstance(clientSchema, configuration.Schema)?? default!
+        );
 
-        var eventStorage = typeof(IEventStorage<>).MakeGenericType(aggregateType);
         var client = store switch
         {
             EventStore.PostgresSql => typeof(PostgreSqlClient<>).MakeGenericType(aggregateType),
             _ => typeof(SqlServerClient<>).MakeGenericType(aggregateType)
         };
+        var eventStorage = typeof(IEventStorage<>).MakeGenericType(aggregateType);
         configuration.ServiceCollection.AddScoped(eventStorage, sp =>
             Activator.CreateInstance(client, sp, configuration.ConnectionString)?? default!
         );
-        
         return configuration;
     }
     public static EventStorageConfiguration Project<TProjection>(
@@ -51,12 +49,19 @@ public static class EventSourceExtensions
     {
         if(source != null && mode != ProjectionMode.Async)
             throw new Exception($"Projection to source only allowed with async mode.");
-        var iprojection = typeof(TProjection).GetInterfaces().Last();
+        
+        Type aggregateType = configuration.GetType().GenericTypeArguments[0];
+        
         source ??= (config) => new();
-        var tprojection = new TProjection { Mode = mode, Configuration = source(new())};
-        configuration.ServiceCollection.AddSingleton(iprojection, tprojection);
-        configuration.ServiceCollection.AddSingleton(typeof(IProjection), tprojection);
-        configuration.Projections.Add(tprojection);
+        var projection = new TProjection { Mode = mode, Configuration = source(new())};
+        var mprojection = typeof(TProjection).GetInterfaces().First();
+        configuration.ServiceCollection.AddSingleton(mprojection, projection);
+        var tprojection = typeof(IProjection<>).MakeGenericType(aggregateType);
+        configuration.ServiceCollection.AddSingleton(tprojection, projection);
+        configuration.Projections.Add(projection);
+        
+        var pt = configuration.Sp.GetService(tprojection);
+        var ptm = configuration.Sp.GetService(mprojection);
         return configuration;
     }
 }
