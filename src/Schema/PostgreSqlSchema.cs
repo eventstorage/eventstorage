@@ -1,7 +1,7 @@
 using NpgsqlTypes;
 namespace EventStorage.Schema;
 
-public class PostgreSqlSchema<T>(string schema) : EventStorageSchema<T>(schema)
+public class PostgreSqlSchema(string schema) : EventStorageSchema(schema)
 {
     public override string CreateSchemaIfNotExists =>
         @$"CREATE SCHEMA IF NOT EXISTS {Schema};

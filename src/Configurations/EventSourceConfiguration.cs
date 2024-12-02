@@ -10,26 +10,28 @@ using Redis.OM;
 
 namespace EventStorage.Configurations;
 
-public class EventSourceConfiguration<T>(IServiceCollection services, string? schema = null, string? conn = null)
-    : EventStorageConfiguration(services, schema, conn) where T:IEventSource 
+public class EventSourceConfiguration(IServiceCollection services, string? schema = null, string? conn = null)
+    : EventStorageConfiguration(services, schema, conn)
 {
-    internal override List<Projection> Projections { get; set; } = [];
+    internal Type T { get; set; } = default!;
 
     // initialize stores while app spins up
-    public EventSourceConfiguration<T> Initialize()
+    public EventSourceConfiguration Initialize()
     {
         if(Projections.Any(x => x.Configuration.Store == ProjectionStore.Redis))
         {
             var p = Projections.First(x => x.Configuration.Store == ProjectionStore.Redis);
             ServiceCollection.AddSingleton(new RedisConnectionProvider(p.Configuration.ConnectionString));
         }
-        ServiceCollection.AddSingleton<IRedisService<T>, RedisService<T>>();
+        ServiceCollection.AddSingleton<IRedisService, RedisService>();
 
-        ServiceCollection.AddSingleton(typeof(IHostedService), sp => new StoreInitializer<T>(sp, Projections));
+        var initializerType = typeof(StoreInitializer<>).MakeGenericType(T);
+        ServiceCollection.AddSingleton(typeof(IHostedService), sp =>
+            Activator.CreateInstance(initializerType, sp, Projections)?? default!);
         return this;
     }
     // pre-compiling projections for future use if more perf needed
-    public EventSourceConfiguration<T> ConfigureProjectionRestorer()
+    public EventSourceConfiguration ConfigureProjectionRestorer()
     {
         Dictionary<Projection, List<MethodInfo>> projections = [];
         foreach (var projection in Projections)
@@ -37,14 +39,15 @@ public class EventSourceConfiguration<T>(IServiceCollection services, string? sc
             var methods = projection.GetMethods();
             projections.Add(projection, methods.ToList());
         }
-        ServiceCollection.AddSingleton<IProjectionRestorer<T>>(sp => new ProjectionRestorer<T>(sp));
+        ServiceCollection.AddSingleton<IProjectionRestorer>(sp => new ProjectionRestorer(sp));
         // ServiceCollection.AddSingleton<IProjectionRestorer<T>>(sp => new ProjectionRestorer<T(sp, projections));
         return this;
     }
-    public EventSourceConfiguration<T> RunAsyncProjectionEngine()
+    public EventSourceConfiguration RunAsyncProjectionEngine()
     {
-        ServiceCollection.AddSingleton<IAsyncProjectionPool<T>, AsyncProjectionPool<T>>();
-        ServiceCollection.AddHostedService<AsyncProjectionEngine<T>>();
+        ServiceCollection.AddSingleton<IAsyncProjectionPool, AsyncProjectionPool>();
+        var engineType = typeof(AsyncProjectionEngine<>).MakeGenericType(T);
+        ServiceCollection.AddSingleton(typeof(IHostedService), engineType);
         return this;
     }
 }

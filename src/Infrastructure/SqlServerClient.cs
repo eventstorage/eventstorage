@@ -162,11 +162,11 @@ public class SqlServerClient<T>(IServiceProvider sp, string conn) : ClientBase<T
         {
             logger.LogInformation($"Restoring projections for event source {source.LId}.");
             var sp = scope.CreateScope().ServiceProvider;
-            var projections = sp.GetServices<IProjection<T>>();
-            var restorer = sp.GetRequiredService<IProjectionRestorer<T>>();
+            var projections = sp.GetServices<IProjection>().Where(x => x.Mode != ProjectionMode.Transient);
+            var restorer = sp.GetRequiredService<IProjectionRestorer>();
             if(projections.Any(x => x.Configuration.Store == ProjectionStore.Redis))
             {
-                var redis = sp.GetRequiredService<IRedisService<T>>();
+                var redis = sp.GetRequiredService<IRedisService>();
                 var ps = projections.Where(x => x.Configuration.Store == ProjectionStore.Redis);
                 await redis.RestoreProjections(source, ps, restorer);
             }
@@ -224,7 +224,7 @@ public class SqlServerClient<T>(IServiceProvider sp, string conn) : ClientBase<T
         try
         {
             logger.LogInformation($"Starting {typeof(M).Name} projection.");
-            var projection = ServiceProvider.GetService<IProjection<M,T>>();
+            var projection = ServiceProvider.GetService<IProjection<M>>();
             if(projection == null)
                 return default;
                 
@@ -242,7 +242,7 @@ public class SqlServerClient<T>(IServiceProvider sp, string conn) : ClientBase<T
                 await using SqlDataReader reader = await command.ExecuteReaderAsync();
                 if(!await reader.ReadAsync())
                     return default;
-                var json = reader.GetString(EventStorageSchema<T>.Data);
+                var json = reader.GetString(EventStorageSchema.Data);
                 var m = JsonSerializer.Deserialize<M>(json);
                 logger.LogInformation($"{typeof(M).Name} projection completed.");
                 return m;

@@ -14,50 +14,30 @@ public static class EventStorageExtensions
         this IServiceCollection services,
         Action<EventStorageConfiguration> configure)
     {
-        EventStorageConfiguration config = new EventSourceConfiguration<IEventSource>(services);
+        EventStorageConfiguration config = new EventSourceConfiguration(services);
         configure(config);
         return services;
     }
-    internal static EventStorageConfiguration AddEventSource(
+    public static EventSourceConfiguration AddEventSource(
         this EventStorageConfiguration config,
-        Action<EventSourceConfiguration<IEventSource>> configure)
+        Action<EventSourceConfiguration> configure)
     {
-        // EventSourceConfiguration<IEventSource> eventsource = new(
-        //     config.ServiceCollection,
-        //     config.Schema,
-        //     config.ConnectionString);
-        var aggregate = Td.FindByCallingAsse<IEventSource>(Assembly.GetCallingAssembly());
-        ArgumentNullException.ThrowIfNull(aggregate);
+        Type aggregateType = Td.FindByCallingAsse<IEventSource>(Assembly.GetCallingAssembly())??
+            throw new Exception("No aggregate found.");
+        EventSourceConfiguration source = new(config.ServiceCollection, config.Schema, config.ConnectionString);
+        source.T = aggregateType;
 
-        var method = typeof(EventStorageExtensions).GetMethods()
-            .First(x => x.Name == "AddEventSource" && x.IsGenericMethod).MakeGenericMethod(aggregate);
-        method.Invoke(config, [configure.Clone()]);
-        return config;
-        // configure(eventsource);
-        // return s.Initialize()
-        //     .ConfigureProjectionRestorer()
-        //     .RunAsyncProjectionEngine();
-    }
-    public static EventSourceConfiguration<T> AddEventSource<T>(
-        this EventStorageConfiguration config,
-        Action<EventSourceConfiguration<T>> configure) where T : IEventSource
-    {
-        EventSourceConfiguration<T> eventsource = new(
-            config.ServiceCollection,
-            config.Schema,
-            config.ConnectionString);
-        
-        configure(eventsource);
-        return eventsource.Initialize()
+        configure(source);
+        return source.Initialize()
             .ConfigureProjectionRestorer()
             .RunAsyncProjectionEngine();
     }
-    public static void EnableTransactionalOutbox(
+    public static void Dispatch(
         this EventStorageConfiguration config,
         MessageBus messageBus,
         string busConnection)
     {
-        EventSourceConfiguration<IEventSource> eventSourceConfiguration = new(config.ServiceCollection);
+        EventSourceConfiguration eventSourceConfiguration = new(config.ServiceCollection);
         // configure(eventSourceConfiguration);
     }
 }
