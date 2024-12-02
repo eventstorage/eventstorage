@@ -17,26 +17,40 @@ public class EventStorageBenchmarks
     {
         StorageLong = _sp.GetRequiredService<IEventStorage<OrderBookingLong>>();
         await StorageLong.InitSource();
-        StorageGuid = _sp.GetRequiredService<IEventStorage<OrderBookingGuid>>();
-        await StorageGuid.InitSource();
+        // StorageGuid = _sp.GetRequiredService<IEventStorage<OrderBookingGuid>>();
+        // await StorageGuid.InitSource();
     }
-    [Benchmark]
-    public async Task PlaceAndConfirmOrder()
-    {
-        var aggregate = await StorageLong.CreateOrRestore();
-        aggregate.PlaceOrder(new PlaceOrder("", 0, ""));
-        aggregate.ConfirmOrder(new ConfirmOrder());
-        await StorageLong.Commit(aggregate);
-        LongId = aggregate.SourceId;
-    }
+    // [Benchmark]
+    // public async Task PlaceAndConfirmOrder_Long()
+    // {
+    //     var aggregate = await StorageLong.CreateOrRestore();
+    //     aggregate.PlaceOrder(new PlaceOrder("", 0, ""));
+    //     aggregate.ConfirmOrder(new ConfirmOrder());
+    //     await StorageLong.Commit(aggregate);
+    //     LongId = aggregate.SourceId;
+    // }
+    // [Benchmark]
+    // public async Task PlaceAndConfirmOrder_Guid()
+    // {
+    //     var aggregate = await StorageGuid.CreateOrRestore();
+    //     aggregate.PlaceOrder(new PlaceOrder("", 0, ""));
+    //     aggregate.ConfirmOrder(new ConfirmOrder());
+    //     await StorageGuid.Commit(aggregate);
+    //     GuidId = aggregate.SourceId;
+    // }
     [Benchmark]
     public async Task GetOrderByLong()
     {
-        var order = await StorageLong.Project<Order>("");
+        var order = await StorageLong.Project<Order>("17666");
     }
     [Benchmark]
-    public async Task GetOrderByGuid()
+    public async Task GetOrderByLong1()
     {
-        var order = await StorageGuid.Project<OrderDetail>("");
+        var order = await StorageLong.Project<OrderDetail>("17666");
     }
+    // [Benchmark]
+    // public async Task GetOrderByGuid()
+    // {
+    //     var order = await StorageGuid.Project<OrderDetail>("");
+    // }
 }

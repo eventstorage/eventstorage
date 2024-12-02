@@ -25,7 +25,7 @@ public class OrderProjection : Projection<Order,OrderBookingLong>
         order with { Status = OrderStatus.Confirmed, Version = orderConfirmed.Version };
 }
 
-public class OrderDetailProjection : Projection<OrderDetail,OrderBookingGuid>
+public class OrderDetailProjection : Projection<OrderDetail,OrderBookingLong>
 {
     public static OrderDetail Project(OrderPlaced orderPlaced) =>
         new(orderPlaced.SourceId?.ToString()?? "", OrderStatus.Placed, orderPlaced.Version);

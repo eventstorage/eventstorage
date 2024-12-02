@@ -38,7 +38,9 @@ public class SqlServerSchema<T>(string schema) : EventStorageSchema<T>(schema)
         [Data] [nvarchar](4000) NOT NULL,
         [Type] [nvarchar](255) NOT NULL,
         [UpdatedAt] [datetime] NOT NULL,
-        CONSTRAINT [Pk_{projection}s_Id] PRIMARY KEY ([Id]))";
+        CONSTRAINT [Pk_{projection}s_Id] PRIMARY KEY ([Id]),
+        INDEX [IX_{projection}s_LongSourceId] NONCLUSTERED (LongSourceId),
+        INDEX [IX_{projection}s_GuidSourceId] NONCLUSTERED (GuidSourceId))";
     public override string GetDocumentCommand<Td>(string sourceTId) => @$"SELECT TOP 1 * FROM
         {Schema}.{typeof(Td).Name}s WHERE {sourceTId} = @sourceId ORDER BY Id DESC";
     public override string CreateCheckpointIfNotExists =>

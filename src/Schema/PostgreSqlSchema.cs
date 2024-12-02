@@ -37,7 +37,10 @@ public class PostgreSqlSchema<T>(string schema) : EventStorageSchema<T>(schema)
             Data jsonb NOT NULL,
             Type text NOT NULL,
             UpdatedAt timestamptz NOT NULL DEFAULT now(),
-            CONSTRAINT Pk_{projection}s_Id PRIMARY KEY (Id));";
+            CONSTRAINT Pk_{projection}s_Id PRIMARY KEY (Id)
+        );
+        CREATE INDEX IF NOT EXISTS Idx_{projection}s_LongSourceId on {Schema}.{projection}s (LongSourceId);
+        CREATE INDEX IF NOT EXISTS Idx_{projection}s_GuidSourceId on {Schema}.{projection}s (GuidSourceId);";
     public override string GetDocumentCommand<Td>(string sourceTId) => @$"SELECT * FROM
         {Schema}.{typeof(Td).Name}s WHERE {sourceTId} = @sourceId ORDER BY Id DESC LIMIT 1";
     public override string CreateCheckpointIfNotExists =>
