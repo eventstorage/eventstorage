@@ -3,9 +3,9 @@ using EventStorage.Events;
 
 namespace EventStorage.Projections;
 
-public interface IProjectionRestorer<T> where T : IEventSource
+public interface IProjectionRestorer
 {
-    object? Project(IProjection<T> projection, IEnumerable<SourcedEvent> events, Type model);
+    object? Project(IProjection projection, IEnumerable<SourcedEvent> events, Type model);
     M? Project<M>(IEnumerable<SourcedEvent> events);
-    bool Subscribes(IEnumerable<SourcedEvent> events, IProjection<T> projection);
+    bool Subscribes(IEnumerable<SourcedEvent> events, IProjection projection);
 }

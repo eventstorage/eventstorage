@@ -4,8 +4,8 @@ using EventStorage.Projections;
 
 namespace EventStorage.Infrastructure;
 
-public interface IRedisService<T> where T : IEventSource
+public interface IRedisService
 {
     Task<Td?> GetDocument<Td>(string sourceId) where Td : notnull;
-    Task RestoreProjections(EventSourceEnvelop source, IEnumerable<IProjection<T>> projections, IProjectionRestorer<T> restorer);
+    Task RestoreProjections(EventSourceEnvelop source, IEnumerable<IProjection> projections, IProjectionRestorer restorer);
 }

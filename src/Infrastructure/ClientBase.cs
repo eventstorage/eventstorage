@@ -14,17 +14,17 @@ namespace EventStorage.Infrastructure;
 public abstract class ClientBase<T>(IServiceProvider sp) : IEventStorage<T> where T : IEventSource
 {
     public IServiceProvider ServiceProvider => sp;
-    protected IEventStorageSchema<T> Schema = sp.GetRequiredService<IEventStorageSchema<T>>();
+    protected IEventStorageSchema Schema = sp.GetRequiredService<IEventStorageSchema>();
     protected readonly static JsonSerializerOptions SerializerOptions = new() { IncludeFields = true };
     protected long LongSourceId { get; set; } = 0;
     protected Guid GuidSourceId { get; set; }
     private readonly Type? _genericTypeArg = typeof(T).BaseType?.GenericTypeArguments[0];
     protected TId SourceTId => _genericTypeArg != null &&
         _genericTypeArg.IsAssignableFrom(typeof(long)) ? TId.LongSourceId : TId.GuidSourceId;
-    protected IRedisService<T> Redis => ServiceProvider.GetRequiredService<IRedisService<T>>();
-    protected IProjectionRestorer<T> ProjectionRestorer => sp.GetRequiredService<IProjectionRestorer<T>>();
-    protected IAsyncProjectionPool<T> ProjectionPool => sp.GetRequiredService<IAsyncProjectionPool<T>>();
-    protected IEnumerable<IProjection<T>> Projections => ServiceProvider.GetServices<IProjection<T>>();
+    protected IRedisService Redis => ServiceProvider.GetRequiredService<IRedisService>();
+    protected IProjectionRestorer ProjectionRestorer => sp.GetRequiredService<IProjectionRestorer>();
+    protected IAsyncProjectionPool ProjectionPool => sp.GetRequiredService<IAsyncProjectionPool>();
+    protected IEnumerable<IProjection> Projections => ServiceProvider.GetServices<IProjection>();
     public abstract Task InitSource();
     public abstract Task<T> CreateOrRestore(string? sourceId = null);
     public abstract Task Commit(T t);
@@ -37,7 +37,7 @@ public abstract class ClientBase<T>(IServiceProvider sp) : IEventStorage<T> wher
     protected Type ResolveEventType(string typeName) => Td.FindByTypeName<SourcedEvent>(typeName)??
         throw new Exception($"Couldn't determine event type while resolving {typeName}.");
     #pragma warning disable CS8619
-    protected IEnumerable<Type> TProjections(Func<IProjection<T>, bool> predicate) =>
+    protected IEnumerable<Type> TProjections(Func<IProjection, bool> predicate) =>
         Projections.Where(predicate)
         .Where(p => p.Mode != ProjectionMode.Transient)
         .Where(p => p.Configuration.Store == ProjectionStore.Selected)
@@ -64,12 +64,12 @@ public abstract class ClientBase<T>(IServiceProvider sp) : IEventStorage<T> wher
         while(await reader.ReadAsync())
         {
             var sequence = reader.GetInt64("Sequence");
-            LongSourceId = reader.GetInt64(EventStorageSchema<T>.LongSourceId);
-            GuidSourceId = reader.GetGuid(EventStorageSchema<T>.GuidSourceId);
+            LongSourceId = reader.GetInt64(EventStorageSchema.LongSourceId);
+            GuidSourceId = reader.GetGuid(EventStorageSchema.GuidSourceId);
 
-            var typeName = reader.GetString(EventStorageSchema<T>.Type);
+            var typeName = reader.GetString(EventStorageSchema.Type);
             var type = ResolveEventType(typeName);
-            var json = reader.GetString(EventStorageSchema<T>.Data);
+            var json = reader.GetString(EventStorageSchema.Data);
             var sourcedEvent = JsonSerializer.Deserialize(json, type) as SourcedEvent?? default!;
             events.Add(new EventEnvelop(sequence, LongSourceId, GuidSourceId, sourcedEvent));
         }
@@ -92,10 +92,10 @@ public abstract class ClientBase<T>(IServiceProvider sp) : IEventStorage<T> wher
         }
     }
     protected async Task PrepareProjectionCommand(
-        Func<IProjection<T>, bool> subscriptionCheck,
+        Func<IProjection, bool> subscriptionCheck,
         Func<Dictionary<string, object>, object[], DbParameter[]> parameters,
-        DbCommand command, EventSourceEnvelop source, IEnumerable<IProjection<T>> projections,
-        IProjectionRestorer<T>? restorer = null)
+        DbCommand command, EventSourceEnvelop source, IEnumerable<IProjection> projections,
+        IProjectionRestorer? restorer = null)
     {
         foreach (var projection in projections)
         {

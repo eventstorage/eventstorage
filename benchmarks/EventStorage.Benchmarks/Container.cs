@@ -16,20 +16,18 @@ public static class Container
         .Build();
 
         var services = new ServiceCollection();
+        Console.WriteLine(configuration["postgresqlsecret"]);
 
         services.AddEventStorage(eventstorage =>
         {
-            eventstorage.AddEventSource<OrderBookingLong>(eventsource =>
+            eventstorage.AddEventSource(eventsource =>
             {
-                eventsource.Schema = "longschema";
-                eventsource.Select(EventStore.PostgresSql, configuration["postgresqlsecret"]?? "")
-                .Project<OrderProjection>(ProjectionMode.Async);
-            });
-            eventstorage.AddEventSource<OrderBookingGuid>(eventsource =>
-            {
-                eventsource.Schema = "guidschema";
-                eventsource.Select(EventStore.PostgresSql, configuration["postgresqlsecret"]?? "")
-                .Project<OrderDetailProjection>(ProjectionMode.Async);
+                eventsource.Schema = "es";
+                eventstorage.ConnectionString = configuration["postgresqlsecret"];
+                eventsource.Select(EventStore.PostgresSql)
+                .Project<OrderProjection>(ProjectionMode.Transient)
+                .Project<OrderDetailProjection>(ProjectionMode.Async)
+                .Project<OrderDocumentProjection>(ProjectionMode.Async, src => src.Redis("redis://localhost"));
             });
         });
 

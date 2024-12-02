@@ -1,16 +1,14 @@
-using EventStorage.AggregateRoot;
-
 namespace EventStorage.Projections;
 
-public interface IProjection<T> where T : IEventSource
+public interface IProjection
 {
     ProjectionMode Mode { get; }
     ProjectionConfiguration Configuration {  get; }
 }
-internal interface IProjection<M, T> : IProjection<T> where T : IEventSource;
+internal interface IProjection<M> : IProjection;
 public abstract class Projection
 {
     public ProjectionMode Mode { get; set; }
     public ProjectionConfiguration Configuration { get; set; } = new();
 }
-public class Projection<M, T> : Projection, IProjection<M, T> where T : IEventSource;
+public class Projection<M> : Projection, IProjection<M>;

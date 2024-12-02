@@ -4,7 +4,7 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace EventStorage.Workers;
 
-public interface IAsyncProjectionPool<T>
+public interface IAsyncProjectionPool
 {
     Task PollAsync(CancellationToken token);
     Func<IServiceScopeFactory, CancellationToken, Task<long>>? Dequeue();
@@ -12,7 +12,7 @@ public interface IAsyncProjectionPool<T>
     void Release(Func<IServiceScopeFactory, CancellationToken, Task<long>> project);
     ConcurrentQueue<Func<IServiceScopeFactory, CancellationToken, Task<long>>> QueuedProjections { get; }
 }
-public class AsyncProjectionPool<T> : IAsyncProjectionPool<T> where T : IEventSource
+public class AsyncProjectionPool : IAsyncProjectionPool
 {
     private readonly SemaphoreSlim _pool = new(1, 1);
     private readonly ConcurrentQueue<Func<IServiceScopeFactory, CancellationToken, Task<long>>> _queue = [];

@@ -7,14 +7,14 @@ using Microsoft.Extensions.Logging;
 
 namespace EventStorage.Projections;
 
-public class ProjectionRestorer<T>(IServiceProvider sp) : IProjectionRestorer<T> where T : IEventSource
+public class ProjectionRestorer(IServiceProvider sp) : IProjectionRestorer
 {
-    private readonly ILogger logger = TLogger.Create<ProjectionRestorer<T>>();
-    public object? Project(IProjection<T> projection, IEnumerable<SourcedEvent> events, Type model) =>
+    private readonly ILogger logger = TLogger.Create<ProjectionRestorer>();
+    public object? Project(IProjection projection, IEnumerable<SourcedEvent> events, Type model) =>
         Project(events, projection, model);
     public M? Project<M>(IEnumerable<SourcedEvent> events) =>
-        (M?) Project(events, sp.GetRequiredService<IProjection<M,T>>(), typeof(M));
-    public bool Subscribes(IEnumerable<SourcedEvent> events, IProjection<T> projection) =>
+        (M?) Project(events, sp.GetRequiredService<IProjection<M>>(), typeof(M));
+    public bool Subscribes(IEnumerable<SourcedEvent> events, IProjection projection) =>
         projection.GetType().GetMethods().Where(m => m.Name == "Project")
         .Any(m => events.Any(e =>  e.GetType().IsAssignableFrom(m.GetParameters()
         .FirstOrDefault(x => typeof(SourcedEvent).IsAssignableFrom(x.ParameterType))?.ParameterType)));

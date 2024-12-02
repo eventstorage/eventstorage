@@ -11,7 +11,7 @@ public class AsyncProjectionEngine<T>(IServiceScopeFactory scope) : BackgroundSe
 {
     private readonly IServiceProvider _sp = scope.CreateScope().ServiceProvider;
     private ILogger _logger => _sp.GetRequiredService<ILogger<AsyncProjectionEngine<T>>>();
-    private IAsyncProjectionPool<T> _pool => _sp.GetRequiredService<IAsyncProjectionPool<T>>();
+    private IAsyncProjectionPool _pool => _sp.GetRequiredService<IAsyncProjectionPool>();
     private IEventStorage<T> _storage => _sp.GetRequiredService<IEventStorage<T>>();
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
