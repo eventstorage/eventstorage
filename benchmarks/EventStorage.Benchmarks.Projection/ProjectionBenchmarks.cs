@@ -12,7 +12,7 @@ namespace EventStorage.Benchmarks.Projections;
 public class ProjectionBenchmarks
 {
     private static readonly IServiceProvider _sp = Container.Build();
-    private readonly IProjectionRestorer<OrderBooking> _projection = _sp.GetRequiredService<IProjectionRestorer<OrderBooking>>();
+    private readonly IProjectionRestorer _projection = _sp.GetRequiredService<IProjectionRestorer>();
     private readonly List<SourcedEvent> _events = [];
     [GlobalSetup]
     public void Setup()

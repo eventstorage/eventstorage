@@ -3,7 +3,7 @@ using EventStorage.Benchmarks.Commands;
 using EventStorage.Benchmarks.Events;
 
 namespace EventStorage.Benchmarks;
-public class OrderBookingLong : EventSource<long>
+public class OrderBooking: EventSource<long>
 {
     public OrderStatus OrderStatus { get; private set; }
     public void Apply(OrderPlaced e)

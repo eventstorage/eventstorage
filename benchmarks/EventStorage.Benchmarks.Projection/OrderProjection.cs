@@ -16,7 +16,7 @@ public class OrderDocument
     public OrderStatus Status { get; set; }
     public long Version { get; set; }
 }
-public class OrderProjection : Projection<Order,OrderBooking>
+public class OrderProjection : Projection<Order>
 {
     public static Order Project(OrderPlaced orderPlaced) => 
         new(orderPlaced.SourceId?.ToString()?? "", OrderStatus.Placed, orderPlaced.Version);

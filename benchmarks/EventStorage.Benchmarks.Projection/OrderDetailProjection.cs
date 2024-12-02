@@ -3,7 +3,7 @@ using EventStorage.Projections;
 
 namespace EventStorage.Benchmarks.Projections;
 
-public class OrderDetailProjection : Projection<OrderDetail,OrderBooking>
+public class OrderDetailProjection : Projection<OrderDetail>
 {
     public static OrderDetail Project(OrderPlaced orderPlaced) => 
         new(orderPlaced.SourceId?.ToString()?? "", OrderStatus.Placed, orderPlaced.Version);
