@@ -15,6 +15,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\EventStorage.csproj" />
+    <ProjectReference Include="..\EventStorage.Benchmarks\EventStorage.Benchmarks.csproj" />
   </ItemGroup>
 
 </Project>

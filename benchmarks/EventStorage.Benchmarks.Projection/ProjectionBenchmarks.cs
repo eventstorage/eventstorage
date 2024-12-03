@@ -1,5 +1,6 @@
 using BenchmarkDotNet.Attributes;
 using BenchmarkDotNet.Jobs;
+using EventStorage.Benchmarks.Events;
 using EventStorage.Events;
 using EventStorage.Projections;
 using Microsoft.Extensions.DependencyInjection;
@@ -24,6 +25,4 @@ public class ProjectionBenchmarks
     }
     [Benchmark]
     public void Project() => _projection.Project<Order>(_events);
-    // [Benchmark]
-    // public void ProjectOptimized() => _projection.ProjectOptimized<Order>(_events);
 }
