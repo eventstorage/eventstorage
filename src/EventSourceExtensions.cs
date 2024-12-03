@@ -51,9 +51,6 @@ public static class EventSourceExtensions
         configuration.ServiceCollection.AddSingleton(mprojection, projection);
         configuration.ServiceCollection.AddSingleton(typeof(IProjection), projection);
         configuration.Projections.Add(projection);
-        
-        var pt = configuration.Sp.GetService(typeof(IProjection));
-        var ptm = configuration.Sp.GetService(mprojection);
         return configuration;
     }
 }

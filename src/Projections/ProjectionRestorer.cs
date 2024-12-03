@@ -22,6 +22,8 @@ public class ProjectionRestorer(IServiceProvider sp) : IProjectionRestorer
     {
         try
         {
+            if(!events.Any())
+                return null;
             var first = events.First().GetType();
             var initMethod = projection.GetType().GetMethod("Project", [first])??
             throw new Exception($"No suitable projection method found to init {model.Name} with {first.Name}.");

@@ -30,7 +30,6 @@ public class PostgreSqlClient<T>(IServiceProvider sp, string conn) : ClientBase<
             await using NpgsqlCommand sqlCommand = new(Schema.CreateSchemaIfNotExists, sqlConnection);
             sqlCommand.Transaction = sqlTransaction;
             await sqlCommand.ExecuteNonQueryAsync();
-            var ps = Projections;
             foreach (var item in TProjections(x => true))
             {
                 sqlCommand.CommandText = Schema.CreateProjectionIfNotExists(item?.Name?? "");
