@@ -10,11 +10,11 @@
 
   <ItemGroup>
     <PackageReference Include="BenchmarkDotNet" Version="0.14.0" />
-    <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="8.0.1" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\EventStorage.csproj" />
+    <ProjectReference Include="..\EventStorage.Benchmarks\EventStorage.Benchmarks.csproj" />
   </ItemGroup>
 
 </Project>
