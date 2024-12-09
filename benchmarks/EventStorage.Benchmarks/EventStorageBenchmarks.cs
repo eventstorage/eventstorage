@@ -7,7 +7,8 @@ namespace EventStorage.Benchmarks;
 
 public class EventStorageBenchmarks
 {
-    private string _sampleSourceId { get; set; } = "8766";
+    // ensure the stream exists for proper benchmarking
+    private string _sampleSourceId { get; set; } = "100";
     private static readonly IServiceProvider _sp = new ServiceCollection().ConfigureContainer();
     private IEventStorage<OrderBooking> _storage = default!;
     [GlobalSetup]

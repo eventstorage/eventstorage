@@ -52,4 +52,16 @@ public class PostgreSqlSchema(string schema) : EventStorageSchema(schema)
         CREATE INDEX IF NOT EXISTS Idx_Checkpoints_Sequence on {Schema}.Checkpoints (Sequence);";
     public override string LoadEventsPastCheckpoint => @$"SELECT Sequence, LongSourceId, GuidSourceId,
         Data, Type FROM {Schema}.EventSources WHERE Sequence > @seq and Sequence <= @maxSeq LIMIT 2";
+    public override string CheckConcurrency =>
+        @$"Do $$
+        DECLARE current_version integer;
+        BEGIN
+            SELECT MAX(version) INTO current_version FROM {Schema}.EventSources
+                WHERE LongSourceId=@sourceId;
+            IF current_version is not null and @expectedVersion != current_version THEN
+                RAISE EXCEPTION 'concurrent stream access detected. sourceId %, expected %, current %',
+                    @sourceId, @expectedVersion, current_version;
+            END IF;
+        END;
+        $$ LANGUAGE plpgsql;";
 }
