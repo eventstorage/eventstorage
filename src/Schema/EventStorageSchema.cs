@@ -53,5 +53,6 @@ public abstract class EventStorageSchema(string schema) : IEventStorageSchema
     public virtual string InsertCheckpointCommand => @$"INSERT INTO {Schema}.Checkpoints
         (Sequence, Type, SourceType) VALUES (@sequence, @type, @sourceType)";
     public abstract string LoadEventsPastCheckpoint { get; }
-    public abstract string CheckConcurrency { get; }
+    public abstract string CreateConcurrencyCheckFunction { get; }
+    public virtual string CheckConcurrency => @$"SELECT {Schema}.check_concurrency(@sourceId, @expected);";
 }

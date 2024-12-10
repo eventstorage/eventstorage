@@ -17,5 +17,6 @@ public interface IEventStorageSchema
     string SaveCheckpointCommand { get; }
     string InsertCheckpointCommand { get; }
     string LoadEventsPastCheckpoint { get; }
+    string CreateConcurrencyCheckFunction { get; }
     string CheckConcurrency { get; }
 }
