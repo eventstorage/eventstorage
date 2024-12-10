@@ -3,7 +3,7 @@ namespace EventStorage.Events;
 public record SourcedEvent(string? CorrelationId = null)
 {
     public Guid Id { get; set; }
-    public long Version { get; set; }
+    public int Version { get; set; }
     public string? Type { get; set; }
     public object? SourceId { get; set; }
     public string? SourceType { get; set; }

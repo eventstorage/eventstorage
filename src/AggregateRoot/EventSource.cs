@@ -8,7 +8,7 @@ public abstract class EventSource<TId> : Entity<TId>, IEventSource where TId : I
 {
     private List<SourcedEvent> _pendingEvents = [];
     private List<SourcedEvent> _eventStream = [];
-    public long Version { get; private set; }
+    public int Version { get; private set; }
     public IEnumerable<SourcedEvent> EventStream => _eventStream;
     public IEnumerable<SourcedEvent> PendingEvents => _pendingEvents;
     private string? _tenantId;
@@ -27,15 +27,16 @@ public abstract class EventSource<TId> : Entity<TId>, IEventSource where TId : I
             Timestamp = DateTime.UtcNow,
             CausationId = _causationId,
         };
-        RestoreAggregate(e);
+        RestoreAggregate(false, e);
         _pendingEvents.Add(e);
     }
-    public void RestoreAggregate(params SourcedEvent[] events)
+    public void RestoreAggregate(bool stream, params SourcedEvent[] events)
     {
         foreach (var e in events)
         {
             Apply(e);
             Version++;
+            if(stream)
             _eventStream.Add(e);
             _causationId = e.Id.ToString();
             _tenantId = e.TenantId;
@@ -43,6 +44,7 @@ public abstract class EventSource<TId> : Entity<TId>, IEventSource where TId : I
     }
     public IEnumerable<SourcedEvent> FlushPendingEvents()
     {
+        _eventStream.AddRange(_pendingEvents);
         var pending = _pendingEvents;
         _pendingEvents = [];
         return pending;

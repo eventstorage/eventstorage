@@ -115,19 +115,22 @@ public class SqlServerClient<T>(IServiceProvider sp, string conn) : ClientBase<T
             }
 
             // apply consistent projections if any
-            var pending = aggregate.FlushPendingEvents();
-            await PrepareProjectionCommand(p =>
-                // does projection subscribes or reprojection wanted
-                !ProjectionRestorer.Subscribes(pending, p) && pending.Any(),
-                (names, values) => names.Select((x, i) => new SqlParameter
-                {
-                    ParameterName = x.Key,
-                    SqlDbType = (SqlDbType)x.Value,
-                    SqlValue = values[i]
-                }).ToArray(),
-                sqlCommand, new(LongSourceId, GuidSourceId, aggregate.EventStream),
-                Projections.Where(x => x.Mode == ProjectionMode.Consistent)
-            );
+            if(Projections.Any(x => x.Mode == ProjectionMode.Consistent))
+            {
+                var pending = aggregate.FlushPendingEvents();
+                await PrepareProjectionCommand(p =>
+                    // does projection subscribes or reprojection wanted
+                    !ProjectionRestorer.Subscribes(pending, p) && pending.Any(),
+                    (names, values) => names.Select((x, i) => new SqlParameter
+                    {
+                        ParameterName = x.Key,
+                        SqlDbType = (SqlDbType)x.Value,
+                        SqlValue = values[i]
+                    }).ToArray(),
+                    sqlCommand, new(LongSourceId, GuidSourceId, aggregate.EventStream),
+                    Projections.Where(x => x.Mode == ProjectionMode.Consistent)
+                );
+            }
 
             await sqlTransaction.CommitAsync();
             logger.LogInformation($"Committed {x} pending event(s) for {typeof(T).Name}");

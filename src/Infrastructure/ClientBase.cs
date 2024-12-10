@@ -112,6 +112,12 @@ public abstract class ClientBase<T>(IServiceProvider sp) : IEventStorage<T> wher
             await command.ExecuteNonQueryAsync();
         }
     }
+    protected async Task CheckConcurrency(DbCommand command, DbParameter[] parameters)
+    {
+        command.CommandText = Schema.CheckConcurrency;
+        command.Parameters.AddRange(parameters);
+        await command.ExecuteNonQueryAsync();
+    }
 }
 
 public enum TId

@@ -6,6 +6,6 @@ public interface IEventSource
 {
     IEnumerable<SourcedEvent> PendingEvents { get; }
     IEnumerable<SourcedEvent> EventStream { get; }
-    void RestoreAggregate(SourcedEvent[] events);
+    void RestoreAggregate(bool stream, SourcedEvent[] events);
     IEnumerable<SourcedEvent> FlushPendingEvents();
 }

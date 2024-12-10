@@ -52,4 +52,16 @@ public class SqlServerSchema(string schema) : EventStorageSchema(schema)
         INDEX [IX_Checkpoints_Sequence] NONCLUSTERED (Sequence))";
     public override string LoadEventsPastCheckpoint => @$"SELECT TOP 2 Sequence, LongSourceId,
         GuidSourceId, Data, Type FROM {Schema}.EventSources WHERE Sequence > @seq and Sequence <= @maxSeq";
+    public override string CheckConcurrency =>
+        @$"Do $$
+        DECLARE current_version integer;
+        BEGIN
+            SELECT MAX(version) INTO current_version FROM {Schema}.EventSources
+                WHERE LongSourceId=@sourceId;
+            IF @expectedVersion != current_version THEN
+                RAISE EXCEPTION 'concurrent stream access detected. sourceId %, expected %, current %',
+                    @sourceId, @expectedVersion, current_version;
+            END IF;
+        END;
+        $$ LANGUAGE plpgsql;";
 }

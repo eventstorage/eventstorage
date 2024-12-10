@@ -21,8 +21,8 @@ public static class Container
             eventstorage.AddEventSource(eventsource =>
             {
                 eventsource.Schema = "es";
-                eventsource.ConnectionString = configuration["postgresqlsecret"];
-                eventsource.Select(EventStore.PostgresSql)
+                eventsource.ConnectionString = configuration["azuresqlsecret"];
+                eventsource.Select(EventStore.AzureSql)
                 .Project<OrderProjection>(ProjectionMode.Transient)
                 .Project<OrderDetailProjection>(ProjectionMode.Async)
                 .Project<OrderDocumentProjection>(ProjectionMode.Async, src => src.Redis("redis://localhost"));

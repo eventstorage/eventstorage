@@ -6,6 +6,7 @@ using EventStorage.Events;
 using EventStorage.Extensions;
 using EventStorage.Projections;
 using EventStorage.Schema;
+using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Npgsql;
@@ -36,6 +37,8 @@ public class PostgreSqlClient<T>(IServiceProvider sp, string conn) : ClientBase<
                 await sqlCommand.ExecuteNonQueryAsync();
             }
             sqlCommand.CommandText = Schema.CreateCheckpointIfNotExists;
+            await sqlCommand.ExecuteNonQueryAsync();
+            sqlCommand.CommandText = Schema.CreateConcurrencyCheckFunction;
             await sqlCommand.ExecuteNonQueryAsync();
             await sqlTransaction.CommitAsync();
             logger.LogInformation($"Finished initializing {nameof(PostgreSqlClient<T>)}.");
@@ -69,7 +72,7 @@ public class PostgreSqlClient<T>(IServiceProvider sp, string conn) : ClientBase<
 
             sourceId ??= await GenerateSourceId(sqlCommand);
             var aggregate = typeof(T).CreateAggregate<T>(sourceId);
-            aggregate.RestoreAggregate(events.Select(x => x.SourcedEvent).ToArray());
+            aggregate.RestoreAggregate(true, events.Select(x => x.SourcedEvent).ToArray());
             logger.LogInformation($"Finished restoring aggregate {typeof(T).Name}.");
 
             return aggregate;
@@ -105,7 +108,13 @@ public class PostgreSqlClient<T>(IServiceProvider sp, string conn) : ClientBase<
         sqlCommand.Transaction = sqlTransaction;
         try
         {
-            // add event source to event storage
+            await CheckConcurrency(sqlCommand, new NpgsqlParameter[]
+            {
+                new("sourceId" , LongSourceId),
+                new ("expected", (object?)aggregate.EventStream.LastOrDefault()?.Version?? DBNull.Value)
+            });
+            
+            // append events to event source
             if(aggregate.PendingEvents.Any())
             {
                 await PrepareSourceCommand((names, values) => names.Select((x, i) => new NpgsqlParameter
@@ -130,7 +139,7 @@ public class PostgreSqlClient<T>(IServiceProvider sp, string conn) : ClientBase<
                 sqlCommand, new(LongSourceId, GuidSourceId, aggregate.EventStream),
                 Projections.Where(x => x.Mode == ProjectionMode.Consistent)
             );
-
+            
             await sqlTransaction.CommitAsync();
             logger.LogInformation($"Committed {x} pending event(s) for {typeof(T).Name}");
 
