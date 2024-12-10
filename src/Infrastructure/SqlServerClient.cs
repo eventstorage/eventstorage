@@ -67,7 +67,7 @@ public class SqlServerClient<T>(IServiceProvider sp, string conn) : ClientBase<T
 
             sourceId ??= await GenerateSourceId(sqlCommand);
             var aggregate = typeof(T).CreateAggregate<T>(sourceId);
-            aggregate.RestoreAggregate(events.Select(x => x.SourcedEvent).ToArray());
+            aggregate.RestoreAggregate(true, events.Select(x => x.SourcedEvent).ToArray());
             logger.LogInformation($"Finished restoring aggregate {typeof(T).Name}.");
 
             return aggregate;
@@ -103,6 +103,12 @@ public class SqlServerClient<T>(IServiceProvider sp, string conn) : ClientBase<T
         sqlCommand.Transaction = sqlTransaction;
         try
         {
+            await CheckConcurrency(sqlCommand, new SqlParameter[]
+            {
+                new("sourceId" , LongSourceId),
+                new ("expected", (object?)aggregate.EventStream.LastOrDefault()?.Version?? DBNull.Value)
+            });
+
             // add event source to event storage
             if(aggregate.PendingEvents.Any())
             {
@@ -115,22 +121,19 @@ public class SqlServerClient<T>(IServiceProvider sp, string conn) : ClientBase<T
             }
 
             // apply consistent projections if any
-            if(Projections.Any(x => x.Mode == ProjectionMode.Consistent))
-            {
-                var pending = aggregate.FlushPendingEvents();
-                await PrepareProjectionCommand(p =>
-                    // does projection subscribes or reprojection wanted
-                    !ProjectionRestorer.Subscribes(pending, p) && pending.Any(),
-                    (names, values) => names.Select((x, i) => new SqlParameter
-                    {
-                        ParameterName = x.Key,
-                        SqlDbType = (SqlDbType)x.Value,
-                        SqlValue = values[i]
-                    }).ToArray(),
-                    sqlCommand, new(LongSourceId, GuidSourceId, aggregate.EventStream),
-                    Projections.Where(x => x.Mode == ProjectionMode.Consistent)
-                );
-            }
+            var pending = aggregate.FlushPendingEvents();
+            await PrepareProjectionCommand(p =>
+                // does projection subscribes or reprojection wanted
+                !ProjectionRestorer.Subscribes(pending, p) && pending.Any(),
+                (names, values) => names.Select((x, i) => new SqlParameter
+                {
+                    ParameterName = x.Key,
+                    SqlDbType = (SqlDbType)x.Value,
+                    SqlValue = values[i]
+                }).ToArray(),
+                sqlCommand, new(LongSourceId, GuidSourceId, aggregate.EventStream),
+                Projections.Where(x => x.Mode == ProjectionMode.Consistent)
+            );
 
             await sqlTransaction.CommitAsync();
             logger.LogInformation($"Committed {x} pending event(s) for {typeof(T).Name}");

@@ -64,4 +64,6 @@ public class PostgreSqlSchema(string schema) : EventStorageSchema(schema)
             END IF;
         END;
         $$ language plpgsql;";
+    public override string CheckConcurrency => @$"SELECT {Schema}.check_concurrency(@sourceId, @expected);";
+    
 }
