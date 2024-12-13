@@ -57,8 +57,8 @@ public class PostgreSqlSchema(string schema) : EventStorageSchema(schema)
         RETURNS VOID AS $$
         DECLARE current int;
         BEGIN
-            SELECT MAX(version) INTO current FROM {Schema}.EventSources WHERE LongSourceId=source_id;
-            IF (expected IS null AND current IS NOT null) OR (current IS NOT null  AND current != expected)
+            SELECT MAX(Version) INTO current FROM {Schema}.EventSources WHERE LongSourceId=source_id;
+            IF (expected IS NULL AND current IS NOT NULL) OR (current IS NOT NULL AND current != expected)
                 THEN RAISE EXCEPTION 'concurrent stream access detected. source_id %, expected %, current %',
                 source_id, expected, current;
             END IF;

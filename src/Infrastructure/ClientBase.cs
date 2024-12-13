@@ -43,7 +43,6 @@ public abstract class ClientBase<T>(IServiceProvider sp) : IEventStorage<T> wher
         .Where(p => p.Configuration.Store == ProjectionStore.Selected)
         .Select(p => p.GetType().BaseType?.GenericTypeArguments.First());
 
-    // this needs optimistic locking
     protected async Task<string> GenerateSourceId(DbCommand command)
     {
         command.CommandText = Schema.GetMaxSourceId;
@@ -115,7 +114,7 @@ public abstract class ClientBase<T>(IServiceProvider sp) : IEventStorage<T> wher
     protected async Task CheckConcurrency(DbCommand command, DbParameter[] parameters)
     {
         command.CommandText = Schema.CheckConcurrency;
-        // command.CommandType = CommandType.StoredProcedure;
+        command.Parameters.Clear();
         command.Parameters.AddRange(parameters);
         await command.ExecuteNonQueryAsync();
     }

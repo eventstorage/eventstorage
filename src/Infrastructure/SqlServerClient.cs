@@ -103,6 +103,7 @@ public class SqlServerClient<T>(IServiceProvider sp, string conn) : ClientBase<T
         sqlCommand.Transaction = sqlTransaction;
         try
         {
+            // check for concurrent stream access
             await CheckConcurrency(sqlCommand, new SqlParameter[]
             {
                 new("sourceId" , LongSourceId),

@@ -99,7 +99,7 @@ public class PostgreSqlClient<T>(IServiceProvider sp, string conn) : ClientBase<
     public override async Task Commit(T aggregate)
     {
         var x = aggregate.PendingEvents.Count();
-        logger.LogInformation($"Preparing to commit {x} pending event(s) for {typeof(T).Name}");
+        logger.LogInformation($"Preparing to commit {x} pending event(s) for {typeof(T).Name} for {LongSourceId}");
         
         await using NpgsqlConnection sqlConnection = new(conn);
         await sqlConnection.OpenAsync();
@@ -108,6 +108,7 @@ public class PostgreSqlClient<T>(IServiceProvider sp, string conn) : ClientBase<
         sqlCommand.Transaction = sqlTransaction;
         try
         {
+            // check for concurrent stream access
             await CheckConcurrency(sqlCommand, new NpgsqlParameter[]
             {
                 new("sourceId" , LongSourceId),
