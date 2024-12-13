@@ -45,9 +45,10 @@ public class PostgreSqlSchema(string schema) : EventStorageSchema(schema)
         {Schema}.{typeof(Td).Name}s WHERE {sourceTId} = @sourceId ORDER BY Id DESC LIMIT 1";
     public override string CreateCheckpointIfNotExists =>
         @$"CREATE TABLE IF NOT EXISTS {Schema}.Checkpoints(
+            Id bigint NOT NULL generated always as identity,
             Sequence bigint NOT NULL,
             Type smallint NOT NULL,
-            SourceType text NOT NULL
+            CONSTRAINT Pk_Checkpoints_Id PRIMARY KEY (Id)
         );
         CREATE INDEX IF NOT EXISTS Idx_Checkpoints_Sequence on {Schema}.Checkpoints (Sequence);";
     public override string LoadEventsPastCheckpoint => @$"SELECT Sequence, LongSourceId, GuidSourceId,

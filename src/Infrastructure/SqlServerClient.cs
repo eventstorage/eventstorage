@@ -152,12 +152,14 @@ public class SqlServerClient<T>(IServiceProvider sp, string conn) : ClientBase<T
         }
         catch(SerializationException e)
         {
+            await sqlTransaction.RollbackAsync();
             if(logger.IsEnabled(LogLevel.Error))
                 logger.LogError($"Commit failure for {typeof(T).Name}. {e.Message}");
             throw;
         }
         catch (Exception e)
         {
+            await sqlTransaction.RollbackAsync();
             if(logger.IsEnabled(LogLevel.Error))
                 logger.LogError($"Commit failure for {typeof(T).Name}. {e.Message}");
             throw;
@@ -289,9 +291,8 @@ public class SqlServerClient<T>(IServiceProvider sp, string conn) : ClientBase<T
             await sqlConnection.OpenAsync();
             await using SqlCommand sqlCommand = new (Schema.LoadCheckpointCommand, sqlConnection);
             sqlCommand.Parameters.AddWithValue("@type", CheckpointType.Projection);
-            sqlCommand.Parameters.AddWithValue("@sourceType", typeof(T).Name);
             SqlDataReader reader = await sqlCommand.ExecuteReaderAsync();
-            Checkpoint checkpoint = new(0, 0, CheckpointType.Projection, typeof(T).Name);
+            Checkpoint checkpoint = new(0, 0, CheckpointType.Projection);
             long seq = 0;
             if(await reader.ReadAsync())
                 seq = reader.GetInt64("sequence");
@@ -329,7 +330,6 @@ public class SqlServerClient<T>(IServiceProvider sp, string conn) : ClientBase<T
             sqlCommand.CommandText = insert ? Schema.InsertCheckpointCommand : Schema.SaveCheckpointCommand;
             sqlCommand.Parameters.AddWithValue("@sequence", checkpoint.Seq);
             sqlCommand.Parameters.AddWithValue("@type", checkpoint.Type);
-            sqlCommand.Parameters.AddWithValue("@sourceType", checkpoint.SourceType);
             await sqlCommand.ExecuteNonQueryAsync();
         }
         catch(SqlException e)

@@ -46,11 +46,12 @@ public class AzureSqlSchema(string schema) : EventStorageSchema(schema)
     public override string CreateCheckpointIfNotExists =>
         @$"IF OBJECT_ID('{Schema}.Checkpoints') IS NULL
         CREATE TABLE [{Schema}].[Checkpoints](
+        [Id] [bigint] IDENTITY(1,1) NOT NULL,
         [Sequence] [bigint] NOT NULL,
         [Type] [tinyint] NOT NULL,
-        [SourceType] [nvarchar](25) NOT NULL,
+        CONSTRAINT [Pk_Checkpoints_Id] PRIMARY KEY ([Id]),
         INDEX [IX_Checkpoints_Sequence] NONCLUSTERED (Sequence))";
-    public override string LoadEventsPastCheckpoint => @$"SELECT TOP 2 Sequence, LongSourceId,
+    public override string LoadEventsPastCheckpoint => @$"SELECT TOP 100 Sequence, LongSourceId,
     GuidSourceId, Data, Type FROM {Schema}.EventSources WHERE Sequence > @seq and Sequence <= @maxSeq";
     public override string CheckConcurrency => 
         @$"EXEC sp_executesql N'
