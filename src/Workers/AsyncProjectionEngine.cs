@@ -90,7 +90,7 @@ public class AsyncProjectionEngine<T>(IServiceScopeFactory scope) : BackgroundSe
             {
                 long sourceId = await projectTask(scope, stoppingToken);
                 var source = await _storage.LoadEventSource(sourceId);
-                Checkpoint c = new(0, source.Last().Seq, CheckpointType.Projection, typeof(T).Name);
+                Checkpoint c = new(0, source.Last().Seq, CheckpointType.Projection);
                 await _storage.SaveCheckpoint(c);
                 _pool.Dequeue();
                 _logger.LogInformation($"Done executing projection task for source id {sourceId}.");

@@ -99,7 +99,7 @@ public class PostgreSqlClient<T>(IServiceProvider sp, string conn) : ClientBase<
     public override async Task Commit(T aggregate)
     {
         var x = aggregate.PendingEvents.Count();
-        logger.LogInformation($"Preparing to commit {x} pending event(s) for {typeof(T).Name}");
+        logger.LogInformation($"Preparing to commit {x} pending event(s) for {typeof(T).Name} for {LongSourceId}");
         
         await using NpgsqlConnection sqlConnection = new(conn);
         await sqlConnection.OpenAsync();
@@ -108,6 +108,7 @@ public class PostgreSqlClient<T>(IServiceProvider sp, string conn) : ClientBase<
         sqlCommand.Transaction = sqlTransaction;
         try
         {
+            // check for concurrent stream access
             await CheckConcurrency(sqlCommand, new NpgsqlParameter[]
             {
                 new("sourceId" , LongSourceId),
@@ -156,12 +157,14 @@ public class PostgreSqlClient<T>(IServiceProvider sp, string conn) : ClientBase<
         }
         catch(SerializationException e)
         {
+            await sqlTransaction.RollbackAsync();
             if(logger.IsEnabled(LogLevel.Error))
                 logger.LogError($"Commit failure for {aggregate.GetType().Name}. {e.Message}");
             throw;
         }
         catch (Exception e)
         {
+            await sqlTransaction.RollbackAsync();
             if(logger.IsEnabled(LogLevel.Error))
                 logger.LogError($"Commit failure for {aggregate.GetType().Name}. {e.Message}");
             throw;
@@ -294,9 +297,8 @@ public class PostgreSqlClient<T>(IServiceProvider sp, string conn) : ClientBase<
             await sqlConnection.OpenAsync();
             await using NpgsqlCommand sqlCommand = new (Schema.LoadCheckpointCommand, sqlConnection);
             sqlCommand.Parameters.AddWithValue("@type", (int)CheckpointType.Projection);
-            sqlCommand.Parameters.AddWithValue("@sourceType", typeof(T).Name);
             NpgsqlDataReader reader = await sqlCommand.ExecuteReaderAsync();
-            Checkpoint checkpoint = new(0, 0, CheckpointType.Projection, typeof(T).Name);
+            Checkpoint checkpoint = new(0, 0, CheckpointType.Projection);
             long seq = 0;
             if(await reader.ReadAsync())
                 seq = reader.GetInt64("sequence");
@@ -334,7 +336,6 @@ public class PostgreSqlClient<T>(IServiceProvider sp, string conn) : ClientBase<
             sqlCommand.CommandText = insert ? Schema.InsertCheckpointCommand : Schema.SaveCheckpointCommand;
             sqlCommand.Parameters.AddWithValue("@sequence", checkpoint.Seq);
             sqlCommand.Parameters.AddWithValue("@type", (int)checkpoint.Type);
-            sqlCommand.Parameters.AddWithValue("@sourceType", checkpoint.SourceType);
             await sqlCommand.ExecuteNonQueryAsync();
         }
         catch(NpgsqlException e)
