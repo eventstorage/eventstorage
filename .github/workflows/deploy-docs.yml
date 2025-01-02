@@ -12,10 +12,6 @@ jobs:
   build:
     name: Build
     runs-on: ubuntu-latest
-
-    defaults:
-      run:
-        working-directory: ./docs
     
     strategy:
       matrix:
@@ -47,7 +43,7 @@ jobs:
           ${{ runner.os }}-nextjs-${{ hashFiles('**/package-lock.json', '**/pnpm-lock.yaml') }}-
 
     - name: Build packages
-      run: cd packages/guider && pnpm run build
+      run: cd ./packages/guider && pnpm run build
 
     - name: Build app
       run: pnpm run build
