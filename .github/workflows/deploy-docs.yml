@@ -51,6 +51,8 @@ jobs:
 
     - name: Build app
       run: pnpm run build
+    - name: ls
+      run: ls
 
     - name: Upload
       uses: actions/upload-pages-artifact@v3
