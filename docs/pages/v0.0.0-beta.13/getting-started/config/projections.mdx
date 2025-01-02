@@ -1,0 +1,259 @@
+# Projections
+
+Projection is the process of replaying events of a certain event stream to achieve current state
+that can be queried.
+
+`eventstorage` supports all three projections types that are known as ACID-compliant, asynchronous and runtime.
+
+## Projection modes
+<Steps>
+<Steps.Step>
+### `Consistent {:sh}` projection mode
+
+Such type of projection is ACID-compliant and is immediately executed through a transaction that commits
+event streams.
+
+```csharp title="Program.cs" showLineNumbers
+builder.Services.AddEventStorage(storage =>
+{
+    storage.AddEventSource(source =>
+    {
+        source.Select(EventStore.PostgresSql, connectionString)
+        .Project<OrderProjection>(ProjectionMode.Consistent);
+    });
+});
+```
+```csharp title="OrderProjection.cs" showLineNumbers
+public record OrderDetail(string SourceId, OrderStatus Status, long Version);
+
+public class OrderProjection : Projection<OrderDetail>
+{
+    public static OrderDetail Project(OrderPlaced orderPlaced) =>
+        new(orderPlaced.SourceId?.ToString()?? "", OrderStatus.Placed, orderPlaced.Version);
+}
+```
+
+</Steps.Step>
+<Steps.Step>
+### `Transient {:sh}` projection mode
+
+This type of projection is a runtime projection and is not persisted anywhere, instead it loads an event
+stream and replays them at runtime resulting in a consistent state while performing slower depending on stream
+size.
+
+```csharp title="Program.cs" showLineNumbers
+builder.Services.AddEventStorage(storage =>
+{
+    storage.AddEventSource(source =>
+    {
+        source.Select(EventStore.PostgresSql, connectionString)
+        .Project<OrderProjection>(ProjectionMode.Consistent)
+        .Project<OrderInfoProjection>(ProjectionMode.Transient);
+    });
+});
+```
+```csharp title="OrderInfoProjection.cs" showLineNumbers
+public record OrderInfo(string SourceId, OrderStatus Status, long Version);
+
+public class OrderInfoProjection : Projection<OrderInfo>
+{
+    public static OrderInfo Project(OrderPlaced orderPlaced) =>
+        new(orderPlaced.SourceId?.ToString()?? "", OrderStatus.Placed, orderPlaced.Version);
+}
+```
+
+</Steps.Step>
+<Steps.Step>
+### `Asynchronous {:sh}` projection mode
+
+This projection mode is a widely-adopted projection style where projections get executed asynchronously through
+a a separate worker thread, usually a background service. this mode fits teams where eventual consistency
+is not a problem.
+
+```csharp title="Program.cs" showLineNumbers
+builder.Services.AddEventStorage(storage =>
+{
+    storage.AddEventSource(source =>
+    {
+        source.Select(EventStore.PostgresSql, connectionString)
+        .Project<OrderProjection>(ProjectionMode.Consistent)
+        .Project<OrderInfoProjection>(ProjectionMode.Transient)
+        .Project<OrderDocumentProjection>(ProjectionMode.Async);
+    });
+});
+```
+```csharp title="OrderDocumentProjection.cs" showLineNumbers
+public record OrderDocument(string SourceId, OrderStatus Status, long Version);
+
+public class OrderDocumentProjection : Projection<OrderDocument>
+{
+    public static OrderDocument Project(OrderPlaced orderPlaced) =>
+        new(orderPlaced.SourceId?.ToString()?? "", OrderStatus.Placed, orderPlaced.Version);
+}
+```
+
+<Tip>
+`Async {:sh}` projection style is the default choice for `eventstorage` and is the default mode when
+no projection mode is selected during registering a projection.
+</Tip>
+</Steps.Step>
+</Steps>
+
+## High-performance Redis projections
+Our framework offers great projection choices while remaining extremely performant and easy-of-use.
+
+When registering an `async {:sh}` projection, projection source is by default set to selected event storage,
+while an optional argument could be passed to set the high-performance key-value `Redis` store as the projection source.
+
+And it's as simple as that:
+```csharp title="Program.cs" showLineNumbers
+builder.Services.AddEventStorage(storage =>
+{
+    storage.AddEventSource(source =>
+    {
+        source.Select(EventStore.PostgresSql, connectionString)
+        .Project<OrderProjection>(ProjectionMode.Consistent)
+        .Project<OrderInfoProjection>(ProjectionMode.Transient)
+        .Project<OrderDocumentProjection>(ProjectionMode.Async)
+        .Project<OrderDocProjection>(ProjectionMode.Async, src => src.Redis("redis://localhost:6379"));
+    });
+});
+```
+```csharp title="OrderDocProjection.cs" showLineNumbers
+[Document(StorageType = StorageType.Json, Prefixes = ["OrderDoc"])]
+public class OrderDoc
+{
+    [RedisIdField][Indexed]
+    public string? SourceId { get; set; }
+    // [Searchable]
+    public OrderStatus Status { get; set; }
+    // [Searchable]
+    public long Version { get; set; }
+}
+
+public class OrderDocProjection : Projection<OrderDoc>
+{
+    public static OrderDoc Project(OrderPlaced orderPlaced) => new()
+    {
+        SourceId = orderPlaced.SourceId?.ToString(),
+        Version = orderPlaced.Version,
+        Status = OrderStatus.Placed
+    };
+}
+```
+
+
+## Expose projection endpoints
+
+Let's now expose endpoints for the newly created projection views/materialized views.
+
+<Note>
+We have previously created a query endpoint for `OrderProjection{:sh}` and we need three more.
+</Note>
+
+```csharp title="Program.cs" showLineNumbers
+app.MapGet("api/getOrderInfo", async(IEventStorage<OrderBooking> storage, string orderId) => 
+    await storage.Project<OrderInfo>(orderId));
+app.MapGet("api/getOrderDocument", async(IEventStorage<OrderBooking> storage, string orderId) => 
+    await storage.Project<OrderDocument>(orderId));
+app.MapGet("api/getOrderDoc", async(IEventStorage<OrderBooking> storage, string orderId) => 
+    await storage.Project<OrderDoc>(orderId));
+```
+
+Now place another order through our previously created `api/placeOrder {:sh}` and use the response
+stream id to query different projection endpoints created.
+
+## Confirm order
+
+This is to further familiarize ourselves with projections and you could skip them to continue on your own!
+
+To make it easy confirming an order, let's follow these steps and conquer the projections.
+
+<Steps>
+
+<Steps.Step>
+Create `ConfirmOrder{:sh}` command and `OrderConfirmed {:sh}` event:
+```csharp title="ConfirmOrder.cs"
+public record ConfirmOrder;
+
+public record OrderConfirmed : SourcedEvent;
+```
+</Steps.Step>
+
+<Steps.Step>
+Add `ConfirmOrder{:sh}` command handler to our aggregate and run business logic:
+```csharp title="OrderBooking.cs"
+public void ConfirmOrder(ConfirmOrder command)
+{
+    if(OrderStatus == OrderStatus.Confirmed)
+        return;
+    RaiseEvent(new OrderConfirmed());
+}
+```
+</Steps.Step>
+
+<Steps.Step>
+Apply business logic triggered by `OrderConfirmed{:sh}` into our aggregate:
+```csharp title="OrderBooking.cs"
+public void Apply(OrderConfirmed e)
+{
+    OrderStatus = OrderStatus.Confirmed;
+}
+```
+
+<Caution>
+Failing to find `Apply` method for `OrderConfirmed` or not adding it on purpose results in an exception!
+</Caution>
+</Steps.Step>
+
+<Steps.Step>
+Subscribe to `OrderConfirmed {:sh}` for your projections of choice, let's subscribe `OrderDocumentProjection{:sh}`
+by adding another `Project` method:
+```csharp title="OrderDocumentProjection.cs"
+public class OrderDocumentProjection : Projection<OrderDocument>
+{
+    public static OrderDocument Project(OrderPlaced orderPlaced) =>
+        new(orderPlaced.SourceId?.ToString()?? "", OrderStatus.Placed, orderPlaced.Version);
+    public static OrderDocument Project(OrderDocument order, OrderConfirmed orderConfirmed) =>
+        order with { Status = OrderStatus.Confirmed, Version = orderConfirmed.Version };
+}
+```
+
+Subscribe Redis `OrderDocProjection{:sh}` as well by adding another `Project` method:
+```csharp title="OrderDocProjection.cs"
+public static OrderDoc Project(OrderDoc orderDocument, OrderConfirmed orderConfirmed)
+{
+    orderDocument.Status = OrderStatus.Confirmed;
+    orderDocument.Version = orderConfirmed.Version;
+    return orderDocument;
+}
+```
+
+</Steps.Step>
+
+<Steps.Step>
+Finnally expose `api/confirmorder{orderId}{:sh}` endpoint to confirm an order:
+```csharp title="Program.cs"
+app.MapPost("api/confirmorder/{orderId}", 
+async(IEventStorage<OrderBooking> storage, string orderId, ConfirmOrder command) =>
+{
+    var aggregate = await storage.CreateOrRestore(orderId);
+    aggregate.ConfirmOrder(command);
+
+    await storage.Commit(aggregate);
+});
+```
+
+Go ahead and confirm a previously placed order through the new created `api/confirmorder{orderId}{:sh}` api.
+
+Now to get the new order status for both `OrderDocumentProjection` and `OrderDocProjection,` query 
+`api/getOrderDocument{:sh}` and `api/getOrderDoc{:sh}` with the confirmed order id.
+</Steps.Step>
+
+</Steps>
+
+We have learned how to properly make use of `eventstorage` into making event sourced solutions.
+
+## What's next?
+
+Perhaps a small party? 😃

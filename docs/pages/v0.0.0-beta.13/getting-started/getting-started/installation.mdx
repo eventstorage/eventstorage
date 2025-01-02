@@ -1,0 +1,108 @@
+
+# What is eventstorage?
+
+A high-performance event sourcing framework built for dotnet offering the event storage of choice
+with Azure Sql, Postgres or Sql Server as well as multiple projection modes with support
+to Redis for high-performance projections.
+
+
+## Installation
+
+Follow the steps below to jump start the installation and prepare the event storage infrastructure.
+  <Steps>
+    <Steps.Step>
+      ### Install `.NET 8` SDK
+      
+      `es` runs on dotnet 8 and requires the sdk installed:
+      ```sh
+      https://dotnet.microsoft.com/en-us/download/dotnet/8.0
+      ```
+    </Steps.Step>
+    <Steps.Step>
+      ### Setup dependencies
+      Run mssql or pg database on docker.
+
+      Using `docker-compose`: 
+      ```sh
+      docker compose --project-name eventstorage up -d
+      ```
+      Using `docker run` for pg:
+      ```sh
+      docker run --name some-postgres -p 5432:5432 -e POSTGRES_PASSWORD=postgres -d postgres
+      ```
+      Using `docker run` for mssql:
+      ```sh
+      docker run --name some-mssql -p 1433:1433 -e "ACCEPT_EULA=Y" -e "MSSQL_SA_PASSWORD=sysadmin@1234" -d mcr.microsoft.com/mssql/server:2019-latest
+      ```
+      Optionally run `Redis` for high-performance projections:
+      ```sh
+      docker run -d --name redis-stack -p 6379:6379 -p 8001:8001 redis/redis-stack:latest
+      ```
+    </Steps.Step>
+    <Steps.Step>
+      ### Create a dotnet web api project
+      <Steps>
+      Once we have are done running needed docker dependencies, we can start setting up eventstorage.
+      <Note>
+        These steps are for starters and you could probably skip them if you are an experienced dotnet.
+      </Note>
+      <Steps.Step>
+        Create your app folder, `order-app` for instance then get inside of the folder and
+        create a `global.json` file which specifies project net sdk verison by running: 
+        
+        ```sh
+        dotnet new globaljson --sdk-version=8.0.401
+        ```
+
+        Run `dotnet --list-sdks {:sh}` to list installed sdk versions on your machine if you are not
+        sure which ones you've installed.
+        
+        This is how a `global.json` looks like depending on your sdk version:
+        ```json title="global.json" showLineNumbers
+        {
+          "sdk": {
+            "version": "8.0.401"
+          }
+        }
+        ```
+      </Steps.Step>
+      <Steps.Step>
+        Create a solution by running `dotnet new solution -n Order {:sh}` inside of the folder.
+      </Steps.Step>
+      <Steps.Step>
+        Create `src` folder followed by creating a dotnet api project inside of `src` folder with
+        `dotnet new webapi -n Order.Api {:sh}`
+      </Steps.Step>
+      <Steps.Step>
+        Get back to the root folder and add the api project to the solution with `dotnet sln
+        Order.sln add src\Order.Api --in-root {:sh}`.
+      </Steps.Step>
+      <Steps.Step>
+        Finally run `dotnet build {:sh}` and it should build the solution properly.
+      </Steps.Step>
+      </Steps>
+    </Steps.Step>
+    <Steps.Step>
+      ### Get ready to spin up an event storage!
+      One last step of the installation tutorial is adding `EventStorage`
+      package into our api project by running the following in the root folder:
+      ```sh
+      dotnet add src\Order.Api package EventStorage --prerelease
+      ```
+      or `dotnet add package EventStorage --prerelease {:sh}` inside of api project.
+    </Steps.Step>
+  </Steps>
+    
+
+We have everything setup now and are ready to spin up our project with `eventstorage` library.
+
+## What's next?
+
+Next we start developing and turning our project into an event sourced solution
+with [EventStorage](https://www.nuget.org/packages/eventstorage/readme.md) library:
+- Use `AddEventStorage` collection extension to add event sourcing configuration
+- Select event storage configuration options required to spin up our event storage
+- Create aggregate root with `EventSource<TId>` which represents our domain
+- Place an order by exposing an api endpoint
+- Project placed order and expose another api to query our orders
+
