@@ -1,6 +1,6 @@
 {
-  "name": "docs",
-  "description": "Documentation for neatojs",
+  "name": "eventstorage-docs",
+  "description": "eventstorage documentation",
   "private": true,
   "version": "0.0.0",
   "eslintConfig": {
