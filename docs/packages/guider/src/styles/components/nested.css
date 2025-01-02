@@ -1,0 +1,20 @@
+/* margins inside nested elements like callouts or steppers */
+.neato-guider-steps-step-content,
+.neato-guider-callout-child,
+.neato-guider-blockquote,
+.neato-guider-list,
+.neato-guider-field-props-children,
+.neato-guider-field {
+  > *:first-child {
+    margin-top: 0 !important;
+  }
+
+  > *:last-child {
+    margin-bottom: 0 !important;
+  }
+}
+
+/* First heading of a page shouldnt have any top margin */
+#guider-content > .neato-guider-heading:first-child {
+  @apply !gd-mt-0;
+}

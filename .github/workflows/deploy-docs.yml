@@ -3,7 +3,7 @@ name: "docs-deploy"
 on:
   push:
     branches: ["main"]
-    paths: ["docs/**", ".github/workflows/**"]
+    paths: ["docs/**", ".github/workflows/deploy-docs.yml"]
   pull_request:
     branches: ["main"]
     paths: ["docs/**"]
@@ -47,7 +47,7 @@ jobs:
           ${{ runner.os }}-nextjs-${{ hashFiles('**/package-lock.json', '**/pnpm-lock.yaml') }}-
 
     - name: Build packages
-      run: cd ./packages/guider && pnpm run build
+      run: cd packages/guider && pnpm run build
 
     - name: Build app
       run: pnpm run build
