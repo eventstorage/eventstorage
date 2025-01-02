@@ -47,15 +47,15 @@ jobs:
           ${{ runner.os }}-nextjs-${{ hashFiles('**/package-lock.json', '**/pnpm-lock.yaml') }}-
 
     - name: Build packages
-      run: cd docs/packages/guider && pnpm run build
+      run: cd packages/guider && pnpm run build
 
     - name: Build app
-      run: cd docs && pnpm run build
+      run: pnpm run build
 
     - name: Upload
       uses: actions/upload-pages-artifact@v3
       with:
-        path: ./docs/out
+        path: ./out
 
   deploy:
     needs: build
