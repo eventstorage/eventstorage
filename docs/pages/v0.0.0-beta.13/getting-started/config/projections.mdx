@@ -115,7 +115,7 @@ builder.Services.AddEventStorage(storage =>
         .Project<OrderProjection>(ProjectionMode.Consistent)
         .Project<OrderInfoProjection>(ProjectionMode.Transient)
         .Project<OrderDocumentProjection>(ProjectionMode.Async)
-        .Project<OrderDocProjection>(ProjectionMode.Async, src => src.Redis("redis://localhost:6379"));
+        .Project<OrderDocProjection>(ProjectionMode.Async, src => src.Redis("redis://localhost"));
     });
 });
 ```
