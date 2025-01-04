@@ -42,7 +42,7 @@ Define your aggregate with the help of `EventSource<TId>` where `TId` can be eit
 to identify event streams/event sources in our event storage.
 
 <Note>
-Selecting `long` as stream identifier offers lightnening-fast stream access and is more human readable. 
+While selecting `long` offers lightnening-fast queries and is human readable, we can always switch back and forth between the two!
 </Note>
 
 To create aggregate root and its corresponding domain logic, let's create another project as `Order` and place
