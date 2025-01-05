@@ -23,10 +23,29 @@ const template = siteTemplate({
       primary: '#A880FF',
       primaryDarker: '#6C3DD0',
       primaryLighter: '#D0BAFF',
+      backgroundLightest: "#282438",
+      backgroundLighter: "#1A1726"
     },
     backgroundPattern: 'flare',
     logo: () => <Logo />,
   },
+  // settings: {
+  //   logo: () => <Logo />,
+  //   backgroundPattern: 'flare',
+  //   colors: {
+  //     "primary": "#A476D9",
+  //     "primaryLighter": "#C4ADDE",
+  //     "primaryDarker": "#6E23C3",
+  //     "background": "#0C0B13",
+  //     "backgroundLighter": "#1A1726",
+  //     "backgroundLightest": "#282438",
+  //     "backgroundDarker": "#000000",
+  //     "line": "#37334C",
+  //     "text": "#8C899A",
+  //     "textLighter": "#A6A4AE",
+  //     "textHighlight": "#FFF"
+  //   },
+  // },
   contentFooter: {
     editRepositoryBase:
       'https://github.com/eventstorage/eventstorage/tree/main/docs',
@@ -40,7 +59,7 @@ const template = siteTemplate({
     additionalLinkTags: [
       {
         rel: 'icon',
-        href: `${ghPrefix()}/favicon.ico`,
+        href: `${ghPrefix()}/2.png`,
       },
     ],
   },
@@ -62,7 +81,7 @@ const starLinks = [
     icon: 'fa6-brands:discord',
   }),
   link(
-    'Suggest features',
+    'Get involved',
     'https://github.com/eventstorage/eventstorage/issues',
     {
       style: 'star',
@@ -88,7 +107,7 @@ export default defineTheme([
     },
     tabs: [
       link('Getting started', '/v0.0.0-beta.13/getting-started'),
-      link('Documentation', '/v0.0.0-beta.13/docs'),
+      link('Guides', '/v0.0.0-beta.13/docs'),
       link('Learning', '/v0.0.0-beta.13/learn'),
     ],
     directories: [
@@ -104,7 +123,7 @@ export default defineTheme([
               },
             ),
             link('Development', gdGetStarted('/getting-started/development'), {
-              icon: 'icon-park-solid:cpu',
+              icon: 'fa6-solid:code',
             }),
           ]),
           group('Configuration', [
@@ -123,7 +142,7 @@ export default defineTheme([
           ]),
         ],
       }),
-      directory('documentation', {
+      directory('guides', {
         sidebar: [...starLinks],
       }),
       directory('learn', {

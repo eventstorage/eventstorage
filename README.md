@@ -112,6 +112,7 @@ public record PlaceOrder(string ProductName, int Quantity, string UserId);
 public record OrderPlaced(PlaceOrder Command) : SourcedEvent;
 ```
 `EventSource<TId>` allows selecting `long` or `Guid` to identify event streams.
+
 While selecting `long` offers lightnening-fast queries and is human readable, we can always switch back and forth between the two!
 
 #### Use `IEventStorage<T>` service
@@ -147,7 +148,7 @@ Transient (runtime), consistent and async projection modes are supported.
 ```csharp
 eventstorage.AddEventSource(source =>
 {
-    source.Select(EventStore.SqlServer, connectionString)
+    source.Select(EventStore.PostgresSql, connectionString)
     .Project<OrderProjection>(ProjectionMode.Transient)
     .Project<OrderDetailProjection>(ProjectionMode.Consistent)
     .Project<OrderInfoProjection>(ProjectionMode.Async)

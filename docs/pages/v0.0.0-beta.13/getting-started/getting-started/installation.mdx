@@ -6,16 +6,15 @@ with Azure Sql, Postgres and Sql Server, and delivers multiple projection modes 
 Redis for high-performance asynchronous projections.
 
 #### Key benefits of eventstorage
-* Runs plain sql resulting in high-performance storage infrastructure 
-* Flexible schema gains with denormalization and throwing away ORM
-* Identifies aggregates with `GUID` and `long` and allows switching back and forth
-* Lightning-fast storage operations by selecting `long` aggregate identifier
-* Allows event storage selection with `Azure Sql`, `Postgre Sql` and `Sql Server`
-* Offers transient/runtime, ACID-compliant and async projections modes
-* Allows projection source as either selected storage or high-performance `Redis`
-* Lightweight asynchronous projection engine that polls for async projections
-* Restores projections at startup ensuring consistency without blocking business
-* Designed to survive failures and prevents possible inconsistencies
+
+<Note>
+* Runs plain sql resulting in high-performance storage infrastructure.
+* Flexible schema gains with denormalization and throwing away ORM.
+* Identifies aggregates with `GUID` and `long` and allows switching back and forth.
+* Allows event storage selection with `Azure Sql`, `Postgre Sql` and `Sql Server`.
+* Offers multiple projection modes with support to high-performance `Redis` projections.
+* Restores projections at startup ensuring consistency without blocking business.
+</Note>
 
 ## Installation
 
