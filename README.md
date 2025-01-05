@@ -9,7 +9,7 @@
 [![In follow](https://img.shields.io/badge/follow-LinkedIn-blue?logo=linkedin)](https://www.linkedin.com/in/sarwansurchi/)
 [![build Status](https://dev.azure.com/eventstorage/eventstorage/_apis/build/status%2Feventstorage?branchName=main&label=azure%20pipes)](https://dev.azure.com/eventstorage/eventstorage/_build/latest?definitionId=1&branchName=main)
 
-<div align="center">
+<div align="left">
     <img src=".assets/2.png" width="120" height="120" style="float:left;" alt="eventstorage">
 </div>
 
