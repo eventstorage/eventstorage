@@ -5,8 +5,8 @@ on:
     branches: ["main"]
     paths: ["docs/**", ".github/workflows/deploy-docs.yml"]
   pull_request:
-    branches: ["main"]
-    paths: ["docs/**", README.md]
+    branches: ["main", "dev"]
+    paths: ["docs/**", "README.md"]
 
 permissions:
   contents: read
