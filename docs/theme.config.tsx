@@ -23,10 +23,29 @@ const template = siteTemplate({
       primary: '#A880FF',
       primaryDarker: '#6C3DD0',
       primaryLighter: '#D0BAFF',
+      backgroundLightest: "#282438",
+      backgroundLighter: "#1A1726"
     },
     backgroundPattern: 'flare',
     logo: () => <Logo />,
   },
+  // settings: {
+  //   logo: () => <Logo />,
+  //   backgroundPattern: 'flare',
+  //   colors: {
+  //     "primary": "#A476D9",
+  //     "primaryLighter": "#C4ADDE",
+  //     "primaryDarker": "#6E23C3",
+  //     "background": "#0C0B13",
+  //     "backgroundLighter": "#1A1726",
+  //     "backgroundLightest": "#282438",
+  //     "backgroundDarker": "#000000",
+  //     "line": "#37334C",
+  //     "text": "#8C899A",
+  //     "textLighter": "#A6A4AE",
+  //     "textHighlight": "#FFF"
+  //   },
+  // },
   contentFooter: {
     editRepositoryBase:
       'https://github.com/eventstorage/eventstorage/tree/main/docs',
