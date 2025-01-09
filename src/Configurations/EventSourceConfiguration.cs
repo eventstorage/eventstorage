@@ -46,8 +46,9 @@ public class EventSourceConfiguration(IServiceCollection services, string? schem
     {
         ServiceCollection.AddSingleton<IAsyncProjectionPool, AsyncProjectionPool>();
         var engineType = typeof(AsyncProjectionEngine<>).MakeGenericType(T);
+        var projections = ConfiguredProjections.Where(x => x.Key.Mode == ProjectionMode.Async);
         ServiceCollection.AddSingleton(typeof(IHostedService), sp =>
-            Activator.CreateInstance(engineType, sp, ConfiguredProjections)?? default!);
+            Activator.CreateInstance(engineType, sp, projections)?? default!);
         return this;
     }
 }
