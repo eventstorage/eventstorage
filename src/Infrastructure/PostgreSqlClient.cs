@@ -146,7 +146,7 @@ public class PostgreSqlClient<T>(IServiceProvider sp, string conn) : ClientBase<
 
             EventSourceEnvelop envelop = new(LongSourceId, GuidSourceId, aggregate.EventStream);
             if(Projections.Any(x => x.Mode == ProjectionMode.Async))
-                ProjectionPool.Release((scope, ct) => RestoreProjections(envelop, scope));
+                ProjectionPool.Release((scope, ct, pj) => RestoreProjections(envelop, pj, scope));
         }
         catch(NpgsqlException e)
         {
@@ -170,7 +170,8 @@ public class PostgreSqlClient<T>(IServiceProvider sp, string conn) : ClientBase<
             throw;
         }
     }
-    public override async Task<long> RestoreProjections(EventSourceEnvelop source, IServiceScopeFactory scope)
+    public override async Task<long> RestoreProjection(
+        EventSourceEnvelop source, IProjection projection, IServiceScopeFactory scope)
     {
         try
         {

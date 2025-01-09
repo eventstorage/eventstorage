@@ -1,3 +1,4 @@
+using System.Reflection;
 using EventStorage.Events;
 using EventStorage.Infrastructure;
 using EventStorage.Projections;
@@ -7,13 +8,13 @@ using Microsoft.Extensions.Logging;
 
 namespace EventStorage.Workers;
 
-public class AsyncProjectionEngine<T>(IServiceScopeFactory scope) : BackgroundService
+public class AsyncProjectionEngine<T>(IServiceProvider sp,
+    Dictionary<Projection, IEnumerable<MethodInfo>> projections) : BackgroundService
 {
-    private readonly IServiceProvider _sp = scope.CreateScope().ServiceProvider;
-    private ILogger _logger => _sp.GetRequiredService<ILogger<AsyncProjectionEngine<T>>>();
-    private IAsyncProjectionPool _pool => _sp.GetRequiredService<IAsyncProjectionPool>();
-    private IEventStorage<T> _storage => _sp.GetRequiredService<IEventStorage<T>>();
-
+    private ILogger _logger = sp.GetRequiredService<ILogger<AsyncProjectionEngine<T>>>();
+    private IAsyncProjectionPool _pool = sp.GetRequiredService<IAsyncProjectionPool>();
+    private IEventStorage<T> _storage = sp.GetRequiredService<IEventStorage<T>>();
+    private readonly IServiceScopeFactory _scope = sp.GetRequiredService<IServiceScopeFactory>();
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         _logger.LogInformation("Started projection engine, restoring projections...");
@@ -88,7 +89,7 @@ public class AsyncProjectionEngine<T>(IServiceScopeFactory scope) : BackgroundSe
                 break;
             try
             {
-                long sourceId = await projectTask(scope, stoppingToken);
+                long sourceId = await projectTask(_scope, stoppingToken);
                 var source = await _storage.LoadEventSource(sourceId);
                 Checkpoint c = new(0, source.Last().Seq, CheckpointType.Projection);
                 await _storage.SaveCheckpoint(c);
