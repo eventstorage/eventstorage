@@ -1,5 +1,6 @@
 using System.Collections.Concurrent;
 using EventStorage.AggregateRoot;
+using EventStorage.Events;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace EventStorage.Workers;
@@ -7,30 +8,30 @@ namespace EventStorage.Workers;
 public interface IAsyncProjectionPool
 {
     Task PollAsync(CancellationToken token);
-    Func<IServiceScopeFactory, CancellationToken, Task<long>>? Dequeue();
-    Func<IServiceScopeFactory, CancellationToken, Task<long>>? Peek();
-    void Release(Func<IServiceScopeFactory, CancellationToken, Task<long>> project);
-    ConcurrentQueue<Func<IServiceScopeFactory, CancellationToken, Task<long>>> QueuedProjections { get; }
+    Func<CancellationToken, EventSourceEnvelop>? Dequeue();
+    Func<CancellationToken, EventSourceEnvelop>? Peek();
+    void Release(Func<CancellationToken, EventSourceEnvelop> envelop);
+    ConcurrentQueue<Func<CancellationToken, EventSourceEnvelop>> QueuedProjections { get; }
 }
 public class AsyncProjectionPool : IAsyncProjectionPool
 {
     private readonly SemaphoreSlim _pool = new(1, 1);
-    private readonly ConcurrentQueue<Func<IServiceScopeFactory, CancellationToken, Task<long>>> _queue = [];
-    public ConcurrentQueue<Func<IServiceScopeFactory, CancellationToken, Task<long>>> QueuedProjections => _queue;
+    private readonly ConcurrentQueue<Func<CancellationToken, EventSourceEnvelop>> _queue = [];
+    public ConcurrentQueue<Func<CancellationToken, EventSourceEnvelop>> QueuedProjections => _queue;
     public async Task PollAsync(CancellationToken token) => await _pool.WaitAsync(token);
-    public Func<IServiceScopeFactory, CancellationToken, Task<long>>? Dequeue()
+    public Func<CancellationToken, EventSourceEnvelop>? Dequeue()
     {
         QueuedProjections.TryDequeue(out var task);
         return task;
     }
-    public Func<IServiceScopeFactory, CancellationToken, Task<long>>? Peek()
+    public Func<CancellationToken, EventSourceEnvelop>? Peek()
     {
         QueuedProjections.TryPeek(out var task);
         return task;
     }
-    public void Release(Func<IServiceScopeFactory, CancellationToken, Task<long>> project)
+    public void Release(Func<CancellationToken, EventSourceEnvelop> projection)
     {
-        _queue.Enqueue(project);
+        _queue.Enqueue(projection);
         if(_pool.CurrentCount == 0)
             _pool.Release();
     }

@@ -10,4 +10,5 @@ public static class TLogger
         .AddDebug();
     });
     public static ILogger Create<T>() => _factory.CreateLogger<T>();
+    public static void Log(this ILogger logger, string message) => logger.LogInformation(message);
 }
