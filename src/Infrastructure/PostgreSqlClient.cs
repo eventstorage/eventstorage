@@ -268,16 +268,17 @@ public class PostgreSqlClient<T>(IServiceProvider sp, string conn) : ClientBase<
             throw;
         }
     }
-    public override async Task<Checkpoint> LoadCheckpoint()
+    public override async Task<Checkpoint> LoadCheckpoint(IProjection projection)
     {
         try
         {
             await using NpgsqlConnection sqlConnection = new(conn);
             await sqlConnection.OpenAsync();
             await using NpgsqlCommand sqlCommand = new (Schema.LoadCheckpointCommand, sqlConnection);
+            sqlCommand.Parameters.AddWithValue("@subscription", nameof(projection));
             sqlCommand.Parameters.AddWithValue("@type", (int)CheckpointType.Projection);
             NpgsqlDataReader reader = await sqlCommand.ExecuteReaderAsync();
-            Checkpoint checkpoint = new(0, 0, CheckpointType.Projection);
+            Checkpoint checkpoint = new(nameof(projection), 0, 0, CheckpointType.Projection);
             long seq = 0;
             if(await reader.ReadAsync())
                 seq = reader.GetInt64("sequence");
@@ -290,13 +291,7 @@ public class PostgreSqlClient<T>(IServiceProvider sp, string conn) : ClientBase<
             await reader.ReadAsync();
             long maxSeq = reader.HasRows ? (long)reader.GetValue(0) : 0;
             await reader.DisposeAsync();
-            return checkpoint with { MaxSeq = maxSeq, Seq = seq};
-        }
-        catch(NpgsqlException e)
-        {
-            if(logger.IsEnabled(LogLevel.Error))
-                logger.LogError($"Checkpoint load failure for {typeof(T).Name}. {e.Message}");
-            throw;
+            return checkpoint with { Seq = seq, MaxSeq = maxSeq};
         }
         catch(Exception e)
         {

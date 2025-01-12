@@ -34,10 +34,14 @@ public class AsyncProjectionEngine<T>(IServiceProvider sp,
     {
         try
         {
-            var checkpoint = await _storage.LoadCheckpoint();
-            _logger.LogInformation($"Starting restoration from checkpoint {checkpoint.Seq}.");
             while(!ct.IsCancellationRequested)
             {
+                foreach (var projection in projections)
+                {
+                    var checkpoint = await _storage.LoadCheckpoint(projection.Key);
+                    _logger.Log($"Starting restoring {projection} from checkpoint {checkpoint.Seq}.");
+                    
+                }
                 var events = await _storage.LoadEventsPastCheckpoint(checkpoint);
                 if(!events.Any())
                     break;
@@ -82,9 +86,9 @@ public class AsyncProjectionEngine<T>(IServiceProvider sp,
     public async Task StartPolling(CancellationToken ct)
     {
         await _pool.PollAsync(ct);
-
         var x = _pool.QueuedProjections.Count;
         _logger.Log($"{x} queued items are pending exceution from projection pool.");
+
         while(_pool.Peek() != null && !ct.IsCancellationRequested)
         {
             var queuedItem = _pool.Peek()?? default!;
@@ -97,8 +101,8 @@ public class AsyncProjectionEngine<T>(IServiceProvider sp,
                 _projectionTasks.TryAdd(projection.Key, Task.Run(() =>
                     _storage.RestoreProjection(projection.Key, events, sp), ct));
             }
-            
-            _logger.Log($"Strated restoring {_projectionTasks.Count} projections for source {item.LId}.");
+            x = _projectionTasks.Count;
+            _logger.Log($"Started restoring {x} projections for event source {item.LId}.");
             foreach (var task in _projectionTasks)
             {
                 try
@@ -114,7 +118,7 @@ public class AsyncProjectionEngine<T>(IServiceProvider sp,
                     throw;
                 }
             }
-            _logger.Log($"Done restoring {_projectionTasks.Count} projections for source {item.LId}.");
+            _logger.Log($"Done restoring {x} projections for event source {item.LId}.");
             _pool.Dequeue();
         }
     }
