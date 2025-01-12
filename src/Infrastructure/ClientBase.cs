@@ -6,6 +6,7 @@ using EventStorage.Events;
 using EventStorage.Projections;
 using EventStorage.Schema;
 using EventStorage.Workers;
+using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.DependencyInjection;
 using TDiscover;
 
@@ -29,11 +30,11 @@ public abstract class ClientBase<T>(IServiceProvider sp) : IEventStorage<T> wher
     public abstract Task<T> CreateOrRestore(string? sourceId = null);
     public abstract Task Commit(T t);
     public abstract Task<M?> Project<M>(string sourceId) where M : class;
-    public abstract Task<EventSourceEnvelop> LoadEventSource(long sourceId);
+    public abstract Task<IEnumerable<EventEnvelop>> LoadEventSource(long sourceId);
     public abstract Task<Checkpoint> LoadCheckpoint();
-    public abstract Task SaveCheckpoint(Checkpoint checkpoint, bool insert = false);
+    public abstract Task SaveCheckpoint(DbCommand command, Checkpoint checkpoint, bool insert = false);
     public abstract Task<IEnumerable<EventEnvelop>> LoadEventsPastCheckpoint(Checkpoint c);
-    public abstract Task<long> RestoreProjections(EventSourceEnvelop source, IServiceScopeFactory scope);
+    public abstract Task RestoreProjection(Projection projection, IEnumerable<EventEnvelop> events, IServiceProvider sp);
     protected Type ResolveEventType(string typeName) => Td.FindByTypeName<SourcedEvent>(typeName)??
         throw new Exception($"Couldn't determine event type while resolving {typeName}.");
     #pragma warning disable CS8619
@@ -70,7 +71,7 @@ public abstract class ClientBase<T>(IServiceProvider sp) : IEventStorage<T> wher
             var type = ResolveEventType(typeName);
             var json = reader.GetString(EventStorageSchema.Data);
             var sourcedEvent = JsonSerializer.Deserialize(json, type) as SourcedEvent?? default!;
-            events.Add(new EventEnvelop(sequence, LongSourceId, GuidSourceId, sourcedEvent));
+            events.Add(new(sequence, LongSourceId, GuidSourceId, sourcedEvent));
         }
         return events;
     }

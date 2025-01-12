@@ -88,17 +88,17 @@ public class AsyncProjectionEngine<T>(IServiceProvider sp,
         while(_pool.Peek() != null && !ct.IsCancellationRequested)
         {
             var queuedItem = _pool.Peek()?? default!;
-            var envelop = queuedItem(ct);
-            var source = await _storage.LoadEventSource(envelop.LId);
+            var item = queuedItem(ct);
+            var events = await _storage.LoadEventSource(item.LId);
             foreach (var projection in projections)
             {
-                if(!projection.Value.Subscribes(envelop.SourcedEvents))
+                if(!projection.Value.Subscribes(item.SourcedEvents))
                     continue;
                 _projectionTasks.TryAdd(projection.Key, Task.Run(() =>
-                    _storage.RestoreProjection(projection.Key, source, _scope), ct));
+                    _storage.RestoreProjection(projection.Key, events, sp), ct));
             }
             
-            _logger.Log($"Strated restoring {_projectionTasks.Count} projections for source {envelop.LId}.");
+            _logger.Log($"Strated restoring {_projectionTasks.Count} projections for source {item.LId}.");
             foreach (var task in _projectionTasks)
             {
                 try
@@ -114,7 +114,7 @@ public class AsyncProjectionEngine<T>(IServiceProvider sp,
                     throw;
                 }
             }
-            _logger.Log($"Done restoring {_projectionTasks.Count} projections for source {envelop.LId}.");
+            _logger.Log($"Done restoring {_projectionTasks.Count} projections for source {item.LId}.");
             _pool.Dequeue();
         }
     }
