@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Reflection;
 using EventStorage.Events;
 using EventStorage.Extensions;
@@ -16,6 +17,7 @@ public class AsyncProjectionEngine<T>(IServiceProvider sp,
     private IAsyncProjectionPool _pool = sp.GetRequiredService<IAsyncProjectionPool>();
     private IEventStorage<T> _storage = sp.GetRequiredService<IEventStorage<T>>();
     private readonly IServiceScopeFactory _scope = sp.GetRequiredService<IServiceScopeFactory>();
+    private readonly ConcurrentDictionary<Projection, Task> _projectionTasks = [];
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         _logger.LogInformation("Started projection engine, restoring projections...");
@@ -82,32 +84,38 @@ public class AsyncProjectionEngine<T>(IServiceProvider sp,
         await _pool.PollAsync(ct);
 
         var x = _pool.QueuedProjections.Count;
-        _logger.LogInformation($"{x} queued items are pending exceution from projection pool.");
+        _logger.Log($"{x} queued items are pending exceution from projection pool.");
         while(_pool.Peek() != null && !ct.IsCancellationRequested)
         {
             var queuedItem = _pool.Peek()?? default!;
             var envelop = queuedItem(ct);
             var source = await _storage.LoadEventSource(envelop.LId);
-            IList<Task> tasks = [];
             foreach (var projection in projections)
             {
                 if(!projection.Value.Subscribes(envelop.SourcedEvents))
                     continue;
-                tasks.Add(Task.Run(() => _storage.RestoreProjection(projection.Key, source, _scope), ct));
+                _projectionTasks.TryAdd(projection.Key, Task.Run(() =>
+                    _storage.RestoreProjection(projection.Key, source, _scope), ct));
             }
-            try
+            
+            _logger.Log($"Strated restoring {_projectionTasks.Count} projections for source {envelop.LId}.");
+            foreach (var task in _projectionTasks)
             {
-                _logger.Log($"Strated restoring {tasks.Count} projections for source {envelop.LId}.");
-                await Task.WhenAll(tasks);
-                _logger.Log($"Done restoring {tasks.Count} projections for source {envelop.LId}.");
-                _pool.Dequeue();
+                try
+                {
+                    await task.Value;
+                    _projectionTasks.TryRemove(task);
+                }
+                catch (Exception e)
+                {
+                    Thread.Sleep(1000);
+                    if(_logger.IsEnabled(LogLevel.Error))
+                        _logger.LogError($"Failure running projection task {task.Key}.{Environment.NewLine} {e.StackTrace}");
+                    throw;
+                }
             }
-            catch (Exception e)
-            {
-                if(_logger.IsEnabled(LogLevel.Error))
-                    _logger.LogError($"Failure running projection task.{Environment.NewLine} {e.StackTrace}");
-                throw;
-            }
+            _logger.Log($"Done restoring {_projectionTasks.Count} projections for source {envelop.LId}.");
+            _pool.Dequeue();
         }
     }
 }
