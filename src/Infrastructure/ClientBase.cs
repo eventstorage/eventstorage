@@ -30,11 +30,11 @@ public abstract class ClientBase<T>(IServiceProvider sp) : IEventStorage<T> wher
     public abstract Task<T> CreateOrRestore(string? sourceId = null);
     public abstract Task Commit(T t);
     public abstract Task<M?> Project<M>(string sourceId) where M : class;
-    public abstract Task<IEnumerable<EventEnvelop>> LoadEventSource(long sourceId);
+    public abstract Task<EventSourceEnvelop> LoadEventSource(long sourceId);
     public abstract Task<Checkpoint> LoadCheckpoint(IProjection projection);
-    public abstract Task SaveCheckpoint(DbCommand command, Checkpoint checkpoint, bool insert = false);
+    public abstract Task SaveCheckpoint(Checkpoint checkpoint, bool insert = false);
     public abstract Task<IEnumerable<EventEnvelop>> LoadEventsPastCheckpoint(Checkpoint c);
-    public abstract Task RestoreProjection(Projection projection, IEnumerable<EventEnvelop> events, IServiceProvider sp);
+    public abstract Task RestoreProjection(Projection projection, IServiceProvider sp, params EventSourceEnvelop[] sources);
     protected Type ResolveEventType(string typeName) => Td.FindByTypeName<SourcedEvent>(typeName)??
         throw new Exception($"Couldn't determine event type while resolving {typeName}.");
     #pragma warning disable CS8619

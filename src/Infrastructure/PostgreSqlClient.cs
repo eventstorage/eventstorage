@@ -350,7 +350,7 @@ public class PostgreSqlClient<T>(IServiceProvider sp, string conn) : ClientBase<
             throw;
         }
     }
-    public override async Task<IEnumerable<EventEnvelop>> LoadEventSource(long sourceId)
+    public override async Task<EventSourceEnvelop> LoadEventSource(long sourceId)
     {
         try
         {
@@ -360,19 +360,7 @@ public class PostgreSqlClient<T>(IServiceProvider sp, string conn) : ClientBase<
             sqlCommand.CommandText = Schema.LoadEventSourceCommand(TId.LongSourceId.ToString());
             sqlCommand.Parameters.AddWithValue("@sourceId", sourceId);
             var events = await LoadEvents(() => sqlCommand);
-            return events;
-        }
-        catch(NpgsqlException e)
-        {
-            if(logger.IsEnabled(LogLevel.Error))
-                logger.LogError($"Loading events failure for {typeof(T).Name}. {e.Message}");
-            throw;
-        }
-        catch(SerializationException e)
-        {
-            if(logger.IsEnabled(LogLevel.Error))
-                logger.LogError($"Loading events failure for {typeof(T).Name}. {e.Message}");
-            throw;
+            return new(events.First().LId, events.First().GId, events.Select(x => x.SourcedEvent));
         }
         catch(Exception e)
         {
