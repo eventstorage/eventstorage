@@ -16,10 +16,13 @@ public class RedisService(IServiceProvider sp, IProjectionRestorer restorer) : I
         await Collection<Td>().InsertAsync(document);
     private async Task AddDocument(object document) =>
         await _provider.Connection.SetAsync(document);
-    public async Task RestoreProjection(IProjection projection, IEnumerable<SourcedEvent> events)
+    public async Task RestoreProjection(IProjection projection, params EventSourceEnvelop[] sources)
     {
         var type = projection.GetType().BaseType?.GenericTypeArguments.First()?? default!;
-        var document = restorer.Project(projection, events, type)?? default!;
-        await AddDocument(document);
+        foreach (var source in sources)
+        {
+            var document = restorer.Project(projection, source.SourcedEvents, type)?? default!;
+            await AddDocument(document);
+        }
     }
 }

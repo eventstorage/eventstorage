@@ -7,5 +7,5 @@ namespace EventStorage.Infrastructure;
 public interface IRedisService
 {
     Task<Td?> GetDocument<Td>(string sourceId) where Td : notnull;
-    Task RestoreProjection(IProjection projection, IEnumerable<SourcedEvent> events);
+    Task RestoreProjection(IProjection projection, params EventSourceEnvelop[] sources);
 }
