@@ -124,8 +124,7 @@ public class SqlServerClient<T>(IServiceProvider sp, string conn) : ClientBase<T
             // apply consistent projections if any
             var pending = aggregate.FlushPendingEvents();
             await PrepareProjectionCommand(p =>
-                // does projection subscribes or reprojection wanted
-                !ProjectionRestorer.Subscribes(pending, p) && pending.Any(),
+                ProjectionRestorer.Subscribes(pending, p) && pending.Any(),
                 (names, values) => names.Select((x, i) => new SqlParameter
                 {
                     ParameterName = x.Key,
@@ -138,10 +137,7 @@ public class SqlServerClient<T>(IServiceProvider sp, string conn) : ClientBase<T
 
             await sqlTransaction.CommitAsync();
             logger.LogInformation($"Committed {x} pending event(s) for {typeof(T).Name}");
-
-            EventSourceEnvelop envelop = new(LongSourceId, GuidSourceId, aggregate.EventStream);
-            if(Projections.Any(x => x.Mode == ProjectionMode.Async))
-                ProjectionPool.Release((scope, ct) => RestoreProjections(envelop, scope));
+            ProjectionPool.Release((ct) => new(LongSourceId, GuidSourceId, pending));
         }
         catch(SqlException e)
         {
@@ -165,66 +161,46 @@ public class SqlServerClient<T>(IServiceProvider sp, string conn) : ClientBase<T
             throw;
         }
     }
-    public override async Task<long> RestoreProjections(EventSourceEnvelop source, IServiceScopeFactory scope)
+    public override async Task RestoreProjection(Projection p, IServiceProvider sp, params EventSourceEnvelop[] sources)
     {
-        try
+       try
         {
-            logger.LogInformation($"Restoring projections for event source {source.LId}.");
-            var sp = scope.CreateScope().ServiceProvider;
-            var projections = sp.GetServices<IProjection>().Where(x => x.Mode != ProjectionMode.Transient);
-            var restorer = sp.GetRequiredService<IProjectionRestorer>();
-            if(projections.Any(x => x.Configuration.Store == ProjectionStore.Redis))
+            logger.LogInformation($"Restoring {p} with {sources.Length} event sources.");
+            if(p.Configuration.Store == ProjectionStore.Redis)
             {
                 var redis = sp.GetRequiredService<IRedisService>();
-                var ps = projections.Where(x => x.Configuration.Store == ProjectionStore.Redis);
-                await redis.RestoreProjections(source, ps, restorer);
+                await redis.RestoreProjection(p, sources);
             }
-            if(projections.Any(x => x.Configuration.Store == ProjectionStore.Selected))
-            {
-                await using SqlConnection sqlConnection = new(conn);
-                await sqlConnection.OpenAsync();
-                await using SqlTransaction sqlTransaction = sqlConnection.BeginTransaction();
-                await using SqlCommand sqlCommand = sqlConnection.CreateCommand();
-                sqlCommand.Transaction = sqlTransaction;
 
-                await PrepareProjectionCommand((p) => !restorer.Subscribes(source.SourcedEvents, p),
+            await using SqlConnection sqlConnection = new(conn);
+            await sqlConnection.OpenAsync();
+            await using SqlTransaction sqlTransaction = sqlConnection.BeginTransaction();
+            await using SqlCommand sqlCommand = sqlConnection.CreateCommand();
+            sqlCommand.Transaction = sqlTransaction;
+
+            if(p.Configuration.Store == ProjectionStore.Selected)
+            {
+                sources.ToList().ForEach(async (source) =>
+                    await PrepareProjectionCommand((p) => true,
                     (names, values) => names.Select((x, i) => new SqlParameter
                     {
                         ParameterName = x.Key,
                         SqlDbType = (SqlDbType)x.Value,
                         SqlValue = values[i]
                     }).ToArray(),
-                    sqlCommand, source,
-                    projections.Where(x => x.Configuration.Store == ProjectionStore.Selected), restorer
+                    sqlCommand,
+                    source,
+                    [p], sp.GetRequiredService<IProjectionRestorer>())
                 );
-
-                await sqlTransaction.CommitAsync();
-                logger.LogInformation($"Restored projections for event source {source.LId}.");
             }
-            return source.LId;
-        }
-        catch(RedisException e)
-        {
-            if(logger.IsEnabled(LogLevel.Error))
-                logger.LogError($"Commit failure for {typeof(T).Name}. {e.Message}");
-            throw;
-        }
-        catch(SqlException e)
-        {
-            if(logger.IsEnabled(LogLevel.Error))
-                logger.LogError($"Commit failure restoring projections for source {source.LId}. {e.Message}");
-            throw;
-        }
-        catch(SerializationException e)
-        {
-            if(logger.IsEnabled(LogLevel.Error))
-                logger.LogError($"Commit failure restoring projections for source {source.LId}. {e.Message}");
-            throw;
+
+            await sqlTransaction.CommitAsync();
+            logger.LogInformation($"Done restoring {p} with {sources.Length} event sources.");
         }
         catch (Exception e)
         {
             if(logger.IsEnabled(LogLevel.Error))
-                logger.LogError($"Commit failure restoring projections for source {source.LId}. {e.Message}");
+                logger.LogError($"Restoring {p} failure. {e.Message}");
             throw;
         }
     }
@@ -283,16 +259,17 @@ public class SqlServerClient<T>(IServiceProvider sp, string conn) : ClientBase<T
             throw;
         }
     }
-    public override async Task<Checkpoint> LoadCheckpoint()
+    public override async Task<Checkpoint> LoadCheckpoint(IProjection projection)
     {
         try
         {
             await using SqlConnection sqlConnection = new(conn);
             await sqlConnection.OpenAsync();
             await using SqlCommand sqlCommand = new (Schema.LoadCheckpointCommand, sqlConnection);
+            sqlCommand.Parameters.AddWithValue("@subscription", nameof(projection));
             sqlCommand.Parameters.AddWithValue("@type", CheckpointType.Projection);
             SqlDataReader reader = await sqlCommand.ExecuteReaderAsync();
-            Checkpoint checkpoint = new(0, 0, CheckpointType.Projection);
+            Checkpoint checkpoint = new(nameof(projection), 0, 0, CheckpointType.Projection);
             long seq = 0;
             if(await reader.ReadAsync())
                 seq = reader.GetInt64("sequence");
@@ -307,16 +284,10 @@ public class SqlServerClient<T>(IServiceProvider sp, string conn) : ClientBase<T
             await reader.DisposeAsync();
             return checkpoint with { MaxSeq = maxSeq, Seq = seq};
         }
-        catch(SqlException e)
-        {
-            if(logger.IsEnabled(LogLevel.Error))
-                logger.LogError($"Checkpoint load failure for {typeof(T).Name}. {e.Message}");
-            throw;
-        }
         catch(Exception e)
         {
             if(logger.IsEnabled(LogLevel.Error))
-                logger.LogError($"Checkpoint load failure for {typeof(T).Name}. {e.Message}");
+                logger.LogError($"Failure loading checkpoint for {typeof(T).Name}. {e.Message}");
             throw;
         }
     }
@@ -332,16 +303,10 @@ public class SqlServerClient<T>(IServiceProvider sp, string conn) : ClientBase<T
             sqlCommand.Parameters.AddWithValue("@type", checkpoint.Type);
             await sqlCommand.ExecuteNonQueryAsync();
         }
-        catch(SqlException e)
-        {
-            if(logger.IsEnabled(LogLevel.Error))
-                logger.LogError($"Save checkpoint failure for {typeof(T).Name}. {e.Message}");
-            throw;
-        }
         catch(Exception e)
         {
             if(logger.IsEnabled(LogLevel.Error))
-                logger.LogError($"Save checkpoint failure for {typeof(T).Name}. {e.Message}");
+                logger.LogError($"Failure saving checkpoint for {typeof(T).Name}. {e.Message}");
             throw;
         }
     }
@@ -357,26 +322,14 @@ public class SqlServerClient<T>(IServiceProvider sp, string conn) : ClientBase<T
             var events = await LoadEvents(() => sqlCommand);
             return events;
         }
-        catch(SqlException e)
-        {
-            if(logger.IsEnabled(LogLevel.Error))
-                logger.LogError($"Loading events failure for {typeof(T).Name}. {e.Message}");
-            throw;
-        }
-        catch(SerializationException e)
-        {
-            if(logger.IsEnabled(LogLevel.Error))
-                logger.LogError($"Loading events failure for {typeof(T).Name}. {e.Message}");
-            throw;
-        }
         catch(Exception e)
         {
             if(logger.IsEnabled(LogLevel.Error))
-                logger.LogError($"Loading events failure for {typeof(T).Name}. {e.Message}");
+                logger.LogError($"Failure loading events for {typeof(T).Name}. {e.Message}");
             throw;
         }
     }
-    public override async Task<IEnumerable<EventEnvelop>> LoadEventSource(long sourceId)
+    public override async Task<EventSourceEnvelop> LoadEventSource(long sourceId)
     {
         try
         {
@@ -386,7 +339,7 @@ public class SqlServerClient<T>(IServiceProvider sp, string conn) : ClientBase<T
             sqlCommand.CommandText = Schema.LoadEventSourceCommand(SourceTId.ToString());
             sqlCommand.Parameters.AddWithValue("@sourceId", sourceId);
             var events = await LoadEvents(() => sqlCommand);
-            return events;
+            return new(events.First().LId, events.First().GId, events.Select(x => x.SourcedEvent));
         }
         catch(SqlException e)
         {

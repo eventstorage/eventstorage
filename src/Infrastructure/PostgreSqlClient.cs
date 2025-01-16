@@ -130,8 +130,7 @@ public class PostgreSqlClient<T>(IServiceProvider sp, string conn) : ClientBase<
             // apply consistent projections if any
             var pending = aggregate.FlushPendingEvents();
             await PrepareProjectionCommand(p =>
-                // does projection subscribes or reprojection wanted
-                !ProjectionRestorer.Subscribes(pending, p) && pending.Any(),
+                ProjectionRestorer.Subscribes(pending, p) && pending.Any(),
                 (names, values) => names.Select((x, i) => new NpgsqlParameter
                 {
                     ParameterName = x.Key,
@@ -188,7 +187,7 @@ public class PostgreSqlClient<T>(IServiceProvider sp, string conn) : ClientBase<
             if(p.Configuration.Store == ProjectionStore.Selected)
             {
                 sources.ToList().ForEach(async (source) =>
-                    await PrepareProjectionCommand((p) => false,
+                    await PrepareProjectionCommand((p) => true,
                     (names, values) => names.Select((x, i) => new NpgsqlParameter
                     {
                         ParameterName = x.Key,
@@ -295,7 +294,7 @@ public class PostgreSqlClient<T>(IServiceProvider sp, string conn) : ClientBase<
         catch(Exception e)
         {
             if(logger.IsEnabled(LogLevel.Error))
-                logger.LogError($"Checkpoint load failure for {typeof(T).Name}. {e.Message}");
+                logger.LogError($"Failure loading checkpoint for {typeof(T).Name}. {e.Message}");
             throw;
         }
     }
@@ -315,7 +314,7 @@ public class PostgreSqlClient<T>(IServiceProvider sp, string conn) : ClientBase<
         catch(Exception e)
         {
             if(logger.IsEnabled(LogLevel.Error))
-                logger.LogError($"Save checkpoint failure for {typeof(T).Name}. {e.Message}");
+                logger.LogError($"Failure saving checkpoint for {typeof(T).Name}. {e.Message}");
             throw;
         }
     }
@@ -331,22 +330,10 @@ public class PostgreSqlClient<T>(IServiceProvider sp, string conn) : ClientBase<
             var events = await LoadEvents(() => sqlCommand);
             return events;
         }
-        catch(NpgsqlException e)
-        {
-            if(logger.IsEnabled(LogLevel.Error))
-                logger.LogError($"Loading events failure for {typeof(T).Name}. {e.Message}");
-            throw;
-        }
-        catch(SerializationException e)
-        {
-            if(logger.IsEnabled(LogLevel.Error))
-                logger.LogError($"Loading events failure for {typeof(T).Name}. {e.Message}");
-            throw;
-        }
         catch(Exception e)
         {
             if(logger.IsEnabled(LogLevel.Error))
-                logger.LogError($"Loading events failure for {typeof(T).Name}. {e.Message}");
+                logger.LogError($"Failure loading events for {typeof(T).Name}. {e.Message}");
             throw;
         }
     }

@@ -92,14 +92,14 @@ public abstract class ClientBase<T>(IServiceProvider sp) : IEventStorage<T> wher
         }
     }
     protected async Task PrepareProjectionCommand(
-        Func<IProjection, bool> subscriptionCheck,
+        Func<IProjection, bool> subscribes,
         Func<Dictionary<string, object>, object[], DbParameter[]> parameters,
         DbCommand command, EventSourceEnvelop source, IEnumerable<IProjection> projections,
         IProjectionRestorer? restorer = null)
     {
         foreach (var projection in projections)
         {
-            if(subscriptionCheck(projection))
+            if(!subscribes(projection))
                 continue;
             restorer ??= ProjectionRestorer;
             var type = projection.GetType().BaseType?.GenericTypeArguments.First()?? default!;

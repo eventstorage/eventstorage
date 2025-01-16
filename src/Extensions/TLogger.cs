@@ -11,4 +11,9 @@ public static class TLogger
     });
     public static ILogger Create<T>() => _factory.CreateLogger<T>();
     public static void Log(this ILogger logger, string message) => logger.LogInformation(message);
+    public static void Error(this ILogger logger, string message)
+    {
+        if(logger.IsEnabled(LogLevel.Error))
+            logger.LogError(message);
+    }
 }

@@ -1,7 +1,5 @@
 using System.Collections.Concurrent;
-using EventStorage.AggregateRoot;
 using EventStorage.Events;
-using Microsoft.Extensions.DependencyInjection;
 
 namespace EventStorage.Workers;
 
