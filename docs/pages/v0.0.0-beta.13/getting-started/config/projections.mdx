@@ -214,14 +214,14 @@ public class OrderDocumentProjection : Projection<OrderDocument>
 {
     public static OrderDocument Project(OrderPlaced orderPlaced) =>
         new(orderPlaced.SourceId?.ToString()?? "", OrderStatus.Placed, orderPlaced.Version);
-    public static OrderDocument Project(OrderDocument order, OrderConfirmed orderConfirmed) =>
+    public static OrderDocument Project(OrderConfirmed orderConfirmed, OrderDocument order) =>
         order with { Status = OrderStatus.Confirmed, Version = orderConfirmed.Version };
 }
 ```
 
 Subscribe Redis `OrderDocProjection{:sh}` as well by adding another `Project` method:
 ```csharp title="OrderDocProjection.cs"
-public static OrderDoc Project(OrderDoc orderDocument, OrderConfirmed orderConfirmed)
+public static OrderDoc Project(OrderConfirmed orderConfirmed, OrderDoc orderDocument)
 {
     orderDocument.Status = OrderStatus.Confirmed;
     orderDocument.Version = orderConfirmed.Version;

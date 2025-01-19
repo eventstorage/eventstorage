@@ -165,7 +165,7 @@ public class OrderProjection : Projection<Order>
 {
     public static Order Project(OrderPlaced orderPlaced) => 
         new(orderPlaced.SourceId?.ToString()?? "", OrderStatus.Placed, orderPlaced.Version);
-    public static Order Project(Order order, OrderConfirmed orderConfirmed) =>
+    public static Order Project(OrderConfirmed orderConfirmed, Order order) =>
         order with { Status = OrderStatus.Confirmed, Version = orderConfirmed.Version };
 }
 ```
@@ -189,7 +189,7 @@ public class OrderDocumentProjection : Projection<OrderDocument>
         Version = orderPlaced.Version,
         Status = OrderStatus.Placed
     };
-    public static OrderDocument Project(OrderDocument orderDocument, OrderConfirmed orderConfirmed)
+    public static OrderDocument Project(OrderConfirmed orderConfirmed, OrderDocument orderDocument)
     {
         orderDocument.Status = OrderStatus.Confirmed;
         orderDocument.Version = orderConfirmed.Version;
