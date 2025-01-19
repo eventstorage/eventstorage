@@ -6,7 +6,7 @@ using Redis.OM.Searching;
 
 namespace EventStorage.Infrastructure;
 
-public class RedisService(IServiceProvider sp) : IRedisService
+public class RedisService(IServiceProvider sp, IProjectionRestorer restorer) : IRedisService
 {
     private readonly RedisConnectionProvider _provider = sp.GetRequiredService<RedisConnectionProvider>();
     private IRedisCollection<Td> Collection<Td>() where Td : notnull => _provider.RedisCollection<Td>();
@@ -16,14 +16,11 @@ public class RedisService(IServiceProvider sp) : IRedisService
         await Collection<Td>().InsertAsync(document);
     private async Task AddDocument(object document) =>
         await _provider.Connection.SetAsync(document);
-    public async Task RestoreProjections(
-        EventSourceEnvelop source, IEnumerable<IProjection> projections, IProjectionRestorer restorer)
+    public async Task RestoreProjection(IProjection projection, params EventSourceEnvelop[] sources)
     {
-        foreach (var projection in projections)
+        var type = projection.GetType().BaseType?.GenericTypeArguments.First()?? default!;
+        foreach (var source in sources)
         {
-            if(!restorer.Subscribes(source.SourcedEvents, projection))
-                continue;
-            var type = projection.GetType().BaseType?.GenericTypeArguments.First()?? default!;
             var document = restorer.Project(projection, source.SourcedEvents, type)?? default!;
             await AddDocument(document);
         }

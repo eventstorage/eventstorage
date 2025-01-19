@@ -28,7 +28,7 @@ jobs:
     - name: install net8
       uses: actions/setup-dotnet@v4
       with:
-        dotnet-version: 8.0.x
+        dotnet-version: 8.0.405
 
     - name: restore
       run: dotnet restore

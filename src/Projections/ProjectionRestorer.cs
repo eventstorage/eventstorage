@@ -15,9 +15,7 @@ public class ProjectionRestorer(IServiceProvider sp) : IProjectionRestorer
     public M? Project<M>(IEnumerable<SourcedEvent> events) =>
         (M?) Project(events, sp.GetRequiredService<IProjection<M>>(), typeof(M));
     public bool Subscribes(IEnumerable<SourcedEvent> events, IProjection projection) =>
-        projection.GetType().GetMethods().Where(m => m.Name == "Project")
-        .Any(m => events.Any(e =>  e.GetType().IsAssignableFrom(m.GetParameters()
-        .FirstOrDefault(x => typeof(SourcedEvent).IsAssignableFrom(x.ParameterType))?.ParameterType)));
+        projection.GetType().GetMethods().Where(m => m.Name == "Project").Subscribes(events);
     private object? Project(IEnumerable<SourcedEvent> events, object projection, Type model)
     {
         try
@@ -30,13 +28,13 @@ public class ProjectionRestorer(IServiceProvider sp) : IProjectionRestorer
             var record = initMethod.Invoke(projection, [events.First()]);
             foreach (var e in events.ToArray()[1..^0])
             {
-                var project = projection.GetType().GetMethod("Project", [model, e.GetType()]);
+                var project = projection.GetType().GetMethod("Project", [e.GetType(), model]);
                 if (project == null)
                 {
-                    logger.LogInformation($"No suitable projection method found {model.Name}, {e.GetType().Name}.");
+                    logger.LogWarning($"No suitable projection method found {model.Name}, {e.GetType().Name}.");
                     continue;
                 }
-                record = project.Invoke(projection, [record, e]);
+                record = project.Invoke(projection, [e, record]);
             }
             return record;
         }

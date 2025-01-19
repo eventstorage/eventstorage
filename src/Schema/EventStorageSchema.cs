@@ -47,11 +47,11 @@ public abstract class EventStorageSchema(string schema) : IEventStorageSchema
     public abstract string GetDocumentCommand<Td>(string sourceTId);
     public abstract string CreateCheckpointIfNotExists { get; }
     public virtual string LoadCheckpointCommand => @$"SELECT * FROM {Schema}.Checkpoints
-        WHERE Type=@type";
+        WHERE Subscription=@subscription and Type=@type";
     public virtual string SaveCheckpointCommand => @$"UPDATE {Schema}.Checkpoints
-        SET Sequence=@sequence WHERE Type=@type";
+        SET Sequence=@sequence WHERE Subscription=@subscription and Type=@type";
     public virtual string InsertCheckpointCommand => @$"INSERT INTO {Schema}.Checkpoints
-        (Sequence, Type) VALUES (@sequence, @type)";
+        (Subscription, Type, Sequence) VALUES (@subscription, @type, @sequence)";
     public abstract string LoadEventsPastCheckpoint { get; }
     public virtual string CreateConcurrencyCheckFunction => "";
     public abstract string CheckConcurrency { get; }

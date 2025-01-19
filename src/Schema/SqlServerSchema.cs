@@ -46,8 +46,9 @@ public class SqlServerSchema(string schema) : EventStorageSchema(schema)
     public override string CreateCheckpointIfNotExists =>
         @$"IF OBJECT_ID('{Schema}.Checkpoints') IS NULL
         CREATE TABLE [{Schema}].[Checkpoints](
-        [Id] [bigint] IDENTITY(1,1) NOT NULL,
+        [Id] [tinyint] IDENTITY(1,1) NOT NULL,
         [Sequence] [bigint] NOT NULL,
+        [Subscription] nvarchar(100) NOT NULL,
         [Type] [tinyint] NOT NULL,
         CONSTRAINT [Pk_Checkpoints_Id] PRIMARY KEY ([Id]),
         INDEX [IX_Checkpoints_Sequence] NONCLUSTERED (Sequence))";

@@ -29,8 +29,8 @@ public static class EventStorageExtensions
 
         configure(source);
         return source.Initialize()
-            .ConfigureProjectionRestorer()
-            .RunAsyncProjectionEngine();
+            .ConfigureProjections()
+            .RunProjectionEngine();
     }
     public static void Dispatch(
         this EventStorageConfiguration config,

@@ -6,7 +6,7 @@ public interface IProjection
     ProjectionConfiguration Configuration {  get; }
 }
 internal interface IProjection<M> : IProjection;
-public abstract class Projection
+public abstract class Projection : IProjection
 {
     public ProjectionMode Mode { get; set; }
     public ProjectionConfiguration Configuration { get; set; } = new();

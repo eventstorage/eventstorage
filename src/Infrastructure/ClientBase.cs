@@ -6,6 +6,7 @@ using EventStorage.Events;
 using EventStorage.Projections;
 using EventStorage.Schema;
 using EventStorage.Workers;
+using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.DependencyInjection;
 using TDiscover;
 
@@ -30,10 +31,10 @@ public abstract class ClientBase<T>(IServiceProvider sp) : IEventStorage<T> wher
     public abstract Task Commit(T t);
     public abstract Task<M?> Project<M>(string sourceId) where M : class;
     public abstract Task<IEnumerable<EventEnvelop>> LoadEventSource(long sourceId);
-    public abstract Task<Checkpoint> LoadCheckpoint();
+    public abstract Task<Checkpoint> LoadCheckpoint(IProjection projection);
     public abstract Task SaveCheckpoint(Checkpoint checkpoint, bool insert = false);
     public abstract Task<IEnumerable<EventEnvelop>> LoadEventsPastCheckpoint(Checkpoint c);
-    public abstract Task<long> RestoreProjections(EventSourceEnvelop source, IServiceScopeFactory scope);
+    public abstract Task RestoreProjection(Projection projection, IServiceProvider sp, params EventSourceEnvelop[] sources);
     protected Type ResolveEventType(string typeName) => Td.FindByTypeName<SourcedEvent>(typeName)??
         throw new Exception($"Couldn't determine event type while resolving {typeName}.");
     #pragma warning disable CS8619
@@ -70,7 +71,7 @@ public abstract class ClientBase<T>(IServiceProvider sp) : IEventStorage<T> wher
             var type = ResolveEventType(typeName);
             var json = reader.GetString(EventStorageSchema.Data);
             var sourcedEvent = JsonSerializer.Deserialize(json, type) as SourcedEvent?? default!;
-            events.Add(new EventEnvelop(sequence, LongSourceId, GuidSourceId, sourcedEvent));
+            events.Add(new(sequence, LongSourceId, GuidSourceId, sourcedEvent));
         }
         return events;
     }
@@ -91,14 +92,14 @@ public abstract class ClientBase<T>(IServiceProvider sp) : IEventStorage<T> wher
         }
     }
     protected async Task PrepareProjectionCommand(
-        Func<IProjection, bool> subscriptionCheck,
+        Func<IProjection, bool> subscribes,
         Func<Dictionary<string, object>, object[], DbParameter[]> parameters,
         DbCommand command, EventSourceEnvelop source, IEnumerable<IProjection> projections,
         IProjectionRestorer? restorer = null)
     {
         foreach (var projection in projections)
         {
-            if(subscriptionCheck(projection))
+            if(!subscribes(projection))
                 continue;
             restorer ??= ProjectionRestorer;
             var type = projection.GetType().BaseType?.GenericTypeArguments.First()?? default!;

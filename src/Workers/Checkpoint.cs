@@ -6,4 +6,8 @@ public enum CheckpointType
     Kafka = 1,
     RabbitMQ = 2
 }
-public record Checkpoint(long MaxSeq, long Seq, CheckpointType Type);
+public record Checkpoint(
+    string Subscription,
+    long Seq,
+    long MaxSeq,
+    CheckpointType Type = CheckpointType.Projection);
