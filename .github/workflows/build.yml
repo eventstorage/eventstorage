@@ -29,9 +29,6 @@ jobs:
       uses: actions/setup-dotnet@v4
       with:
         dotnet-version: 8.0.405
-      
-    - name: list sdks
-      run: dotnet --list-sdks
 
     - name: restore
       run: dotnet restore
@@ -65,12 +62,14 @@ jobs:
     steps:
     - name: checkout repo
       uses: actions/checkout@v4
+    
+    - name: install net8
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: 8.0.405
 
     - name: run scripts
       run: ./scripts.sh
-      
-    - name: list sdks
-      run: dotnet --list-sdks
 
     - name: test
       run: |
