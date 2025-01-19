@@ -14,7 +14,7 @@ public class EventSourceConfiguration(IServiceCollection services, string? schem
     : EventStorageConfiguration(services, schema, conn)
 {
     internal Type T { get; set; } = default!;
-    internal Dictionary<Projection, List<MethodInfo>> ConfiguredProjections = [];
+    internal Dictionary<Projection, IEnumerable<MethodInfo>> ConfiguredProjections = [];
 
     // initialize stores while app spins up
     public EventSourceConfiguration Initialize()
@@ -34,7 +34,7 @@ public class EventSourceConfiguration(IServiceCollection services, string? schem
     // pre-compiling projections for future use if more perf needed
     public EventSourceConfiguration ConfigureProjections()
     {
-        foreach (var projection in Projections)
+        foreach (var projection in Projections.Where(x => x.Mode == ProjectionMode.Async))
         {
             var methods = projection.GetMethods();
             ConfiguredProjections.Add(projection, methods.ToList());
@@ -46,9 +46,8 @@ public class EventSourceConfiguration(IServiceCollection services, string? schem
     {
         ServiceCollection.AddSingleton<IAsyncProjectionPool, AsyncProjectionPool>();
         var engineType = typeof(AsyncProjectionEngine<>).MakeGenericType(T);
-        var projections = ConfiguredProjections.Where(x => x.Key.Mode == ProjectionMode.Async);
         ServiceCollection.AddSingleton(typeof(IHostedService), sp =>
-            Activator.CreateInstance(engineType, sp, projections)?? default!);
+            Activator.CreateInstance(engineType, sp, ConfiguredProjections)?? default!);
         return this;
     }
 }

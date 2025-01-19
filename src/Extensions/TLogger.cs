@@ -6,8 +6,7 @@ public static class TLogger
 {
     private static ILoggerFactory _factory = LoggerFactory.Create(builder =>
     {
-        builder.AddConsole()
-        .AddDebug();
+        builder.AddConsole();
     });
     public static ILogger Create<T>() => _factory.CreateLogger<T>();
     public static void Log(this ILogger logger, string message) => logger.LogInformation(message);

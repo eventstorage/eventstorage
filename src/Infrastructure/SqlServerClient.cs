@@ -94,7 +94,7 @@ public class SqlServerClient<T>(IServiceProvider sp, string conn) : ClientBase<T
     public override async Task Commit(T aggregate)
     {
         var x = aggregate.PendingEvents.Count();
-        logger.LogInformation($"Preparing to commit {x} pending event(s) for {typeof(T).Name}");
+        logger.Log($"Preparing to commit {x} pending event(s) for event source {LongSourceId}.");
         
         await using SqlConnection sqlConnection = new(conn);
         await sqlConnection.OpenAsync();
@@ -329,7 +329,7 @@ public class SqlServerClient<T>(IServiceProvider sp, string conn) : ClientBase<T
             throw;
         }
     }
-    public override async Task<EventSourceEnvelop> LoadEventSource(long sourceId)
+    public override async Task<IEnumerable<EventEnvelop>> LoadEventSource(long sourceId)
     {
         try
         {
@@ -339,7 +339,7 @@ public class SqlServerClient<T>(IServiceProvider sp, string conn) : ClientBase<T
             sqlCommand.CommandText = Schema.LoadEventSourceCommand(SourceTId.ToString());
             sqlCommand.Parameters.AddWithValue("@sourceId", sourceId);
             var events = await LoadEvents(() => sqlCommand);
-            return new(events.First().LId, events.First().GId, events.Select(x => x.SourcedEvent));
+            return events;
         }
         catch(SqlException e)
         {

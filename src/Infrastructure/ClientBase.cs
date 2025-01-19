@@ -30,7 +30,7 @@ public abstract class ClientBase<T>(IServiceProvider sp) : IEventStorage<T> wher
     public abstract Task<T> CreateOrRestore(string? sourceId = null);
     public abstract Task Commit(T t);
     public abstract Task<M?> Project<M>(string sourceId) where M : class;
-    public abstract Task<EventSourceEnvelop> LoadEventSource(long sourceId);
+    public abstract Task<IEnumerable<EventEnvelop>> LoadEventSource(long sourceId);
     public abstract Task<Checkpoint> LoadCheckpoint(IProjection projection);
     public abstract Task SaveCheckpoint(Checkpoint checkpoint, bool insert = false);
     public abstract Task<IEnumerable<EventEnvelop>> LoadEventsPastCheckpoint(Checkpoint c);

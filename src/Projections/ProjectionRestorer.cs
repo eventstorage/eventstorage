@@ -31,7 +31,7 @@ public class ProjectionRestorer(IServiceProvider sp) : IProjectionRestorer
                 var project = projection.GetType().GetMethod("Project", [e.GetType(), model]);
                 if (project == null)
                 {
-                    logger.LogInformation($"No suitable projection method found {model.Name}, {e.GetType().Name}.");
+                    logger.LogWarning($"No suitable projection method found {model.Name}, {e.GetType().Name}.");
                     continue;
                 }
                 record = project.Invoke(projection, [e, record]);

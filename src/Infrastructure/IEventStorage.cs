@@ -11,7 +11,7 @@ public interface IEventStorage<T>
     Task<T> CreateOrRestore(string? sourceId = null);
     Task Commit(T t);
     Task<M?> Project<M>(string sourceId) where M : class;
-    internal Task<EventSourceEnvelop> LoadEventSource(long sourceId);
+    internal Task<IEnumerable<EventEnvelop>> LoadEventSource(long sourceId);
     internal Task<Checkpoint> LoadCheckpoint(IProjection projection);
     internal Task SaveCheckpoint(Checkpoint checkpoint, bool insert = false);
     internal Task<IEnumerable<EventEnvelop>> LoadEventsPastCheckpoint(Checkpoint c);
