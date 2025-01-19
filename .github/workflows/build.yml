@@ -65,6 +65,9 @@ jobs:
 
     - name: run scripts
       run: ./scripts.sh
+      
+    - name: list sdks
+      run: dotnet --list-sdks
 
     - name: test
       run: |
