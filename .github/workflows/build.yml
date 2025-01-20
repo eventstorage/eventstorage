@@ -42,7 +42,7 @@ jobs:
   test:
     if: ${{ success() }}
     needs: build
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-23.x
 
     services:
       mssql:
@@ -75,7 +75,7 @@ jobs:
       run: lsb_release -a
 
     - name: try sqlcmd
-      run: sqlcmd -s localhost -U sa -P sysadmin@2024 -Q"select name from sys.databases"
+      run: sqlcmd -s localhost -U sa -P sysadmin@1234 -Q"select name from sys.databases"
 
     - name: run scripts
       run: ./scripts.sh
