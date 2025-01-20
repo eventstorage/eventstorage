@@ -22,6 +22,9 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+    - name: ubuntu version
+      run: lsb_release -a
+
     - name: checkout repo
       uses: actions/checkout@v4
     
@@ -39,7 +42,7 @@ jobs:
   test:
     if: ${{ success() }}
     needs: build
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22
 
     services:
       mssql:
@@ -68,6 +71,9 @@ jobs:
       with:
         dotnet-version: 8.0.405
         
+    - name: ubuntu version
+      run: lsb_release -a
+
     - name: try sqlcmd
       run: sqlcmd -s localhost -U sa -P sysadmin@2024 -Q"select name from sys.databases"
 
