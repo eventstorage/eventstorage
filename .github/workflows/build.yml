@@ -19,19 +19,22 @@ env:
 jobs:
   
   build:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
 
     steps:
-    - name: ubuntu version
-      run: lsb_release -a
-
     - name: checkout repo
       uses: actions/checkout@v4
+
+    - name: list sdks
+      run: dotnet --list-sdks
     
     - name: install net8
       uses: actions/setup-dotnet@v4
       with:
-        dotnet-version: 8.0.405
+        dotnet-version: 8.0.x
+      
+    - name: list sdks
+      run: dotnet --list-sdks
 
     - name: restore
       run: dotnet restore
@@ -42,7 +45,7 @@ jobs:
   test:
     if: ${{ success() }}
     needs: build
-    runs-on: ubuntu-23.x
+    runs-on: ubuntu-22.04
 
     services:
       mssql:
@@ -63,19 +66,12 @@ jobs:
           POSTGRES_PASSWORD: ${{ env.postgreqlpassword }}
 
     steps:
+      
+    - name: list sdks
+      run: dotnet --list-sdks
+      
     - name: checkout repo
       uses: actions/checkout@v4
-    
-    - name: install net8
-      uses: actions/setup-dotnet@v4
-      with:
-        dotnet-version: 8.0.405
-
-    - name: ubuntu version
-      run: lsb_release -a
-
-    - name: try sqlcmd
-      run: sqlcmd -s localhost -U sa -P sysadmin@1234 -Q"select name from sys.databases"
 
     - name: run scripts
       run: ./scripts.sh
