@@ -67,6 +67,9 @@ jobs:
       uses: actions/setup-dotnet@v4
       with:
         dotnet-version: 8.0.405
+        
+    - name: try sqlcmd
+      run: sqlcmd -s localhost -U sa -P sysadmin@2024 -Q"select name from sys.databases"
 
     - name: run scripts
       run: ./scripts.sh
