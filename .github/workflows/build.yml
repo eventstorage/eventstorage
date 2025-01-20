@@ -24,17 +24,11 @@ jobs:
     steps:
     - name: checkout repo
       uses: actions/checkout@v4
-
-    - name: list sdks
-      run: dotnet --list-sdks
     
     - name: install net8
       uses: actions/setup-dotnet@v4
       with:
         dotnet-version: 8.0.x
-      
-    - name: list sdks
-      run: dotnet --list-sdks
 
     - name: restore
       run: dotnet restore
@@ -66,10 +60,6 @@ jobs:
           POSTGRES_PASSWORD: ${{ env.postgreqlpassword }}
 
     steps:
-      
-    - name: list sdks
-      run: dotnet --list-sdks
-      
     - name: checkout repo
       uses: actions/checkout@v4
 
