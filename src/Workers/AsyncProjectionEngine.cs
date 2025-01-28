@@ -1,7 +1,10 @@
 using System.Collections.Concurrent;
+using System.Diagnostics;
 using System.Reflection;
 using EventStorage.Events;
 using EventStorage.Extensions;
+
+// using EventStorage.Extensions;
 using EventStorage.Infrastructure;
 using EventStorage.Projections;
 using Microsoft.Extensions.DependencyInjection;
@@ -17,7 +20,7 @@ internal sealed class AsyncProjectionEngine<T>(IServiceProvider sp,
     private readonly IAsyncProjectionPool _pool = sp.GetRequiredService<IAsyncProjectionPool>();
     private readonly IEventStorage<T> _storage = sp.CreateScope().ServiceProvider.GetRequiredService<IEventStorage<T>>();
     private readonly IServiceScopeFactory _scope = sp.GetRequiredService<IServiceScopeFactory>();
-    private readonly ConcurrentDictionary<Projection, Func<Task>> _projectionTasks = [];
+    private readonly ConcurrentDictionary<Projection, Dictionary<long, Task>> _projectionTasks = [];
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         _logger.Log($"Started restoring {projections.Count} async projections...");
@@ -31,11 +34,12 @@ internal sealed class AsyncProjectionEngine<T>(IServiceProvider sp,
     }
     public async Task RestoreProjections(CancellationToken ct)
     {
-        foreach (var projection in projections)
+        try
         {
-            try
+            foreach (var projection in projections)
             {
                 var pname = projection.Key.GetType().Name;
+                // fix the checkpoint maxSeq bug
                 var checkpoint = await _storage.LoadCheckpoint(projection.Key);
                 _logger.Log($"Started restoring {pname} from checkpoint {checkpoint.Seq}.");
                 while(!ct.IsCancellationRequested)
@@ -65,11 +69,12 @@ internal sealed class AsyncProjectionEngine<T>(IServiceProvider sp,
                 }
                 _logger.Log($"Done restoring {pname} with checkpoint {checkpoint.Seq}.");
             }
-            catch (Exception e)
-            {
-                if(_logger.IsEnabled(LogLevel.Error))
-                    _logger.LogError($"Failure restoring {nameof(projection)}.{Environment.NewLine} {e.StackTrace}.");
-            }
+        }
+        catch (Exception e)
+        {
+            if(_logger.IsEnabled(LogLevel.Error))
+                _logger.Error($"Failure restoring projections.{Environment.NewLine} {e.StackTrace}.");
+            // throw;
         }
     }
     private async Task<EventSourceEnvelop> CheckEventSourceIntegrity(EventSourceEnvelop source)
@@ -84,43 +89,58 @@ internal sealed class AsyncProjectionEngine<T>(IServiceProvider sp,
     }
     public async Task StartPolling(CancellationToken ct)
     {
-        await _pool.PollAsync(ct);
+        _pool.Poll(ct);
         var x = _pool.QueuedProjections.Count;
         _logger.Log($"{x} queued items pending exceution from projection pool.");
-
+        IEnumerable<EventEnvelop> events = [];
         while(_pool.Peek() != null && !ct.IsCancellationRequested)
         {
             var queuedItem = _pool.Peek()?? default!;
             var item = queuedItem(ct);
-            var events = await _storage.LoadEventSource(item.LId);
-            foreach (var projection in projections)
-            {
-                if(!projection.Value.Subscribes(item.SourcedEvents) && item.SourcedEvents.Any())
-                    continue;
-                var task = () => _storage.RestoreProjection(projection.Key, sp, events.Envelop())
-                    .ContinueWith(x =>
-                    {
-                        _storage.SaveCheckpoint(new(projection.Key.GetType().Name, events.Last().Seq, 0));
-                        _projectionTasks.Remove(projection.Key, out var value);
-                    });
-                _projectionTasks.TryAdd(projection.Key, task);
-            }
-            x = _projectionTasks.Count;
-            _logger.Log($"Started restoring {x} projections for event source {item.LId}.");
             try
             {
-                await Task.WhenAll(_projectionTasks.Values.Select(task => task()));
+                events = await _storage.LoadEventSource(item.LId);
+            }
+            catch(Exception e)
+            {
+                _logger.Error($"{Environment.NewLine}{e.StackTrace}.");
+                break;
+            }
+            Parallel.ForEach(projections, p => {
+                if(!p.Value.Subscribes(item.SourcedEvents) && item.SourcedEvents.Any())
+                    return;
+                var task = Task.Run(() => _storage.RestoreProjection(p.Key, sp, events.Envelop()), ct)
+                    .ContinueWith((_, o) => {
+                        if(_.IsFaulted || ct.IsCancellationRequested)
+                            throw _.Exception?.InnerException?? default!;
+                        _storage.SaveCheckpoint(new(p.Key.GetType().Name, events.Last().Seq, 0));
+                        _projectionTasks[p.Key].Remove(item.LId);
+                    }, TaskContinuationOptions.None, ct);
+
+                _projectionTasks.AddOrUpdate(p.Key, (k) => new(){{item.LId, task}}, (k, v) => {
+                    v.Add(item.LId, task); return v;
+                });
+            });
+            
+            x = _projectionTasks.Count(x => x.Value.Values.Count != 0);
+            _logger.Log($"Restoring {x} projections for event source {item.LId}.");
+            var tasks = _projectionTasks.SelectMany(x => x.Value.Values.Select(x => x));
+            try
+            {
+                await Task.WhenAll(tasks).ConfigureAwait(false);
             }
             catch (Exception e)
             {
-                _logger.Error($"Projection task failed.{Environment.NewLine}{e.StackTrace}");
-                break;
+                _logger.Error(@$"Failure projecting event source {item.LId}: {e.Message}.
+                    {Environment.NewLine}{e.StackTrace}.");
             }
-            finally
-            {
-                _pool.Dequeue();
-                _logger.Log($"Done restoring {x} projections for event source {item.LId}.");
-            }
+            // foreach (var task in tasks)
+            // {
+            //     await task;
+            // }
+            _pool.Dequeue();
+            x = _projectionTasks.Count(x => x.Value.Values.Count == 0);
+            _logger.Log($"{x} projections are restored for event source {item.LId}.");
         }
     }
 }
