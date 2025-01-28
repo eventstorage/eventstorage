@@ -53,7 +53,8 @@ public class PostgreSqlSchema(string schema) : EventStorageSchema(schema)
         );
         CREATE INDEX IF NOT EXISTS Idx_Checkpoints_Sequence on {Schema}.Checkpoints (Sequence);";
     public override string LoadEventsPastCheckpoint => @$"SELECT Sequence, LongSourceId, GuidSourceId,
-        Data, Type FROM {Schema}.EventSources WHERE Sequence > @seq and Sequence <= @maxSeq LIMIT 2";
+        Data, Type FROM {Schema}.EventSources WHERE Sequence > @seq and Sequence <= @maxSeq
+        ORDER BY Sequence ASC LIMIT 100";
     public override string CreateConcurrencyCheckFunction =>
         @$"CREATE OR REPLACE FUNCTION {Schema}.check_concurrency(source_id bigint, expected integer)
         RETURNS VOID AS $$

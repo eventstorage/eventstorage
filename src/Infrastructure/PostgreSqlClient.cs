@@ -1,5 +1,6 @@
 using System.Data;
 using System.Data.Common;
+using System.Reflection;
 using System.Runtime.Serialization;
 using System.Text.Json;
 using EventStorage.AggregateRoot;
@@ -55,7 +56,7 @@ public class PostgreSqlClient<T>(IServiceProvider sp, string conn) : ClientBase<
     {
         try
         {
-            logger.LogInformation($"Restoring aggregate {typeof(T).Name} started.");
+            logger.Log($"Started creating or restoring {typeof(T).Name} aggregate.");
             await using NpgsqlConnection sqlConnection = new(conn);
             await sqlConnection.OpenAsync();
             await using NpgsqlCommand sqlCommand = sqlConnection.CreateCommand();
@@ -74,7 +75,7 @@ public class PostgreSqlClient<T>(IServiceProvider sp, string conn) : ClientBase<
             sourceId ??= await GenerateSourceId(sqlCommand);
             var aggregate = typeof(T).CreateAggregate<T>(sourceId);
             aggregate.RestoreAggregate(true, events.Select(x => x.SourcedEvent).ToArray());
-            logger.LogInformation($"Finished restoring aggregate {typeof(T).Name}.");
+            logger.LogInformation($"Finished restoring {typeof(T).Name} aggregate {sourceId}.");
 
             return aggregate;
         }
@@ -142,8 +143,9 @@ public class PostgreSqlClient<T>(IServiceProvider sp, string conn) : ClientBase<
             );
             
             await sqlTransaction.CommitAsync();
-            logger.LogInformation($"Committed {x} pending event(s) for {typeof(T).Name}");
-            ProjectionPool.Release((ct) => new(LongSourceId, GuidSourceId, pending));
+            logger.Log($"Committed {x} pending event(s) for event source {LongSourceId}");
+            EventSourceEnvelop envelop = new(LongSourceId, GuidSourceId, pending);
+            ProjectionPool.Release((ct) => envelop);
         }
         catch(NpgsqlException e)
         {
@@ -176,7 +178,6 @@ public class PostgreSqlClient<T>(IServiceProvider sp, string conn) : ClientBase<
                 var redis = sp.GetRequiredService<IRedisService>();
                 await redis.RestoreProjection(p, sources);
             }
-
             await using NpgsqlConnection sqlConnection = new(conn);
             await sqlConnection.OpenAsync();
             await using NpgsqlTransaction sqlTransaction = sqlConnection.BeginTransaction();
@@ -199,12 +200,13 @@ public class PostgreSqlClient<T>(IServiceProvider sp, string conn) : ClientBase<
                     [p], sp.GetRequiredService<IProjectionRestorer>());
                 }
             }
+            // Thread.Sleep(20000);
             await sqlTransaction.CommitAsync();
         }
         catch (Exception e)
         {
             if(logger.IsEnabled(LogLevel.Error))
-                logger.LogError($"Failure restoring {p.GetType().Name}. {e.Message}");
+                logger.LogError($"Failure restoring {p.GetType().Name}. {e.Message}.");
             throw;
         }
     }
@@ -338,7 +340,7 @@ public class PostgreSqlClient<T>(IServiceProvider sp, string conn) : ClientBase<
         catch(Exception e)
         {
             if(logger.IsEnabled(LogLevel.Error))
-                logger.LogError($"Loading events failure for {typeof(T).Name}. {e.Message}");
+                logger.LogError($"Failure loading event source {sourceId}. {e.Message}");
             throw;
         }
     }

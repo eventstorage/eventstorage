@@ -21,11 +21,11 @@ public static class Container
             eventstorage.AddEventSource(eventsource =>
             {
                 eventsource.Schema = "es";
-                eventsource.ConnectionString = configuration["azuresqlsecret"];
-                eventsource.Select(EventStore.AzureSql)
-                .Project<OrderProjection>(ProjectionMode.Transient)
-                .Project<OrderDetailProjection>(ProjectionMode.Async)
-                .Project<OrderDocumentProjection>(ProjectionMode.Async, src => src.Redis("redis://localhost"));
+                eventsource.ConnectionString = configuration["postgresqlsecret"];
+                eventsource.Select(EventStore.PostgresSql)
+                .Project<OrderProjection>(ProjectionMode.Async)
+                .Project<OrderDetailProjection>(ProjectionMode.Async);
+                // .Project<OrderDocumentProjection>(ProjectionMode.Async, src => src.Redis("redis://localhost"));
             });
         });
         return services.BuildServiceProvider();

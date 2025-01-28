@@ -50,7 +50,7 @@ public class SqlServerClient<T>(IServiceProvider sp, string conn) : ClientBase<T
     {
         try
         {
-            logger.LogInformation($"Restoring aggregate {typeof(T).Name} started.");
+            logger.Log($"Started creating or restoring {typeof(T).Name} aggregate.");
             await using SqlConnection sqlConnection = new(conn);
             await sqlConnection.OpenAsync();
             await using SqlCommand sqlCommand = sqlConnection.CreateCommand();
@@ -68,7 +68,7 @@ public class SqlServerClient<T>(IServiceProvider sp, string conn) : ClientBase<T
             sourceId ??= await GenerateSourceId(sqlCommand);
             var aggregate = typeof(T).CreateAggregate<T>(sourceId);
             aggregate.RestoreAggregate(true, events.Select(x => x.SourcedEvent).ToArray());
-            logger.LogInformation($"Finished restoring aggregate {typeof(T).Name}.");
+            logger.LogInformation($"Finished restoring {typeof(T).Name} aggregate {sourceId}.");
 
             return aggregate;
         }
@@ -136,8 +136,9 @@ public class SqlServerClient<T>(IServiceProvider sp, string conn) : ClientBase<T
             );
 
             await sqlTransaction.CommitAsync();
-            logger.LogInformation($"Committed {x} pending event(s) for {typeof(T).Name}");
-            ProjectionPool.Release((ct) => new(LongSourceId, GuidSourceId, pending));
+            logger.LogInformation($"Committed {x} pending event(s) for event source {LongSourceId}");
+            EventSourceEnvelop envelop = new(LongSourceId, GuidSourceId, pending);
+            ProjectionPool.Release((ct) => envelop);
         }
         catch(SqlException e)
         {
@@ -341,22 +342,10 @@ public class SqlServerClient<T>(IServiceProvider sp, string conn) : ClientBase<T
             var events = await LoadEvents(() => sqlCommand);
             return events;
         }
-        catch(SqlException e)
-        {
-            if(logger.IsEnabled(LogLevel.Error))
-                logger.LogError($"Loading events failure for {typeof(T).Name}. {e.Message}");
-            throw;
-        }
-        catch(SerializationException e)
-        {
-            if(logger.IsEnabled(LogLevel.Error))
-                logger.LogError($"Loading events failure for {typeof(T).Name}. {e.Message}");
-            throw;
-        }
         catch(Exception e)
         {
             if(logger.IsEnabled(LogLevel.Error))
-                logger.LogError($"Loading events failure for {typeof(T).Name}. {e.Message}");
+                logger.LogError($"Failure loading event source {sourceId}. {e.Message}");
             throw;
         }
     }

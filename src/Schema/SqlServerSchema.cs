@@ -53,7 +53,8 @@ public class SqlServerSchema(string schema) : EventStorageSchema(schema)
         CONSTRAINT [Pk_Checkpoints_Id] PRIMARY KEY ([Id]),
         INDEX [IX_Checkpoints_Sequence] NONCLUSTERED (Sequence))";
     public override string LoadEventsPastCheckpoint => @$"SELECT TOP 100 Sequence, LongSourceId,
-        GuidSourceId, Data, Type FROM {Schema}.EventSources WHERE Sequence > @seq and Sequence <= @maxSeq";
+        GuidSourceId, Data, Type FROM {Schema}.EventSources WHERE Sequence > @seq and Sequence <= @maxSeq
+        ORDER BY Sequence ASC";
     public override string CheckConcurrency => 
         @$"EXEC sp_executesql N'
         DECLARE @current INT
