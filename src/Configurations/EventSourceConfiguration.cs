@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Reflection;
 using EventStorage.AggregateRoot;
 using EventStorage.Extensions;
@@ -14,7 +15,7 @@ public class EventSourceConfiguration(IServiceCollection services, string? schem
     : EventStorageConfiguration(services, schema, conn)
 {
     internal Type T { get; set; } = default!;
-    internal Dictionary<Projection, IEnumerable<MethodInfo>> ConfiguredProjections = [];
+    internal ConcurrentDictionary<Projection, IEnumerable<MethodInfo>> ConfiguredProjections = [];
 
     // initialize stores while app spins up
     public EventSourceConfiguration Initialize()
@@ -37,7 +38,7 @@ public class EventSourceConfiguration(IServiceCollection services, string? schem
         foreach (var projection in Projections.Where(x => x.Mode == ProjectionMode.Async))
         {
             var methods = projection.GetMethods();
-            ConfiguredProjections.Add(projection, methods.ToList());
+            ConfiguredProjections.TryAdd(projection, methods);
         }
         ServiceCollection.AddSingleton<IProjectionRestorer>(sp => new ProjectionRestorer(sp));
         return this;

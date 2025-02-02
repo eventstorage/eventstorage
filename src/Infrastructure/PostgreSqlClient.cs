@@ -200,13 +200,12 @@ public class PostgreSqlClient<T>(IServiceProvider sp, string conn) : ClientBase<
                     [p], sp.GetRequiredService<IProjectionRestorer>());
                 }
             }
-            // Thread.Sleep(20000);
             await sqlTransaction.CommitAsync();
         }
         catch (Exception e)
         {
             if(logger.IsEnabled(LogLevel.Error))
-                logger.LogError($"Failure restoring {p.GetType().Name}. {e.Message}.");
+                logger.LogError($"Failure restoring {p.GetType().Name}.{Environment.NewLine}{e.Message}.");
             throw;
         }
     }
