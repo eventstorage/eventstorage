@@ -254,20 +254,13 @@ public class PostgreSqlClient<T>(IServiceProvider sp, string conn) : ClientBase<
             sqlCommand.Parameters.AddWithValue("@subscription", projection.GetType().Name);
             sqlCommand.Parameters.AddWithValue("@type", (int)CheckpointType.Projection);
             NpgsqlDataReader reader = await sqlCommand.ExecuteReaderAsync();
-            Checkpoint checkpoint = new(projection.GetType().Name, 0, 0, CheckpointType.Projection);
+            Checkpoint checkpoint = new(projection.GetType().Name, 0, 0);
             long seq = 0;
             if(await reader.ReadAsync())
                 seq = reader.GetInt64("sequence");
             else
                 await SaveCheckpoint(checkpoint, true);
-
-            await reader.DisposeAsync();
-            sqlCommand.CommandText = Schema.GetMaxSequenceId;
-            reader = await sqlCommand.ExecuteReaderAsync();
-            await reader.ReadAsync();
-            long maxSeq = reader.HasRows ? (long)reader.GetValue(0) : 0;
-            await reader.DisposeAsync();
-            return checkpoint with { Seq = seq, MaxSeq = maxSeq};
+            return checkpoint with { Seq = seq};
         }
         catch(Exception e)
         {
@@ -333,5 +326,15 @@ public class PostgreSqlClient<T>(IServiceProvider sp, string conn) : ClientBase<
                 logger.LogError($"Failure loading event source {sourceId}. {e.Message}");
             throw;
         }
+    }
+    public override async Task<long> LoadMaxSequence()
+    {
+        await using NpgsqlConnection sqlConnection = new(conn);
+        await sqlConnection.OpenAsync();
+        await using NpgsqlCommand sqlCommand = new(Schema.GetMaxSequenceId, sqlConnection);
+        await using NpgsqlDataReader reader = await sqlCommand.ExecuteReaderAsync();
+        await reader.ReadAsync();
+        long sequence = reader.HasRows ? (long)reader.GetValue(0) : 0;
+        return sequence;
     }
 }

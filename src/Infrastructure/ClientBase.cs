@@ -6,7 +6,6 @@ using EventStorage.Events;
 using EventStorage.Projections;
 using EventStorage.Schema;
 using EventStorage.Workers;
-using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.DependencyInjection;
 using TDiscover;
 
@@ -31,6 +30,7 @@ public abstract class ClientBase<T>(IServiceProvider sp) : IEventStorage<T> wher
     public abstract Task Commit(T t);
     public abstract Task<M?> Project<M>(string sourceId) where M : class;
     public abstract Task<IEnumerable<EventEnvelop>> LoadEventSource(long sourceId);
+    public abstract Task<long> LoadMaxSequence();
     public abstract Task<Checkpoint> LoadCheckpoint(IProjection projection);
     public abstract Task SaveCheckpoint(Checkpoint checkpoint, bool insert = false);
     public abstract Task<IEnumerable<EventEnvelop>> LoadEventsPastCheckpoint(Checkpoint c);

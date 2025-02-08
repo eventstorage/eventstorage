@@ -21,7 +21,7 @@ internal sealed class AsyncProjectionEngine<T>(IServiceProvider sp,
     private readonly SemaphoreSlim _retryPool = new(initialCount: 0, maxCount:1);
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        _logger.Log($"Started restoring {projections.Count} projections.");
+        _logger.Log($"Started restoring {projections.Count} async projections.");
         await RestoreProjections(stoppingToken);
         _logger.Log($"{projections.Count} projections are synced with event storage.");
         while(!stoppingToken.IsCancellationRequested)
@@ -34,8 +34,10 @@ internal sealed class AsyncProjectionEngine<T>(IServiceProvider sp,
     {
         try
         {
+            var maxSeq = await _storage.LoadMaxSequence();
             await projections.ParallelForEach(1, async (projection, ct) => {
-                var checkpoint = await _storage.LoadCheckpoint(projection.Key);
+                Checkpoint checkpoint = await _storage.LoadCheckpoint(projection.Key);
+                checkpoint = checkpoint with { MaxSeq = maxSeq };
                 var pname = projection.Key.GetType().Name;
                 _logger.Log($"Started restoring {pname} from checkpoint {checkpoint.Seq}.");
                 while(true)
@@ -146,19 +148,6 @@ internal sealed class AsyncProjectionEngine<T>(IServiceProvider sp,
             }, ct);
             _logger.Log($"{x} projections are restored for event source {item.LId}.");
             _pool.Dequeue();
-        }
-    }
-    private async Task RetryProjections(CancellationToken ct)
-    {
-        await _retryPool.WaitAsync(ct);
-        var tasks = _projectionTasks.SelectMany(x => x.Value.Values.Select(x => x));
-        try
-        {
-            await Task.WhenAll(tasks.Select(x => x())).ConfigureAwait(false);
-        }
-        catch(Exception)
-        {
-            throw;
         }
     }
 }

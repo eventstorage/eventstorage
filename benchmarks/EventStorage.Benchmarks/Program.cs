@@ -4,7 +4,7 @@ using EventStorage.Benchmarks;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 
-// initialize your db with 100 streams before running benchmarks
+// initialize your db with a bunch of streams before running benchmarks
 // comment out this portion once done and uncomment benchmark runner line 15
 var builder = Host.CreateApplicationBuilder(args);
 builder.Services.ConfigureContainer();

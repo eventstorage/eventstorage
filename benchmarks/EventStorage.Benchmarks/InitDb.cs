@@ -8,9 +8,10 @@ public class InitDb(IEventStorage<OrderBooking> storage) : IHostedService
 {
     public async Task StartAsync(CancellationToken cancellationToken)
     {
-        var numberOfStreams = 50;
+        var numberOfStreams = 100;
         for(int i = 0; i < numberOfStreams; i++)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             var aggregate = await storage.CreateOrRestore();
             aggregate.PlaceOrder(new PlaceOrder("", 0, ""));
             aggregate.ConfirmOrder(new ConfirmOrder());

@@ -270,20 +270,13 @@ public class SqlServerClient<T>(IServiceProvider sp, string conn) : ClientBase<T
             sqlCommand.Parameters.AddWithValue("@subscription", nameof(projection));
             sqlCommand.Parameters.AddWithValue("@type", CheckpointType.Projection);
             SqlDataReader reader = await sqlCommand.ExecuteReaderAsync();
-            Checkpoint checkpoint = new(nameof(projection), 0, 0, CheckpointType.Projection);
+            Checkpoint checkpoint = new(nameof(projection), 0, 0);
             long seq = 0;
             if(await reader.ReadAsync())
                 seq = reader.GetInt64("sequence");
             else
                 await SaveCheckpoint(checkpoint, true);
-
-            await reader.DisposeAsync();
-            sqlCommand.CommandText = Schema.GetMaxSequenceId;
-            reader = await sqlCommand.ExecuteReaderAsync();
-            await reader.ReadAsync();
-            long maxSeq = reader.HasRows ? (long)reader.GetValue(0) : 0;
-            await reader.DisposeAsync();
-            return checkpoint with { MaxSeq = maxSeq, Seq = seq};
+            return checkpoint with { Seq = seq};
         }
         catch(Exception e)
         {
@@ -348,5 +341,16 @@ public class SqlServerClient<T>(IServiceProvider sp, string conn) : ClientBase<T
                 logger.LogError($"Failure loading event source {sourceId}. {e.Message}");
             throw;
         }
+    }
+    public override async Task<long> LoadMaxSequence()
+    {
+        await using SqlConnection sqlConnection = new(conn);
+        await sqlConnection.OpenAsync();
+        await using SqlCommand sqlCommand = new(Schema.GetMaxSequenceId, sqlConnection);
+        await using SqlDataReader reader = await sqlCommand.ExecuteReaderAsync();
+        long sequence = 0;
+        if(await reader.ReadAsync())
+            sequence = reader.GetInt64("Sequence");
+        return sequence;
     }
 }

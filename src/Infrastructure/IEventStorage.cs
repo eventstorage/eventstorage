@@ -13,6 +13,7 @@ public interface IEventStorage<T>
     Task<M?> Project<M>(string sourceId) where M : class;
     internal Task<IEnumerable<EventEnvelop>> LoadEventSource(long sourceId);
     internal Task<Checkpoint> LoadCheckpoint(IProjection projection);
+    internal Task<long> LoadMaxSequence();
     internal Task SaveCheckpoint(Checkpoint checkpoint, bool insert = false);
     internal Task<IEnumerable<EventEnvelop>> LoadEventsPastCheckpoint(Checkpoint c);
     internal Task RestoreProjection(Projection projection, IServiceProvider sp, params EventSourceEnvelop[] envelops);
