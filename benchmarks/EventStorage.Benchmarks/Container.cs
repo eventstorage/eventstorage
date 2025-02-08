@@ -24,7 +24,8 @@ public static class Container
                 eventsource.ConnectionString = configuration["postgresqlsecret"];
                 eventsource.Select(EventStore.PostgresSql)
                 .Project<OrderProjection>(ProjectionMode.Async)
-                .Project<OrderDetailProjection>(ProjectionMode.Async);
+                .Project<OrderDetailProjection>(ProjectionMode.Async)
+                .Project<OrderDocumentProjection>(ProjectionMode.Async);
                 // .Project<OrderDocumentProjection>(ProjectionMode.Async, src => src.Redis("redis://localhost"));
             });
         });

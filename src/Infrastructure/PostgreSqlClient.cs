@@ -171,43 +171,34 @@ public class PostgreSqlClient<T>(IServiceProvider sp, string conn) : ClientBase<
     }
     public override async Task RestoreProjection(Projection p, IServiceProvider sp, params EventSourceEnvelop[] sources)
     {
-        try
+        if(p.Configuration.Store == ProjectionStore.Redis)
         {
-            if(p.Configuration.Store == ProjectionStore.Redis)
-            {
-                var redis = sp.GetRequiredService<IRedisService>();
-                await redis.RestoreProjection(p, sources);
-            }
-            await using NpgsqlConnection sqlConnection = new(conn);
-            await sqlConnection.OpenAsync();
-            await using NpgsqlTransaction sqlTransaction = sqlConnection.BeginTransaction();
-            await using NpgsqlCommand sqlCommand = sqlConnection.CreateCommand();
-            sqlCommand.Transaction = sqlTransaction;
+            var redis = sp.GetRequiredService<IRedisService>();
+            await redis.RestoreProjection(p, sources);
+        }
+        await using NpgsqlConnection sqlConnection = new(conn);
+        await sqlConnection.OpenAsync();
+        await using NpgsqlTransaction sqlTransaction = sqlConnection.BeginTransaction();
+        await using NpgsqlCommand sqlCommand = sqlConnection.CreateCommand();
+        sqlCommand.Transaction = sqlTransaction;
 
-            if(p.Configuration.Store == ProjectionStore.Selected)
-            {
-                foreach (var source in sources)
-                {
-                    await PrepareProjectionCommand((p) => true,
-                    (names, values) => names.Select((x, i) => new NpgsqlParameter
-                    {
-                        ParameterName = x.Key,
-                        NpgsqlDbType = (NpgsqlDbType)x.Value,
-                        NpgsqlValue = values[i]
-                    }).ToArray(),
-                    sqlCommand,
-                    source,
-                    [p], sp.GetRequiredService<IProjectionRestorer>());
-                }
-            }
-            await sqlTransaction.CommitAsync();
-        }
-        catch (Exception e)
+        if(p.Configuration.Store == ProjectionStore.Selected)
         {
-            if(logger.IsEnabled(LogLevel.Error))
-                logger.LogError($"Failure restoring {p.GetType().Name}.{Environment.NewLine}{e.Message}.");
-            throw;
+            foreach (var source in sources)
+            {
+                await PrepareProjectionCommand((p) => true,
+                (names, values) => names.Select((x, i) => new NpgsqlParameter
+                {
+                    ParameterName = x.Key,
+                    NpgsqlDbType = (NpgsqlDbType)x.Value,
+                    NpgsqlValue = values[i]
+                }).ToArray(),
+                sqlCommand,
+                source,
+                [p], sp.GetRequiredService<IProjectionRestorer>());
+            }
         }
+        await sqlTransaction.CommitAsync();
     }
     public override async Task<M?> Project<M>(string sourceId) where M : class
     {
