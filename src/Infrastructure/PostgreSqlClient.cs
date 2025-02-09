@@ -79,18 +79,6 @@ public class PostgreSqlClient<T>(IServiceProvider sp, string conn) : ClientBase<
 
             return aggregate;
         }
-        catch(NpgsqlException e)
-        {
-            if(logger.IsEnabled(LogLevel.Error))
-                logger.LogError($"Failed restoring aggregate {typeof(T).Name}. {e.Message}");
-            throw;
-        }
-        catch(SerializationException e)
-        {
-            if(logger.IsEnabled(LogLevel.Error))
-                logger.LogError($"Failed restoring aggregate {typeof(T).Name}. {e.Message}");
-            throw;
-        }
         catch (Exception e)
         {
             if(logger.IsEnabled(LogLevel.Error))
@@ -146,20 +134,6 @@ public class PostgreSqlClient<T>(IServiceProvider sp, string conn) : ClientBase<
             logger.Log($"Committed {x} pending event(s) for event source {LongSourceId}");
             EventSourceEnvelop envelop = new(LongSourceId, GuidSourceId, pending);
             ProjectionPool.Release((ct) => envelop);
-        }
-        catch(NpgsqlException e)
-        {
-            await sqlTransaction.RollbackAsync();
-            if(logger.IsEnabled(LogLevel.Error))
-                logger.LogError($"Commit failure for {aggregate.GetType().Name}. {e.Message}");
-            throw;
-        }
-        catch(SerializationException e)
-        {
-            await sqlTransaction.RollbackAsync();
-            if(logger.IsEnabled(LogLevel.Error))
-                logger.LogError($"Commit failure for {aggregate.GetType().Name}. {e.Message}");
-            throw;
         }
         catch (Exception e)
         {
@@ -246,28 +220,19 @@ public class PostgreSqlClient<T>(IServiceProvider sp, string conn) : ClientBase<
     }
     public override async Task<Checkpoint> LoadCheckpoint(IProjection projection)
     {
-        try
-        {
-            await using NpgsqlConnection sqlConnection = new(conn);
-            await sqlConnection.OpenAsync();
-            await using NpgsqlCommand sqlCommand = new(Schema.LoadCheckpointCommand, sqlConnection);
-            sqlCommand.Parameters.AddWithValue("@subscription", projection.GetType().Name);
-            sqlCommand.Parameters.AddWithValue("@type", (int)CheckpointType.Projection);
-            NpgsqlDataReader reader = await sqlCommand.ExecuteReaderAsync();
-            Checkpoint checkpoint = new(projection.GetType().Name, 0, 0);
-            long seq = 0;
-            if(await reader.ReadAsync())
-                seq = reader.GetInt64("sequence");
-            else
-                await SaveCheckpoint(checkpoint, true);
-            return checkpoint with { Seq = seq};
-        }
-        catch(Exception e)
-        {
-            if(logger.IsEnabled(LogLevel.Error))
-                logger.LogError($"Failure loading checkpoint for {typeof(T).Name}. {e.Message}");
-            throw;
-        }
+        await using NpgsqlConnection sqlConnection = new(conn);
+        await sqlConnection.OpenAsync();
+        await using NpgsqlCommand sqlCommand = new(Schema.LoadCheckpointCommand, sqlConnection);
+        sqlCommand.Parameters.AddWithValue("@subscription", projection.GetType().Name);
+        sqlCommand.Parameters.AddWithValue("@type", (int)CheckpointType.Projection);
+        NpgsqlDataReader reader = await sqlCommand.ExecuteReaderAsync();
+        Checkpoint checkpoint = new(projection.GetType().Name, 0, 0);
+        long seq = 0;
+        if(await reader.ReadAsync())
+            seq = reader.GetInt64("sequence");
+        else
+            await SaveCheckpoint(checkpoint, true);
+        return checkpoint with { Seq = seq};
     }
     public override async Task SaveCheckpoint(Checkpoint checkpoint, bool insert = false)
     {
@@ -291,41 +256,23 @@ public class PostgreSqlClient<T>(IServiceProvider sp, string conn) : ClientBase<
     }
     public override async Task<IEnumerable<EventEnvelop>> LoadEventsPastCheckpoint(Checkpoint c)
     {
-        try
-        {
-            await using NpgsqlConnection sqlConnection = new(conn);
-            await sqlConnection.OpenAsync();
-            await using NpgsqlCommand sqlCommand = new(Schema.LoadEventsPastCheckpoint, sqlConnection);
-            sqlCommand.Parameters.AddWithValue("@seq", c.Seq);
-            sqlCommand.Parameters.AddWithValue("@maxSeq", c.MaxSeq);
-            var events = await LoadEvents(() => sqlCommand);
-            return events;
-        }
-        catch(Exception e)
-        {
-            if(logger.IsEnabled(LogLevel.Error))
-                logger.LogError($"Failure loading events for {typeof(T).Name}. {e.Message}");
-            throw;
-        }
+        await using NpgsqlConnection sqlConnection = new(conn);
+        await sqlConnection.OpenAsync();
+        await using NpgsqlCommand sqlCommand = new(Schema.LoadEventsPastCheckpoint, sqlConnection);
+        sqlCommand.Parameters.AddWithValue("@seq", c.Seq);
+        sqlCommand.Parameters.AddWithValue("@maxSeq", c.MaxSeq);
+        var events = await LoadEvents(() => sqlCommand);
+        return events;
     }
     public override async Task<IEnumerable<EventEnvelop>> LoadEventSource(long sourceId)
     {
-        try
-        {
-            await using NpgsqlConnection sqlConnection = new(conn);
-            await sqlConnection.OpenAsync();
-            await using NpgsqlCommand sqlCommand = sqlConnection.CreateCommand();
-            sqlCommand.CommandText = Schema.LoadEventSourceCommand(TId.LongSourceId.ToString());
-            sqlCommand.Parameters.AddWithValue("@sourceId", sourceId);
-            var events = await LoadEvents(() => sqlCommand);
-            return events;
-        }
-        catch(Exception e)
-        {
-            if(logger.IsEnabled(LogLevel.Error))
-                logger.LogError($"Failure loading event source {sourceId}. {e.Message}");
-            throw;
-        }
+        await using NpgsqlConnection sqlConnection = new(conn);
+        await sqlConnection.OpenAsync();
+        await using NpgsqlCommand sqlCommand = sqlConnection.CreateCommand();
+        sqlCommand.CommandText = Schema.LoadEventSourceCommand(TId.LongSourceId.ToString());
+        sqlCommand.Parameters.AddWithValue("@sourceId", sourceId);
+        var events = await LoadEvents(() => sqlCommand);
+        return events;
     }
     public override async Task<long> LoadMaxSequence()
     {

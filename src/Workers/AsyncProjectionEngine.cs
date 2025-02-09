@@ -150,4 +150,17 @@ internal sealed class AsyncProjectionEngine<T>(IServiceProvider sp,
             _pool.Dequeue();
         }
     }
+    private async Task RetryProjections(CancellationToken ct)
+    {
+        await _retryPool.WaitAsync(ct);
+        var tasks = _projectionTasks.SelectMany(x => x.Value.Values.Select(x => x));
+        try
+        {
+            await Task.WhenAll(tasks.Select(x => x())).ConfigureAwait(false);
+        }
+        catch(Exception)
+        {
+            throw;
+        }
+    }
 }
