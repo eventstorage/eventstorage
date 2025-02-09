@@ -51,7 +51,7 @@ public class PostgreSqlSchema(string schema) : EventStorageSchema(schema)
             Sequence bigint NOT NULL,
             CONSTRAINT Pk_Checkpoints_Id PRIMARY KEY (Id)
         );
-        CREATE INDEX IF NOT EXISTS Idx_Checkpoints_Sequence on {Schema}.Checkpoints (Sequence);";
+        CREATE INDEX IF NOT EXISTS Idx_Checkpoints_Subscription on {Schema}.Checkpoints (Subscription);";
     public override string LoadEventsPastCheckpoint => @$"SELECT Sequence, LongSourceId, GuidSourceId,
         Data, Type FROM {Schema}.EventSources WHERE Sequence > @seq and Sequence <= @maxSeq
         ORDER BY Sequence ASC LIMIT 25";

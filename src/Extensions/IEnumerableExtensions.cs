@@ -15,7 +15,7 @@ public static class IEnumerableExtensions
         Func<T, CancellationToken, Task> body,
         CancellationToken ct)
     {
-        using SemaphoreSlim throttler = new(dop);
+        using SemaphoreSlim throttler = new(1, dop);
         ConcurrentBag<Exception> exceptions = [];
         await Task.WhenAll(
             from item in items

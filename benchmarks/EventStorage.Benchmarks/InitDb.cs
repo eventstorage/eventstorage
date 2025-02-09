@@ -8,7 +8,7 @@ public class InitDb(IEventStorage<OrderBooking> storage) : IHostedService
 {
     public async Task StartAsync(CancellationToken cancellationToken)
     {
-        var numberOfStreams = 100;
+        var numberOfStreams = 200;
         for(int i = 0; i < numberOfStreams; i++)
         {
             cancellationToken.ThrowIfCancellationRequested();

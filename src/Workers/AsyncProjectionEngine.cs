@@ -104,6 +104,7 @@ internal sealed class AsyncProjectionEngine<T>(IServiceProvider sp,
             catch(Exception e)
             {
                 _logger.Error($"Failure loading event source {item.LId}. {e.Message}.");
+                break;
             }
             x = 0;
             _logger.Log($"Restoring {projections.Count} projections for event source {item.LId}.");
