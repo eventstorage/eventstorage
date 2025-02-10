@@ -5,7 +5,7 @@ namespace EventStorage.Workers;
 
 public interface IAsyncProjectionPool
 {
-    void Poll(CancellationToken token);
+    Task PollAsync(CancellationToken token);
     Func<CancellationToken, EventSourceEnvelop>? Dequeue();
     Func<CancellationToken, EventSourceEnvelop>? Peek();
     void Release(Func<CancellationToken, EventSourceEnvelop> envelop);
@@ -16,7 +16,7 @@ public class AsyncProjectionPool : IAsyncProjectionPool
     private readonly SemaphoreSlim _pool = new(1);
     private readonly ConcurrentQueue<Func<CancellationToken, EventSourceEnvelop>> _queue = [];
     public ConcurrentQueue<Func<CancellationToken, EventSourceEnvelop>> QueuedProjections => _queue;
-    public void Poll(CancellationToken token) => _pool.Wait(token);
+    public async Task PollAsync(CancellationToken token) => await _pool.WaitAsync(token);
     public Func<CancellationToken, EventSourceEnvelop>? Dequeue()
     {
         QueuedProjections.TryDequeue(out var item);

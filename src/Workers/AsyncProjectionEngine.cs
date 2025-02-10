@@ -18,12 +18,13 @@ internal sealed class AsyncProjectionEngine<T>(IServiceProvider sp,
     private readonly IAsyncProjectionPool _pool = sp.GetRequiredService<IAsyncProjectionPool>();
     private readonly IEventStorage<T> _storage = sp.CreateScope().ServiceProvider.GetRequiredService<IEventStorage<T>>();
     private readonly ConcurrentDictionary<Projection, Dictionary<long, Func<Task>>> _projectionTasks = [];
-    private readonly SemaphoreSlim _retryPool = new(initialCount: 0, maxCount:1);
+    private readonly SemaphoreSlim _dlqPool = new(initialCount: 1, maxCount:1);
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         _logger.Log($"Started restoring {projections.Count} async projections.");
         await RestoreProjections(stoppingToken);
         _logger.Log($"{projections.Count} projections are synced with event storage.");
+        _ = Task.Run(() => StartDlq(stoppingToken), stoppingToken);
         while(!stoppingToken.IsCancellationRequested)
         {
             _logger.Log("Polling for tasks from projection pool.");
@@ -66,7 +67,6 @@ internal sealed class AsyncProjectionEngine<T>(IServiceProvider sp,
                     checkpoint = checkpoint with { Seq = events.Last().Seq };
                     await _storage.SaveCheckpoint(checkpoint);
                     _logger.Log($"Restored {pname} and saved checkpoint {checkpoint.Seq}.");
-                    // await Task.Delay(1000, ct);
                 }
                 _logger.Log($"{pname} is synced with event storage, checkpoint {checkpoint.Seq}.");
             }, ct);
@@ -89,7 +89,7 @@ internal sealed class AsyncProjectionEngine<T>(IServiceProvider sp,
     }
     private async Task StartPolling(CancellationToken ct)
     {
-        _pool.Poll(ct);
+        await _pool.PollAsync(ct);
         var x = _pool.QueuedProjections.Count;
         _logger.Log($"{x} queued items pending exceution from projection pool.");
         IEnumerable<EventEnvelop> events = [];
@@ -118,8 +118,8 @@ internal sealed class AsyncProjectionEngine<T>(IServiceProvider sp,
                 {
                     if(_.IsFaulted)
                     {
-                        _logger.Error($"Error restoring {pname} for event source {item.LId}.");
-                        throw _.Exception;
+                        _logger.Error(@$"Error restoring {pname} for event source {item.LId}.");
+                        throw _.Exception?? default!;
                     }
                     if(item.SourcedEvents.Any())
                         _storage.SaveCheckpoint(new(pname, events.Last().Seq, 0));
@@ -139,10 +139,10 @@ internal sealed class AsyncProjectionEngine<T>(IServiceProvider sp,
                 foreach (var task in tasks)
                 {
                     try{await task();}
-                    catch (Exception e)
+                    catch
                     {
-                        _logger.Error($"{e.Message}.");
-                        // _retryPoo?l
+                        if(_dlqPool.CurrentCount == 0)
+                            _dlqPool.Release();
                         return;
                     }
                 }
@@ -151,17 +151,30 @@ internal sealed class AsyncProjectionEngine<T>(IServiceProvider sp,
             _pool.Dequeue();
         }
     }
-    private async Task RetryProjections(CancellationToken ct)
+    private async Task StartDlq(CancellationToken ct)
     {
-        await _retryPool.WaitAsync(ct);
-        var tasks = _projectionTasks.SelectMany(x => x.Value.Values.Select(x => x));
-        try
+        while(!ct.IsCancellationRequested)
         {
-            await Task.WhenAll(tasks.Select(x => x())).ConfigureAwait(false);
-        }
-        catch(Exception)
-        {
-            throw;
+            await _dlqPool.WaitAsync(ct);
+            await Task.Delay(5000, ct);
+            var tasks = _projectionTasks.Values.SelectMany(d => d.Values);
+            while(tasks.Any() && !ct.IsCancellationRequested)
+            {
+                await _projectionTasks.ParallelForEach(projections.Count, async (_, ct) =>
+                {
+                    var tasks = _.Value.OrderBy(x => x.Key).Select(x => x.Value);
+                    foreach (var task in tasks)
+                    {
+                        try{await task();}
+                        catch (Exception e)
+                        {
+                            _logger.Error($"{e.Message}.");
+                            await Task.Delay(5000, ct);
+                            return;
+                        }
+                    }
+                }, ct);
+            }
         }
     }
 }

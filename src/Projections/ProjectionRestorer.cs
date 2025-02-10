@@ -25,7 +25,7 @@ public class ProjectionRestorer(IServiceProvider sp) : IProjectionRestorer
         throw new Exception($"No suitable projection method found to init {model.Name} with {first.Name}.");
         var record = initMethod.Invoke(projection, [events.First()]);
         // just for debugging
-        // if(projection.GetType().Name == "OrderProjection" && events.First().SourceId.ToString() == "1" && events.Count()==1)
+        // if(projection.GetType().Name == "OrderProjection")
             // throw new Exception("no such a htings does exist.");
         foreach (var e in events.ToArray()[1..^0])
         {
