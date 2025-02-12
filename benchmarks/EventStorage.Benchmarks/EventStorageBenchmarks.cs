@@ -15,7 +15,7 @@ public class EventStorageBenchmarks
     public void Setup()
     {
         _storage = _sp.GetRequiredService<IEventStorage<OrderBooking>>();
-        _storage.InitSource().GetAwaiter().GetResult();
+        _storage.InitSource().Wait();
     }
     [Benchmark]
     public async Task GetOrder_Transient()
