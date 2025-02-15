@@ -1,0 +1,95 @@
+import { ThemerContainer } from "components/themer"
+
+# Event storage configuration
+
+eventstorage allows a few configuration options to help tailor the infrastructure to developer needs.
+
+The schema and connection string of our event storage is usually placed early into the configuration.
+
+## Schema and connection string
+
+We can define our schema and connection string using the `storage` option or the `source` option
+whichever best fits one's needs.
+
+Using `storage` configuration option:
+
+```csharp title="Program.cs" showLineNumbers
+builder.Services.AddEventStorage(storage =>
+{
+    storage.Schema = "es"; // default is es
+    storage.ConnectionString = "connection string";
+});
+```
+
+Using `source` configuration option:
+```csharp title="Program.cs" showLineNumbers
+builder.Services.AddEventStorage(storage =>
+{
+    storage.AddEventSource(source =>
+    {
+        source.Schema = "es"; // default is es
+        source.ConnectionString = "connection string";
+        source.Select(EventStore.PostgresSql);
+    });
+});
+```
+
+We can also choose to pass connection string to the `Select` extension:
+```csharp title="Program.cs" showLineNumbers
+builder.Services.AddEventStorage(storage =>
+{
+    storage.AddEventSource(source =>
+    {
+        source.Select(EventStore.PostgresSql, connectionString);
+    });
+});
+```
+
+## `EventStorage` schema
+
+`eventstorage` automatically spins up database schema on application start up and creates a few tables.
+
+<Steps>
+<Steps.Step>
+`EventSources{:sh}` this is the core `eventstorage` table persisting event streams using a flexible schema,
+since business decision changes are very frequent and we can't afford re-migrating our database and end up
+with lots of nullable fields, thefore business data is placed in json fields.
+</Steps.Step>
+<Steps.Step>
+`Checkpoints{:sh}` the framework makes use of this table to keep track of asyncchronous projections and ensures
+no pending events are missed using an asynchronous projection engine called `AsyncProjectionEngine.`
+we also make use of this table later to dispatch into message broker of choice.
+</Steps.Step>
+
+<Steps.Step>
+Projections: any projection registered into our `eventstorage` configuration ends up with a table named after
+the read model followed by an `s{:sh}` postfix. for example using `Order` read model in `OrderProjection`
+creates a table under `Orders{:sh}` holding all of the documents of that certain read model.
+</Steps.Step>
+</Steps>
+
+## Event storage of choice
+
+We can select our event store of choice. `AzureSql{:sh}`, `Postgres{:sh}` and `SqlServer{:sh}` are supported
+so far homefully including EventStoreDb in the upcoming releases.
+
+Using `Select` extension, we pass our event store selection and optionally a connection string:
+```csharp titl="Program.cs" showLineNumbers
+builder.Services.AddEventStorage(storage =>
+{
+    storage.AddEventSource(source =>
+    {
+        source.Select(EventStore.AzureSql, connectionString);
+        // where event store can either be AzureSql, PostgreSql or SqlServer
+    });
+});
+```
+
+## What's next?
+
+Now that we learned how to configure our event storage with basic settings, next we:
+  - Learn different projection modes supported by `eventstorage`
+  - Learn high-performance projections stored on `key-value` store `Redis`
+  - Expose projection endpoints to query different types of projections
+  - Confirm order and learn how to subscribe projections with events of our choice 
+

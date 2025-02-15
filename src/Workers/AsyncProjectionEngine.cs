@@ -68,7 +68,7 @@ internal sealed class AsyncProjectionEngine<T>(IServiceProvider sp,
                     await _storage.SaveCheckpoint(checkpoint);
                     _logger.Log($"Restored {pname} and saved checkpoint {checkpoint.Seq}.");
                 }
-                _logger.Log($"{pname} is synced with event storage, checkpoint {checkpoint.Seq}.");
+                _logger.Log($"Restored {pname} with checkpoint {checkpoint.Seq}.");
             }, ct);
         }
         catch (Exception e) when (e is not OperationCanceledException)
@@ -97,10 +97,7 @@ internal sealed class AsyncProjectionEngine<T>(IServiceProvider sp,
         {
             var queuedItem = _pool.Peek()?? default!;
             var item = queuedItem(ct);
-            try
-            {
-                events = await _storage.LoadEventSource(item.LId);
-            }
+            try {events = await _storage.LoadEventSource(item.LId);}
             catch(Exception e)
             {
                 _logger.Error($"Failure loading event source {item.LId}. {e.Message}.");
@@ -119,7 +116,7 @@ internal sealed class AsyncProjectionEngine<T>(IServiceProvider sp,
                     if(_.IsFaulted)
                     {
                         _logger.Error(@$"Error restoring {pname} for event source {item.LId}.");
-                        throw _.Exception?? default!;
+                        throw _.Exception;
                     }
                     if(item.SourcedEvents.Any())
                         _storage.SaveCheckpoint(new(pname, events.Last().Seq, 0));
@@ -162,8 +159,8 @@ internal sealed class AsyncProjectionEngine<T>(IServiceProvider sp,
             {
                 await _projectionTasks.ParallelForEach(projections.Count, async (_, ct) =>
                 {
-                    var tasks = _.Value.OrderBy(x => x.Key).Select(x => x.Value);
-                    foreach (var task in tasks)
+                    var projectionTasks = _.Value.OrderBy(x => x.Key).Select(x => x.Value);
+                    foreach (var task in projectionTasks)
                     {
                         try{await task();}
                         catch (Exception e)
