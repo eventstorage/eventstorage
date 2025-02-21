@@ -1,24 +1,7 @@
 
-# What is eventstorage?
+# Installation
 
-A high-performance event sourcing framework built for dotnet offering the event storage of choice
-with Azure Sql, Postgres and Sql Server, and delivers multiple projection modes with support to
-Redis for high-performance asynchronous projections.
-
-#### Key benefits of eventstorage
-
-<Note>
-* Runs plain sql resulting in high-performance storage infrastructure.
-* Flexible schema gains with denormalization and throwing away ORM.
-* Identifies aggregates with `GUID` and `long` and allows switching back and forth.
-* Allows event storage selection with `Azure Sql`, `Postgre Sql` and `Sql Server`.
-* Offers multiple projection modes with support to high-performance `Redis` projections.
-* Restores projections at startup ensuring consistency without blocking business.
-</Note>
-
-## Installation
-
-Follow the steps below to jump start the installation and prepare the event storage infrastructure.
+Follow the steps below to jump start the installation process and prepare the event storage infrastructure.
   <Steps>
     <Steps.Step>
       ### Install `.NET 8` SDK
@@ -48,68 +31,67 @@ Follow the steps below to jump start the installation and prepare the event stor
       ```sh
       docker run -d --name redis-stack -p 6379:6379 -p 8001:8001 redis/redis-stack:latest
       ```
+      <Note>
+      Once we are done running needed docker containers, we can start setting up eventstorage.
+      </Note>
     </Steps.Step>
     <Steps.Step>
-      ### Create a dotnet web api project
+      ### Create a dotnet project solution
+      To help simplify event sourcing with `eventstorage` framework, let's make use of famous order
+      booking example of e-commerce.
       <Steps>
-      Once we have are done running needed docker dependencies, we can start setting up eventstorage.
-      <Note>
-        These steps are for starters and you could probably skip them if you are an experienced dotnet.
-      </Note>
       <Steps.Step>
-        Create your app folder, `order-app` for instance then get inside of the folder and
-        create a `global.json` file which specifies project net sdk verison by running: 
+        Create `order` app folder as the project root for this example and change your directory.
+      </Steps.Step>
+      <Steps.Step>
+        Create a solution by running `dotnet new solution -n Order {:sh}` in the root folder.
+      </Steps.Step>
+      <Steps.Step>
+        Create a `global.json` which specifies project dotnet sdk verison to use by running:
         
         ```sh
-        dotnet new globaljson --sdk-version=8.0.401
+        dotnet new globaljson --sdk-version=8.0.405
         ```
 
-        Run `dotnet --list-sdks {:sh}` to list installed sdk versions on your machine if you are not
-        sure which ones you've installed.
+        Run `dotnet --list-sdks {:sh}` to list installed sdk versions on your machine.
         
-        This is how a `global.json` looks like depending on your sdk version:
+        This is how a typical `global.json` looks like depending on your sdk version:
         ```json title="global.json" showLineNumbers
         {
           "sdk": {
-            "version": "8.0.401"
+            "version": "8.0.405"
           }
         }
         ```
       </Steps.Step>
       <Steps.Step>
-        Create a solution by running `dotnet new solution -n Order {:sh}` inside of the folder.
+        Create a dotnet webapi project by running `dotnet new webapi -n Order.Api {:sh}`.
       </Steps.Step>
       <Steps.Step>
-        Create `src` folder followed by creating a dotnet api project inside of `src` folder with
-        `dotnet new webapi -n Order.Api {:sh}`
+        Add the webapi to the solution by running `dotnet sln add Order.Api {:sh}`.
       </Steps.Step>
       <Steps.Step>
-        Get back to the root folder and add the api project to the solution with `dotnet sln
-        Order.sln add src\Order.Api --in-root {:sh}`.
-      </Steps.Step>
-      <Steps.Step>
-        Finally run `dotnet build {:sh}` and it should build the solution properly.
+        Run `dotnet build {:sh}` and it should build the solution properly.
       </Steps.Step>
       </Steps>
     </Steps.Step>
     <Steps.Step>
       ### Get ready to spin up an event storage!
-      One last step of the installation tutorial is adding `EventStorage`
-      package into our api project by running the following in the root folder:
+      One last step of the installation tutorial is adding `EventStorage` package to the webapi:
       ```sh
-      dotnet add src\Order.Api package EventStorage --prerelease
+      dotnet add Order.Api package EventStorage --prerelease
       ```
-      or `dotnet add package EventStorage --prerelease {:sh}` inside of api project.
+      or `dotnet add package EventStorage --prerelease {:sh}` in the webapi.
     </Steps.Step>
   </Steps>
     
 
-We have everything setup now and are ready to spin up our project with `eventstorage` library.
+We now have everything setup and are ready to spin up our project with
+[EventStorage](https://www.nuget.org/packages/eventstorage) library.
 
 ## What's next?
 
-Next we start developing and turning our project into an event sourced solution
-with [EventStorage](https://www.nuget.org/packages/eventstorage/readme.md) library:
+Next we start developing and turning our project into an event sourced solution.
 - Use `AddEventStorage` collection extension to add event sourcing configuration
 - Select event storage configuration options required to spin up our event storage
 - Create aggregate root with `EventSource<TId>` which represents our domain

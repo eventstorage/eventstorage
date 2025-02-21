@@ -114,6 +114,9 @@ export default defineTheme([
         sidebar: [
           ...starLinks,
           group('Getting started', [
+            link('Introduction', v0_0_0_beta_16('/getting-started/getting-started/introduction'), {
+              icon: 'icon-park-solid:hi'
+            }),
             link('Installation', v0_0_0_beta_16('/getting-started/getting-started/installation'), {
               icon: 'fa6-solid:download'
             }),

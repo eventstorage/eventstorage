@@ -16,8 +16,7 @@ export default function LandingPage() {
         </Hero.Badge>
         <Hero.Title>Out of the box event storage infrastructure</Hero.Title>
         <Hero.Subtitle>
-          Flexible but lightweight event sourcing infrastructure with event
-          storage of choice.
+          Reliable enterprise-grade event sourced infrastructure with event store of choice.
         </Hero.Subtitle>
         <Hero.Actions>
           <Button to="/v0.0.0-beta.16">Get started</Button>
@@ -33,11 +32,11 @@ export default function LandingPage() {
         </Card>
         <Card icon="fa6-solid:code" title="Configuration of choice">
           es allows selecting event storage of choice and multi projection modes
-          with high-performance Redis as projection source powered by innovative C#.
+          with high-performance Redis as projection source powered by innovative .NET.
         </Card>
         <Card icon="icon-park-solid:cpu" title="High-performance storage">
-          High-performance event storage by placing no layer of abstraction over
-          event store clients. we denormalize and run lightning-fast plain Sql.
+          Places no layer of ORM abstraction over event store clients resulting in simple storage
+          operations. We denormalize and run lightning-fast plain SQL.
         </Card>
       </CardGrid>
     </GuiderLayout>
