@@ -1,0 +1,100 @@
+
+# Installation
+
+Follow the steps below to jump start the installation process and prepare the event storage infrastructure.
+  <Steps>
+    <Steps.Step>
+      ### Install `.NET 8` SDK
+      
+      `es` runs on dotnet 8 and requires the sdk installed:
+      ```sh
+      https://dotnet.microsoft.com/en-us/download/dotnet/8.0
+      ```
+    </Steps.Step>
+    <Steps.Step>
+      ### Setup dependencies
+      Run mssql or pg database on docker.
+
+      Using `docker-compose`: 
+      ```sh
+      docker compose --project-name eventstorage up -d
+      ```
+      Using `docker run` for pg:
+      ```sh
+      docker run --name some-postgres -p 5432:5432 -e POSTGRES_PASSWORD=postgres -d postgres
+      ```
+      Using `docker run` for mssql:
+      ```sh
+      docker run --name some-mssql -p 1433:1433 -e "ACCEPT_EULA=Y" -e "MSSQL_SA_PASSWORD=sysadmin@1234" -d mcr.microsoft.com/mssql/server:2019-latest
+      ```
+      Optionally run `Redis` for high-performance projections:
+      ```sh
+      docker run -d --name redis-stack -p 6379:6379 -p 8001:8001 redis/redis-stack:latest
+      ```
+      <Note>
+      Once we are done running needed docker containers, we can start setting up eventstorage.
+      </Note>
+    </Steps.Step>
+    <Steps.Step>
+      ### Create a dotnet project solution
+      To help simplify event sourcing with `eventstorage` framework, let's make use of famous order
+      booking example of e-commerce.
+      <Steps>
+      <Steps.Step>
+        Create `order` app folder as the project root for this example and change your directory.
+      </Steps.Step>
+      <Steps.Step>
+        Create a solution by running `dotnet new solution -n Order {:sh}` in the root folder.
+      </Steps.Step>
+      <Steps.Step>
+        Create a `global.json` which specifies project dotnet sdk verison to use by running:
+        
+        ```sh
+        dotnet new globaljson --sdk-version=8.0.405
+        ```
+
+        Run `dotnet --list-sdks {:sh}` to list installed sdk versions on your machine.
+        
+        This is how a typical `global.json` looks like depending on your sdk version:
+        ```json title="global.json" showLineNumbers
+        {
+          "sdk": {
+            "version": "8.0.405"
+          }
+        }
+        ```
+      </Steps.Step>
+      <Steps.Step>
+        Create a dotnet webapi project by running `dotnet new webapi -n Order.Api {:sh}`.
+      </Steps.Step>
+      <Steps.Step>
+        Add the webapi to the solution by running `dotnet sln add Order.Api {:sh}`.
+      </Steps.Step>
+      <Steps.Step>
+        Run `dotnet build {:sh}` and it should build the solution properly.
+      </Steps.Step>
+      </Steps>
+    </Steps.Step>
+    <Steps.Step>
+      ### Get ready to spin up an event storage!
+      One last step of the installation tutorial is adding `EventStorage` package to the webapi:
+      ```sh
+      dotnet add Order.Api package EventStorage --prerelease
+      ```
+      or `dotnet add package EventStorage --prerelease {:sh}` in the webapi.
+    </Steps.Step>
+  </Steps>
+    
+
+We now have everything setup and are ready to spin up our project with
+[EventStorage](https://www.nuget.org/packages/eventstorage) library.
+
+## What's next?
+
+Next we start developing and turning our project into an event sourced solution.
+- Use `AddEventStorage` collection extension to add event sourcing configuration
+- Select event storage configuration options required to spin up our event storage
+- Create aggregate root with `EventSource<TId>` which represents our domain
+- Place an order by exposing an api endpoint
+- Project placed order and expose another api to query our orders
+

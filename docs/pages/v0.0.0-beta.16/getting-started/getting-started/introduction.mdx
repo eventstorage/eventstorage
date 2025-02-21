@@ -1,0 +1,31 @@
+
+# What is eventstorage?
+
+An event sourcing framework built for .NET that offers out of the box event storage
+infrastructure with event store of choice supporting Azure Sql, Postgres and Sql Server, and
+delivers multiple projection styles such as asynchronous, ACID-compliant and runtime.
+
+#### Key benefits of eventstorage
+
+<Note>
+* Runs plain SQL resulting in high-performance simple storage infrastructure.
+* Flexible schema gains with denormalization and throwing away ORM.
+* Identifies aggregates with both `GUID` and `long` and allows switching back and forth.
+* Allows selecting event storage of choice with `Azure Sql`, `Postgre Sql` and `Sql Server`.
+* Offers multiple projection modes with high-performance asynchronous `Redis` projections.
+* Supports dead-letter queues for faulted projection tasks with retriable mechnisms.
+* Restores projections at startup ensuring consistency and integrity without blocking business.
+</Note>
+<Tip>
+es aims to simplify event sourcing and event-driven apps with the means of supporting code
+infrastructure out of the box.
+</Tip>
+## What's next?
+
+Next we jumpstart the installation process and quickly prepare needed dependencies to get started
+with code.
+- Install .NET 8 SDK that's required by `eventstorage`
+- Getting docker container up and running with needed containers
+- Creating a dotnet projection solution to host our code infrastructure
+- Getting ready to spin up an event storage with provided `EventStorage` package
+
